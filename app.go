@@ -2,8 +2,8 @@ package main
 
 
 import (
-	jQ "github.com/Rusco/jquery"
-	"github.com/Rusco/utils"
+	jQ "github.com/rusco/jquery"
+	"github.com/rusco/utils"
 )
 
 const (
