@@ -98,7 +98,7 @@ func (a *App) renderfooter() {
 	footerJqStr := a.footerHb.Invoke(footerData).String()
 	a.footerJq.Toggle(len(a.todos) > 0).SetHtml(footerJqStr)
 }
-func (a *App) toggleAll(e *jQ.EventContext) {
+func (a *App) toggleAll(e *jQ.Event) {
 
 	checked := !a.toggleAllJq.Prop("checked")
 	for idx := range a.todos {
@@ -116,7 +116,7 @@ func (a *App) activeTodoCount() int {
 	}
 	return count
 }
-func (a *App) destroyCompleted(e *jQ.EventContext) {
+func (a *App) destroyCompleted(e *jQ.Event) {
 
 	todosTmp := make([]ToDo, 0)
 	for _, val := range a.todos {
@@ -129,10 +129,12 @@ func (a *App) destroyCompleted(e *jQ.EventContext) {
 	a.render()
 }
 
-func (a *App) create(e *jQ.EventContext) {
+func (a *App) create(e *jQ.Event) {
 
 	val := jQ.Trim(a.newTodoJq.Val())
-	if val == "" || e.KeyCode != ENTER_KEY {
+	thisKeycode := e.Object.Get("keyCode").Int() //instead: var keyCode = e.KeyCode
+
+	if val == "" || thisKeycode != ENTER_KEY {
 		return
 	}
 	newToDo := ToDo{Id: utils.Uuid(), Text: val, Completed: false}
@@ -141,7 +143,7 @@ func (a *App) create(e *jQ.EventContext) {
 	a.render()
 }
 
-func (a *App) toggle(e *jQ.EventContext) {
+func (a *App) toggle(e *jQ.Event) {
 
 	id := jQ.NewJQueryFromObject(e.This).Closest("li").Data("id")
 	for idx, val := range a.todos {
@@ -150,25 +152,27 @@ func (a *App) toggle(e *jQ.EventContext) {
 		}
 	}
 	a.render()
+
 }
 
-func (a *App) edit(e *jQ.EventContext) {
-
+func (a *App) edit(e *jQ.Event) {
 	thisJq := jQ.NewJQueryFromObject(e.This)
 	input := thisJq.Closest("li").AddClass("editing").Find(".edit")
 	val := input.Val()
 	input.SetVal(val).Focus()
+
 }
 
-func (a *App) blurOnEnter(e *jQ.EventContext) {
+func (a *App) blurOnEnter(e *jQ.Event) {
 
-	if e.KeyCode == ENTER_KEY {
+	var thisKeycode = e.Object.Get("keyCode").Int() //instead: var keyCode = e.KeyCode
+
+	if e.KeyCode == thisKeycode {
 		jQ.NewJQueryFromObject(e.This).Blur()
 	}
 }
 
-func (a *App) update(e *jQ.EventContext) {
-
+func (a *App) update(e *jQ.Event) {
 	thisJq := jQ.NewJQueryFromObject(e.This)
 	val := jQ.Trim(thisJq.Val())
 
@@ -191,9 +195,10 @@ func (a *App) update(e *jQ.EventContext) {
 	a.todos = make([]ToDo, len(todosTmp))
 	copy(a.todos, todosTmp)
 	a.render()
+
 }
 
-func (a *App) destroy(e *jQ.EventContext) {
+func (a *App) destroy(e *jQ.Event) {
 
 	id := jQ.NewJQueryFromObject(e.This).Closest("li").Data("id")
 
@@ -206,4 +211,5 @@ func (a *App) destroy(e *jQ.EventContext) {
 	a.todos = make([]ToDo, len(todosTmp))
 	copy(a.todos, todosTmp)
 	a.render()
+
 }
