@@ -167,7 +167,7 @@ func (a *App) blurOnEnter(e *jQ.Event) {
 
 	var thisKeycode = e.Object.Get("keyCode").Int() //instead: var keyCode = e.KeyCode
 
-	if e.KeyCode == thisKeycode {
+	if thisKeycode == ENTER_KEY {
 		jQ.NewJQueryFromObject(e.This).Blur()
 	}
 }

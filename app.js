@@ -3208,13 +3208,12 @@ go$packages["github.com/rusco/jquery"] = (function() {
 	Event.Ptr.prototype.String = function() { return this.Object.String(); };
 	go$pkg.Event = Event;
 	JQuery.init([["o", "github.com/rusco/jquery", js.Object, ""]]);
-	(go$ptrType(JQuery)).methods = [["Add", "", [Go$String], [(go$ptrType(JQuery))], false], ["AddClass", "", [Go$String], [(go$ptrType(JQuery))], false], ["AddContext", "", [Go$String, go$emptyInterface], [(go$ptrType(JQuery))], false], ["AddElems", "", [(go$sliceType(go$emptyInterface))], [(go$ptrType(JQuery))], true], ["AddHtml", "", [Go$String], [(go$ptrType(JQuery))], false], ["AddJquery", "", [JQuery], [(go$ptrType(JQuery))], false], ["AppendTo", "", [Go$String], [(go$ptrType(JQuery))], false], ["Attr", "", [Go$String], [Go$String], false], ["Blur", "", [], [(go$ptrType(JQuery))], false], ["Clone", "", [], [(go$ptrType(JQuery))], false], ["CloneDeep", "", [Go$Bool, Go$Bool], [(go$ptrType(JQuery))], false], ["CloneWithDataAndEvents", "", [Go$Bool], [(go$ptrType(JQuery))], false], ["Closest", "", [Go$String], [(go$ptrType(JQuery))], false], ["Css", "", [Go$String], [Go$String], false], ["Data", "", [Go$String], [Go$String], false], ["End", "", [], [(go$ptrType(JQuery))], false], ["Find", "", [Go$String], [(go$ptrType(JQuery))], false], ["Focus", "", [], [(go$ptrType(JQuery))], false], ["Hide", "", [], [(go$ptrType(JQuery))], false], ["Html", "", [], [Go$String], false], ["HtmlFn", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [(go$ptrType(JQuery))], false], ["Jquery", "", [], [Go$String], false], ["Length", "", [], [Go$Int], false], ["Next", "", [], [(go$ptrType(JQuery))], false], ["NextSelector", "", [Go$String], [(go$ptrType(JQuery))], false], ["Off", "", [Go$String, (go$funcType([], [], false))], [(go$ptrType(JQuery))], false], ["On", "", [Go$String, (go$funcType([(go$ptrType(Event))], [], false))], [(go$ptrType(JQuery))], false], ["OnSelector", "", [Go$String, Go$String, (go$funcType([(go$ptrType(Event))], [], false))], [(go$ptrType(JQuery))], false], ["One", "", [Go$String, (go$funcType([(go$ptrType(Event))], [], false))], [(go$ptrType(JQuery))], false], ["Prop", "", [Go$String], [Go$Bool], false], ["RemoveClass", "", [Go$String], [(go$ptrType(JQuery))], false], ["Selector", "", [], [Go$String], false], ["SetCss", "", [go$emptyInterface, go$emptyInterface], [(go$ptrType(JQuery))], false], ["SetHtml", "", [Go$String], [(go$ptrType(JQuery))], false], ["SetProp", "", [Go$String, Go$Bool], [(go$ptrType(JQuery))], false], ["SetText", "", [Go$String], [(go$ptrType(JQuery))], false], ["SetVal", "", [Go$String], [(go$ptrType(JQuery))], false], ["Show", "", [], [(go$ptrType(JQuery))], false], ["Size", "", [], [Go$Int], false], ["Text", "", [], [Go$String], false], ["TextFn", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [(go$ptrType(JQuery))], false], ["Toggle", "", [Go$Bool], [(go$ptrType(JQuery))], false], ["ToggleClass", "", [Go$Bool], [(go$ptrType(JQuery))], false], ["ToggleClassName", "", [Go$String, Go$Bool], [(go$ptrType(JQuery))], false], ["Val", "", [], [Go$String], false], ["addBack", "github.com/rusco/jquery", [], [(go$ptrType(JQuery))], false], ["addBackSelector", "github.com/rusco/jquery", [Go$String], [(go$ptrType(JQuery))], false], ["serialize", "github.com/rusco/jquery", [], [Go$String], false]];
+	(go$ptrType(JQuery)).methods = [["Add", "", [Go$String], [(go$ptrType(JQuery))], false], ["AddClass", "", [Go$String], [(go$ptrType(JQuery))], false], ["AddContext", "", [Go$String, go$emptyInterface], [(go$ptrType(JQuery))], false], ["AddElems", "", [(go$sliceType(go$emptyInterface))], [(go$ptrType(JQuery))], true], ["AddHtml", "", [Go$String], [(go$ptrType(JQuery))], false], ["AddJquery", "", [JQuery], [(go$ptrType(JQuery))], false], ["AppendTo", "", [Go$String], [(go$ptrType(JQuery))], false], ["Attr", "", [Go$String], [Go$String], false], ["Blur", "", [], [(go$ptrType(JQuery))], false], ["ClearQueue", "", [Go$String], [(go$ptrType(JQuery))], false], ["Clone", "", [], [(go$ptrType(JQuery))], false], ["CloneDeep", "", [Go$Bool, Go$Bool], [(go$ptrType(JQuery))], false], ["CloneWithDataAndEvents", "", [Go$Bool], [(go$ptrType(JQuery))], false], ["Closest", "", [Go$String], [(go$ptrType(JQuery))], false], ["Css", "", [Go$String], [Go$String], false], ["Data", "", [Go$String], [Go$String], false], ["DataByKey", "", [Go$String], [go$emptyInterface], false], ["Dequeue", "", [Go$String], [(go$ptrType(JQuery))], false], ["End", "", [], [(go$ptrType(JQuery))], false], ["Find", "", [Go$String], [(go$ptrType(JQuery))], false], ["Focus", "", [], [(go$ptrType(JQuery))], false], ["Height", "", [], [Go$Int], false], ["Hide", "", [], [(go$ptrType(JQuery))], false], ["Html", "", [], [Go$String], false], ["HtmlFn", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [(go$ptrType(JQuery))], false], ["Jquery", "", [], [Go$String], false], ["Length", "", [], [Go$Int], false], ["Next", "", [], [(go$ptrType(JQuery))], false], ["NextSelector", "", [Go$String], [(go$ptrType(JQuery))], false], ["Off", "", [Go$String, (go$funcType([], [], false))], [(go$ptrType(JQuery))], false], ["On", "", [Go$String, (go$funcType([(go$ptrType(Event))], [], false))], [(go$ptrType(JQuery))], false], ["OnSelector", "", [Go$String, Go$String, (go$funcType([(go$ptrType(Event))], [], false))], [(go$ptrType(JQuery))], false], ["One", "", [Go$String, (go$funcType([(go$ptrType(Event))], [], false))], [(go$ptrType(JQuery))], false], ["Prop", "", [Go$String], [Go$Bool], false], ["RemoveClass", "", [Go$String], [(go$ptrType(JQuery))], false], ["RemoveData", "", [Go$String], [(go$ptrType(JQuery))], false], ["ScrollLeft", "", [], [Go$Int], false], ["ScrollTop", "", [], [Go$Int], false], ["Selector", "", [], [Go$String], false], ["SetCss", "", [go$emptyInterface, go$emptyInterface], [(go$ptrType(JQuery))], false], ["SetData", "", [Go$String, go$emptyInterface], [(go$ptrType(JQuery))], false], ["SetHeight", "", [Go$String], [(go$ptrType(JQuery))], false], ["SetHtml", "", [Go$String], [(go$ptrType(JQuery))], false], ["SetProp", "", [Go$String, Go$Bool], [(go$ptrType(JQuery))], false], ["SetScrollLeft", "", [Go$Int], [(go$ptrType(JQuery))], false], ["SetScrollTop", "", [Go$Int], [(go$ptrType(JQuery))], false], ["SetText", "", [Go$String], [(go$ptrType(JQuery))], false], ["SetVal", "", [Go$String], [(go$ptrType(JQuery))], false], ["SetWidth", "", [Go$String], [(go$ptrType(JQuery))], false], ["Show", "", [], [(go$ptrType(JQuery))], false], ["Size", "", [], [Go$Int], false], ["Text", "", [], [Go$String], false], ["TextFn", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [(go$ptrType(JQuery))], false], ["Toggle", "", [Go$Bool], [(go$ptrType(JQuery))], false], ["ToggleClass", "", [Go$Bool], [(go$ptrType(JQuery))], false], ["ToggleClassName", "", [Go$String, Go$Bool], [(go$ptrType(JQuery))], false], ["Val", "", [], [Go$String], false], ["Width", "", [], [Go$Int], false], ["WidthFn", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [(go$ptrType(JQuery))], false], ["addBack", "github.com/rusco/jquery", [], [(go$ptrType(JQuery))], false], ["addBackSelector", "github.com/rusco/jquery", [Go$String], [(go$ptrType(JQuery))], false], ["serialize", "github.com/rusco/jquery", [], [Go$String], false]];
 	Event.init([["", "", js.Object, ""], ["This", "", js.Object, ""], ["KeyCode", "", Go$Int, "js \"keyCode\""], ["Target", "", Go$Int, "js \"target\""], ["Data", "", go$emptyInterface, "js \"data\""]]);
 	Event.methods = [["Bool", "", [], [Go$Bool], false], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true], ["Float", "", [], [Go$Float64], false], ["Get", "", [Go$String], [js.Object], false], ["Index", "", [Go$Int], [js.Object], false], ["Int", "", [], [Go$Int], false], ["Interface", "", [], [go$emptyInterface], false], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["IsNull", "", [], [Go$Bool], false], ["IsUndefined", "", [], [Go$Bool], false], ["Length", "", [], [Go$Int], false], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["Set", "", [Go$String, go$emptyInterface], [], false], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false], ["String", "", [], [Go$String], false]];
 	(go$ptrType(Event)).methods = [["Bool", "", [], [Go$Bool], false], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true], ["Float", "", [], [Go$Float64], false], ["Get", "", [Go$String], [js.Object], false], ["Index", "", [Go$Int], [js.Object], false], ["Int", "", [], [Go$Int], false], ["Interface", "", [], [go$emptyInterface], false], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["IsNull", "", [], [Go$Bool], false], ["IsUndefined", "", [], [Go$Bool], false], ["Length", "", [], [Go$Int], false], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["Set", "", [Go$String, go$emptyInterface], [], false], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false], ["String", "", [], [Go$String], false]];
 	var NewJQuery = go$pkg.NewJQuery = function(args) {
 		var _slice, _index, jQ, _slice$1, _index$1, _slice$2, _index$2, jQ$1;
-		console.log(" in jq");
 		if (args.length === 1) {
 			jQ = new go$global.jQuery(go$externalize((_slice = args, _index = 0, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), Go$String));
 			return new JQuery.Ptr(jQ);
@@ -3493,12 +3492,6 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return j;
 	};
 	JQuery.prototype.End = function() { return this.go$val.End(); };
-	JQuery.Ptr.prototype.Data = function(key) {
-		var j;
-		j = this;
-		return go$internalize(j.o.data(go$externalize(key, Go$String)), Go$String);
-	};
-	JQuery.prototype.Data = function(key) { return this.go$val.Data(key); };
 	JQuery.Ptr.prototype.Add = function(selector) {
 		var j;
 		j = this;
@@ -3569,6 +3562,107 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return j;
 	};
 	JQuery.prototype.NextSelector = function(selector) { return this.go$val.NextSelector(selector); };
+	JQuery.Ptr.prototype.Height = function() {
+		var j;
+		j = this;
+		return go$parseInt(j.o.height()) >> 0;
+	};
+	JQuery.prototype.Height = function() { return this.go$val.Height(); };
+	JQuery.Ptr.prototype.SetHeight = function(value) {
+		var j;
+		j = this;
+		j.o = j.o.height(go$externalize(value, Go$String));
+		return j;
+	};
+	JQuery.prototype.SetHeight = function(value) { return this.go$val.SetHeight(value); };
+	JQuery.Ptr.prototype.ScrollLeft = function() {
+		var j;
+		j = this;
+		return go$parseInt(j.o.scrollLeft()) >> 0;
+	};
+	JQuery.prototype.ScrollLeft = function() { return this.go$val.ScrollLeft(); };
+	JQuery.Ptr.prototype.SetScrollLeft = function(value) {
+		var j;
+		j = this;
+		j.o = j.o.scrollLeft(value);
+		return j;
+	};
+	JQuery.prototype.SetScrollLeft = function(value) { return this.go$val.SetScrollLeft(value); };
+	JQuery.Ptr.prototype.ScrollTop = function() {
+		var j;
+		j = this;
+		return go$parseInt(j.o.scrollTop()) >> 0;
+	};
+	JQuery.prototype.ScrollTop = function() { return this.go$val.ScrollTop(); };
+	JQuery.Ptr.prototype.SetScrollTop = function(value) {
+		var j;
+		j = this;
+		j.o = j.o.scrollTop(value);
+		return j;
+	};
+	JQuery.prototype.SetScrollTop = function(value) { return this.go$val.SetScrollTop(value); };
+	JQuery.Ptr.prototype.Width = function() {
+		var j;
+		j = this;
+		return go$parseInt(j.o.scrollTop()) >> 0;
+	};
+	JQuery.prototype.Width = function() { return this.go$val.Width(); };
+	JQuery.Ptr.prototype.SetWidth = function(value) {
+		var j;
+		j = this;
+		j.o = j.o.scrollTop(go$externalize(value, Go$String));
+		return j;
+	};
+	JQuery.prototype.SetWidth = function(value) { return this.go$val.SetWidth(value); };
+	JQuery.Ptr.prototype.WidthFn = function(fn) {
+		var j;
+		j = this;
+		j.o.width(go$externalize((function(index, width) {
+			return fn(index, width);
+		}), (go$funcType([Go$Int, Go$String], [Go$String], false))));
+		return j;
+	};
+	JQuery.prototype.WidthFn = function(fn) { return this.go$val.WidthFn(fn); };
+	JQuery.Ptr.prototype.ClearQueue = function(queueName) {
+		var j;
+		j = this;
+		j.o = j.o.clearQueue(go$externalize(queueName, Go$String));
+		return j;
+	};
+	JQuery.prototype.ClearQueue = function(queueName) { return this.go$val.ClearQueue(queueName); };
+	JQuery.Ptr.prototype.SetData = function(key, value) {
+		var j;
+		j = this;
+		j.o = j.o.data(go$externalize(key, Go$String), go$externalize(value, go$emptyInterface));
+		return j;
+	};
+	JQuery.prototype.SetData = function(key, value) { return this.go$val.SetData(key, value); };
+	JQuery.Ptr.prototype.DataByKey = function(key) {
+		var j;
+		j = this;
+		return go$internalize(j.o.data(go$externalize(key, Go$String)), go$emptyInterface);
+	};
+	JQuery.prototype.DataByKey = function(key) { return this.go$val.DataByKey(key); };
+	JQuery.Ptr.prototype.Data = function(key) {
+		var j;
+		j = this;
+		return go$internalize(j.o.data(go$externalize(key, Go$String)), Go$String);
+	};
+	JQuery.prototype.Data = function(key) { return this.go$val.Data(key); };
+	JQuery.Ptr.prototype.Dequeue = function(queueName) {
+		var j;
+		j = this;
+		j.o = j.o.dequeue(go$externalize(queueName, Go$String));
+		return j;
+	};
+	JQuery.prototype.Dequeue = function(queueName) { return this.go$val.Dequeue(queueName); };
+	JQuery.Ptr.prototype.RemoveData = function(name) {
+		var j;
+		j = this;
+		j.o = j.o.removeData(go$externalize(name, Go$String));
+		return j;
+	};
+	JQuery.prototype.RemoveData = function(name) { return this.go$val.RemoveData(name); };
 	go$pkg.init = function() {
 	};
 	return go$pkg;
@@ -33780,7 +33874,7 @@ go$packages["main"] = (function() {
 		var a, thisKeycode;
 		a = this;
 		thisKeycode = go$parseInt(e.Object.keyCode) >> 0;
-		if (e.KeyCode === thisKeycode) {
+		if (thisKeycode === 13) {
 			jquery.NewJQueryFromObject(e.This).Blur();
 		}
 	};
