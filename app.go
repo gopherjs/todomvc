@@ -41,13 +41,13 @@ type App struct {
 func NewApp() *App {
 
 	somethingToDo := make([]ToDo, 0)
-	
+
 	utils.Retrieve(KEY, &somethingToDo)
 	todoTemplate := jQ.NewJQuery("#todo-template").Html()
 	todoHb := utils.CompileHandlebar(todoTemplate)
 	footerTemplate := jQ.NewJQuery("#footer-template").Html()
 	footerHb := utils.CompileHandlebar(footerTemplate)
-	
+
 	todoAppJq := jQ.NewJQuery("#todoapp")
 	headerJq := todoAppJq.Find("#header")
 	mainJq := todoAppJq.Find("#main")
@@ -57,7 +57,7 @@ func NewApp() *App {
 	todoListJq := mainJq.Find("#todo-list")
 	countJq := footerJq.Find("#todo-count")
 	clearBtnJq := footerJq.Find("#clear-completed")
-	
+
 	return &App{somethingToDo, todoHb, footerHb, todoAppJq, headerJq, mainJq, footerJq, newTodoJq, toggleAllJq, todoListJq, countJq, clearBtnJq}
 }
 
