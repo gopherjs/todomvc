@@ -1172,7 +1172,7 @@ var go$pushErr = function(err) {
 		}
 		err.go$panicValue = new jsPkg.Error.Ptr(err);
 	}
-	go$errorStack.push({ frame: go$getStackDepth() - 1, error: err });
+	go$errorStack.push({ frame: go$getStackDepth(), error: err });
 };
 
 var go$callDeferred = function(deferred) {
@@ -1201,7 +1201,7 @@ var go$callDeferred = function(deferred) {
 
 var go$recover = function() {
 	var err = go$errorStack[go$errorStack.length - 1];
-	if (err === undefined || err.frame !== go$getStackDepth() - 2) {
+	if (err === undefined || err.frame !== go$getStackDepth()) {
 		return null;
 	}
 	go$errorStack.pop();
@@ -1215,7 +1215,7 @@ var go$getStack = function() {
 var go$getStackDepth = function() {
 	var s = go$getStack(), d = 0, i;
 	for (i = 0; i < s.length; i++) {
-		if (s[i].indexOf("go$callDeferred") == -1) {
+		if (s[i].indexOf("go$") === -1) {
 			d++;
 		}
 	}
@@ -2962,9 +2962,10 @@ go$packages["runtime"] = (function() {
 		return [lo, hi];
 	};
 	var divlu = function(u1, u0, v) {
-		var q, r, _tuple, s, x, vn1, vn0, x$1, x$2, un32, un10, un1, un0, q1, x$3, rhat, x$4, x$5, x$6, x$7, x$8, x$9, x$10, un21, q0, x$11, x$12, x$13, x$14, x$15, x$16, x$17, x$18, x$19, _tuple$1;
+		var go$this = this, q, r, _tuple, s, x, vn1, vn0, x$1, x$2, un32, un10, un1, un0, q1, x$3, rhat, x$4, x$5, x$6, x$7, x$8, x$9, x$10, un21, q0, x$11, x$12, x$13, x$14, x$15, x$16, x$17, x$18, x$19, _tuple$1;
 		q = new Go$Uint64(0, 0);
 		r = new Go$Uint64(0, 0);
+		/* */ var go$s = 0, go$f = function() { while (true) { switch (go$s) { case 0:
 		if ((u1.high > v.high || (u1.high === v.high && u1.low >= v.low))) {
 			_tuple = [new Go$Uint64(4294967295, 4294967295), new Go$Uint64(4294967295, 4294967295)], q = _tuple[0], r = _tuple[1];
 			return [q, r];
@@ -2982,25 +2983,28 @@ go$packages["runtime"] = (function() {
 		un0 = new Go$Uint64(un10.high & 0, (un10.low & 4294967295) >>> 0);
 		q1 = go$div64(un32, vn1, false);
 		rhat = (x$3 = go$mul64(q1, vn1), new Go$Uint64(un32.high - x$3.high, un32.low - x$3.low));
-		again1: switch (0) { default: if ((q1.high > 1 || (q1.high === 1 && q1.low >= 0)) || (x$4 = go$mul64(q1, vn0), x$5 = (x$6 = go$mul64(new Go$Uint64(1, 0), rhat), new Go$Uint64(x$6.high + un1.high, x$6.low + un1.low)), (x$4.high > x$5.high || (x$4.high === x$5.high && x$4.low > x$5.low)))) {
+		/* again1: */ case 1:
+		/* if ((q1.high > 1 || (q1.high === 1 && q1.low >= 0)) || (x$4 = go$mul64(q1, vn0), x$5 = (x$6 = go$mul64(new Go$Uint64(1, 0), rhat), new Go$Uint64(x$6.high + un1.high, x$6.low + un1.low)), (x$4.high > x$5.high || (x$4.high === x$5.high && x$4.low > x$5.low)))) { */ if ((q1.high > 1 || (q1.high === 1 && q1.low >= 0)) || (x$4 = go$mul64(q1, vn0), x$5 = (x$6 = go$mul64(new Go$Uint64(1, 0), rhat), new Go$Uint64(x$6.high + un1.high, x$6.low + un1.low)), (x$4.high > x$5.high || (x$4.high === x$5.high && x$4.low > x$5.low)))) {} else { go$s = 3; continue; }
 			q1 = new Go$Uint64(q1.high - 0, q1.low - 1);
 			rhat = (x$7 = vn1, new Go$Uint64(rhat.high + x$7.high, rhat.low + x$7.low));
-			if ((rhat.high < 1 || (rhat.high === 1 && rhat.low < 0))) {
-				go$notSupported("goto");
-			}
-		} }
+			/* if ((rhat.high < 1 || (rhat.high === 1 && rhat.low < 0))) { */ if ((rhat.high < 1 || (rhat.high === 1 && rhat.low < 0))) {} else { go$s = 4; continue; }
+				/* goto again1 */ go$s = 1; continue;
+			/* } */ case 4:
+		/* } */ case 3:
 		un21 = (x$8 = (x$9 = go$mul64(un32, new Go$Uint64(1, 0)), new Go$Uint64(x$9.high + un1.high, x$9.low + un1.low)), x$10 = go$mul64(q1, v), new Go$Uint64(x$8.high - x$10.high, x$8.low - x$10.low));
 		q0 = go$div64(un21, vn1, false);
 		rhat = (x$11 = go$mul64(q0, vn1), new Go$Uint64(un21.high - x$11.high, un21.low - x$11.low));
-		again2: switch (0) { default: if ((q0.high > 1 || (q0.high === 1 && q0.low >= 0)) || (x$12 = go$mul64(q0, vn0), x$13 = (x$14 = go$mul64(new Go$Uint64(1, 0), rhat), new Go$Uint64(x$14.high + un0.high, x$14.low + un0.low)), (x$12.high > x$13.high || (x$12.high === x$13.high && x$12.low > x$13.low)))) {
+		/* again2: */ case 2:
+		/* if ((q0.high > 1 || (q0.high === 1 && q0.low >= 0)) || (x$12 = go$mul64(q0, vn0), x$13 = (x$14 = go$mul64(new Go$Uint64(1, 0), rhat), new Go$Uint64(x$14.high + un0.high, x$14.low + un0.low)), (x$12.high > x$13.high || (x$12.high === x$13.high && x$12.low > x$13.low)))) { */ if ((q0.high > 1 || (q0.high === 1 && q0.low >= 0)) || (x$12 = go$mul64(q0, vn0), x$13 = (x$14 = go$mul64(new Go$Uint64(1, 0), rhat), new Go$Uint64(x$14.high + un0.high, x$14.low + un0.low)), (x$12.high > x$13.high || (x$12.high === x$13.high && x$12.low > x$13.low)))) {} else { go$s = 5; continue; }
 			q0 = new Go$Uint64(q0.high - 0, q0.low - 1);
 			rhat = (x$15 = vn1, new Go$Uint64(rhat.high + x$15.high, rhat.low + x$15.low));
-			if ((rhat.high < 1 || (rhat.high === 1 && rhat.low < 0))) {
-				go$notSupported("goto");
-			}
-		} }
+			/* if ((rhat.high < 1 || (rhat.high === 1 && rhat.low < 0))) { */ if ((rhat.high < 1 || (rhat.high === 1 && rhat.low < 0))) {} else { go$s = 6; continue; }
+				/* goto again2 */ go$s = 2; continue;
+			/* } */ case 6:
+		/* } */ case 5:
 		_tuple$1 = [(x$16 = go$mul64(q1, new Go$Uint64(1, 0)), new Go$Uint64(x$16.high + q0.high, x$16.low + q0.low)), go$shiftRightUint64(((x$17 = (x$18 = go$mul64(un21, new Go$Uint64(1, 0)), new Go$Uint64(x$18.high + un0.high, x$18.low + un0.low)), x$19 = go$mul64(q0, v), new Go$Uint64(x$17.high - x$19.high, x$17.low - x$19.low))), s)], q = _tuple$1[0], r = _tuple$1[1];
 		return [q, r];
+		/* */ } break; } }; return go$f();
 	};
 	var fadd64c = function(f, g$1, ret) {
 		ret.go$set(fadd64(f, g$1));
@@ -3207,7 +3211,7 @@ go$packages["github.com/rusco/jquery"] = (function() {
 	Event.Ptr.prototype.String = function() { return this.Object.String(); };
 	go$pkg.Event = Event;
 	JQuery.init([["o", "github.com/rusco/jquery", js.Object, ""]]);
-	(go$ptrType(JQuery)).methods = [["Add", "", [Go$String], [(go$ptrType(JQuery))], false], ["AddByContext", "", [Go$String, go$emptyInterface], [(go$ptrType(JQuery))], false], ["AddClass", "", [Go$String], [(go$ptrType(JQuery))], false], ["AddElems", "", [(go$sliceType(go$emptyInterface))], [(go$ptrType(JQuery))], true], ["AddHtml", "", [Go$String], [(go$ptrType(JQuery))], false], ["AddJQuery", "", [JQuery], [(go$ptrType(JQuery))], false], ["AppendTo", "", [Go$String], [(go$ptrType(JQuery))], false], ["Attr", "", [Go$String], [Go$String], false], ["Blur", "", [], [(go$ptrType(JQuery))], false], ["ClearQueue", "", [Go$String], [(go$ptrType(JQuery))], false], ["Clone", "", [], [(go$ptrType(JQuery))], false], ["CloneDeep", "", [Go$Bool, Go$Bool], [(go$ptrType(JQuery))], false], ["CloneWithDataAndEvents", "", [Go$Bool], [(go$ptrType(JQuery))], false], ["Closest", "", [Go$String], [(go$ptrType(JQuery))], false], ["Css", "", [Go$String], [Go$String], false], ["Data", "", [Go$String], [Go$String], false], ["DataByKey", "", [Go$String], [go$emptyInterface], false], ["Dequeue", "", [Go$String], [(go$ptrType(JQuery))], false], ["End", "", [], [(go$ptrType(JQuery))], false], ["Find", "", [Go$String], [(go$ptrType(JQuery))], false], ["Focus", "", [], [(go$ptrType(JQuery))], false], ["Height", "", [], [Go$Int], false], ["Hide", "", [], [(go$ptrType(JQuery))], false], ["Html", "", [], [Go$String], false], ["HtmlByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [(go$ptrType(JQuery))], false], ["Jquery", "", [], [Go$String], false], ["Length", "", [], [Go$Int], false], ["Next", "", [], [(go$ptrType(JQuery))], false], ["NextSelector", "", [Go$String], [(go$ptrType(JQuery))], false], ["Off", "", [Go$String, (go$funcType([], [], false))], [(go$ptrType(JQuery))], false], ["On", "", [Go$String, (go$funcType([js.Object, (go$ptrType(Event))], [], false))], [(go$ptrType(JQuery))], false], ["OnSelector", "", [Go$String, Go$String, (go$funcType([js.Object, (go$ptrType(Event))], [], false))], [(go$ptrType(JQuery))], false], ["One", "", [Go$String, (go$funcType([js.Object, (go$ptrType(Event))], [], false))], [(go$ptrType(JQuery))], false], ["Prop", "", [Go$String], [Go$Bool], false], ["RemoveClass", "", [Go$String], [(go$ptrType(JQuery))], false], ["RemoveData", "", [Go$String], [(go$ptrType(JQuery))], false], ["ScrollLeft", "", [], [Go$Int], false], ["ScrollTop", "", [], [Go$Int], false], ["Selector", "", [], [Go$String], false], ["SetCss", "", [go$emptyInterface, go$emptyInterface], [(go$ptrType(JQuery))], false], ["SetData", "", [Go$String, go$emptyInterface], [(go$ptrType(JQuery))], false], ["SetHeight", "", [Go$String], [(go$ptrType(JQuery))], false], ["SetHtml", "", [Go$String], [(go$ptrType(JQuery))], false], ["SetProp", "", [Go$String, Go$Bool], [(go$ptrType(JQuery))], false], ["SetScrollLeft", "", [Go$Int], [(go$ptrType(JQuery))], false], ["SetScrollTop", "", [Go$Int], [(go$ptrType(JQuery))], false], ["SetText", "", [Go$String], [(go$ptrType(JQuery))], false], ["SetVal", "", [Go$String], [(go$ptrType(JQuery))], false], ["SetWidth", "", [Go$String], [(go$ptrType(JQuery))], false], ["Show", "", [], [(go$ptrType(JQuery))], false], ["Size", "", [], [Go$Int], false], ["Text", "", [], [Go$String], false], ["TextByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [(go$ptrType(JQuery))], false], ["Toggle", "", [Go$Bool], [(go$ptrType(JQuery))], false], ["ToggleClass", "", [Go$Bool], [(go$ptrType(JQuery))], false], ["ToggleClassByName", "", [Go$String, Go$Bool], [(go$ptrType(JQuery))], false], ["Val", "", [], [Go$String], false], ["Width", "", [], [Go$Int], false], ["WidthByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [(go$ptrType(JQuery))], false], ["addBack", "github.com/rusco/jquery", [], [(go$ptrType(JQuery))], false], ["addBackBySelector", "github.com/rusco/jquery", [Go$String], [(go$ptrType(JQuery))], false], ["serialize", "github.com/rusco/jquery", [], [Go$String], false]];
+	(go$ptrType(JQuery)).methods = [["Add", "", [Go$String], [(go$ptrType(JQuery))], false], ["AddByContext", "", [Go$String, go$emptyInterface], [(go$ptrType(JQuery))], false], ["AddClass", "", [Go$String], [(go$ptrType(JQuery))], false], ["AddElems", "", [(go$sliceType(go$emptyInterface))], [(go$ptrType(JQuery))], true], ["AddHtml", "", [Go$String], [(go$ptrType(JQuery))], false], ["AddJQuery", "", [JQuery], [(go$ptrType(JQuery))], false], ["AppendTo", "", [Go$String], [(go$ptrType(JQuery))], false], ["Attr", "", [Go$String], [Go$String], false], ["Blur", "", [], [(go$ptrType(JQuery))], false], ["ClearQueue", "", [Go$String], [(go$ptrType(JQuery))], false], ["Clone", "", [], [(go$ptrType(JQuery))], false], ["CloneDeep", "", [Go$Bool, Go$Bool], [(go$ptrType(JQuery))], false], ["CloneWithDataAndEvents", "", [Go$Bool], [(go$ptrType(JQuery))], false], ["Closest", "", [Go$String], [(go$ptrType(JQuery))], false], ["Css", "", [Go$String], [Go$String], false], ["Data", "", [Go$String], [Go$String], false], ["DataByKey", "", [Go$String], [go$emptyInterface], false], ["Dequeue", "", [Go$String], [(go$ptrType(JQuery))], false], ["End", "", [], [(go$ptrType(JQuery))], false], ["Filter", "", [Go$String], [(go$ptrType(JQuery))], false], ["FilterByFunc", "", [(go$funcType([Go$Int], [Go$Int], false))], [(go$ptrType(JQuery))], false], ["FilterByJQuery", "", [(go$ptrType(JQuery))], [(go$ptrType(JQuery))], false], ["Find", "", [Go$String], [(go$ptrType(JQuery))], false], ["FindByJQuery", "", [(go$ptrType(JQuery))], [(go$ptrType(JQuery))], false], ["First", "", [], [(go$ptrType(JQuery))], false], ["Focus", "", [], [(go$ptrType(JQuery))], false], ["Has", "", [Go$String], [(go$ptrType(JQuery))], false], ["Height", "", [], [Go$Int], false], ["Hide", "", [], [(go$ptrType(JQuery))], false], ["Html", "", [], [Go$String], false], ["HtmlByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [(go$ptrType(JQuery))], false], ["Is", "", [Go$String], [Go$Bool], false], ["IsByFunc", "", [(go$funcType([Go$Int], [Go$Bool], false))], [(go$ptrType(JQuery))], false], ["IsByJQuery", "", [(go$ptrType(JQuery))], [Go$Bool], false], ["Jquery", "", [], [Go$String], false], ["Last", "", [], [(go$ptrType(JQuery))], false], ["Length", "", [], [Go$Int], false], ["Next", "", [], [(go$ptrType(JQuery))], false], ["NextAll", "", [], [(go$ptrType(JQuery))], false], ["NextAllBySelector", "", [Go$String], [(go$ptrType(JQuery))], false], ["NextBySelector", "", [Go$String], [(go$ptrType(JQuery))], false], ["NextUntil", "", [Go$String], [(go$ptrType(JQuery))], false], ["NextUntilByFilter", "", [Go$String, Go$String], [(go$ptrType(JQuery))], false], ["NextUntilByJQuery", "", [(go$ptrType(JQuery))], [(go$ptrType(JQuery))], false], ["NextUntilByJQueryAndFilter", "", [(go$ptrType(JQuery)), Go$String], [(go$ptrType(JQuery))], false], ["Not", "", [Go$String], [(go$ptrType(JQuery))], false], ["NotByJQuery", "", [(go$ptrType(JQuery))], [(go$ptrType(JQuery))], false], ["Off", "", [Go$String, (go$funcType([], [], false))], [(go$ptrType(JQuery))], false], ["OffsetParent", "", [], [(go$ptrType(JQuery))], false], ["On", "", [Go$String, (go$funcType([js.Object, (go$ptrType(Event))], [], false))], [(go$ptrType(JQuery))], false], ["OnSelector", "", [Go$String, Go$String, (go$funcType([js.Object, (go$ptrType(Event))], [], false))], [(go$ptrType(JQuery))], false], ["One", "", [Go$String, (go$funcType([js.Object, (go$ptrType(Event))], [], false))], [(go$ptrType(JQuery))], false], ["Parent", "", [], [(go$ptrType(JQuery))], false], ["ParentBySelector", "", [Go$String], [(go$ptrType(JQuery))], false], ["Parents", "", [], [(go$ptrType(JQuery))], false], ["ParentsBySelector", "", [Go$String], [(go$ptrType(JQuery))], false], ["ParentsUntil", "", [Go$String], [(go$ptrType(JQuery))], false], ["ParentsUntilByFilter", "", [Go$String, Go$String], [(go$ptrType(JQuery))], false], ["ParentsUntilByJQuery", "", [(go$ptrType(JQuery))], [(go$ptrType(JQuery))], false], ["ParentsUntilByJQueryAndFilter", "", [(go$ptrType(JQuery)), Go$String], [(go$ptrType(JQuery))], false], ["Prev", "", [], [(go$ptrType(JQuery))], false], ["PrevAll", "", [], [(go$ptrType(JQuery))], false], ["PrevAllBySelector", "", [Go$String], [(go$ptrType(JQuery))], false], ["PrevBySelector", "", [Go$String], [(go$ptrType(JQuery))], false], ["PrevUntil", "", [Go$String], [(go$ptrType(JQuery))], false], ["PrevUntilByFilter", "", [Go$String, Go$String], [(go$ptrType(JQuery))], false], ["PrevUntilByJQuery", "", [(go$ptrType(JQuery))], [(go$ptrType(JQuery))], false], ["PrevUntilByJQueryAndFilter", "", [(go$ptrType(JQuery)), Go$String], [(go$ptrType(JQuery))], false], ["Prop", "", [Go$String], [Go$Bool], false], ["RemoveClass", "", [Go$String], [(go$ptrType(JQuery))], false], ["RemoveData", "", [Go$String], [(go$ptrType(JQuery))], false], ["ScrollLeft", "", [], [Go$Int], false], ["ScrollTop", "", [], [Go$Int], false], ["Selector", "", [], [Go$String], false], ["SetCss", "", [go$emptyInterface, go$emptyInterface], [(go$ptrType(JQuery))], false], ["SetData", "", [Go$String, go$emptyInterface], [(go$ptrType(JQuery))], false], ["SetHeight", "", [Go$String], [(go$ptrType(JQuery))], false], ["SetHtml", "", [Go$String], [(go$ptrType(JQuery))], false], ["SetProp", "", [Go$String, Go$Bool], [(go$ptrType(JQuery))], false], ["SetScrollLeft", "", [Go$Int], [(go$ptrType(JQuery))], false], ["SetScrollTop", "", [Go$Int], [(go$ptrType(JQuery))], false], ["SetText", "", [Go$String], [(go$ptrType(JQuery))], false], ["SetVal", "", [Go$String], [(go$ptrType(JQuery))], false], ["SetWidth", "", [Go$String], [(go$ptrType(JQuery))], false], ["Show", "", [], [(go$ptrType(JQuery))], false], ["Siblings", "", [], [(go$ptrType(JQuery))], false], ["SiblingsBySelector", "", [Go$String], [(go$ptrType(JQuery))], false], ["Size", "", [], [Go$Int], false], ["Slice", "", [Go$Int], [(go$ptrType(JQuery))], false], ["SliceByEnd", "", [Go$Int, Go$Int], [(go$ptrType(JQuery))], false], ["Text", "", [], [Go$String], false], ["TextByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [(go$ptrType(JQuery))], false], ["Toggle", "", [Go$Bool], [(go$ptrType(JQuery))], false], ["ToggleClass", "", [Go$Bool], [(go$ptrType(JQuery))], false], ["ToggleClassByName", "", [Go$String, Go$Bool], [(go$ptrType(JQuery))], false], ["Val", "", [], [Go$String], false], ["Width", "", [], [Go$Int], false], ["WidthByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [(go$ptrType(JQuery))], false], ["addBack", "github.com/rusco/jquery", [], [(go$ptrType(JQuery))], false], ["addBackBySelector", "github.com/rusco/jquery", [Go$String], [(go$ptrType(JQuery))], false], ["serialize", "github.com/rusco/jquery", [], [Go$String], false]];
 	Event.init([["", "", js.Object, ""], ["KeyCode", "", Go$Int, "js:\"keyCode\""], ["Target", "", Go$Int, "js:\"target\""], ["Data", "", go$emptyInterface, "js:\"data\""]]);
 	Event.methods = [["Bool", "", [], [Go$Bool], false], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true], ["Float", "", [], [Go$Float64], false], ["Get", "", [Go$String], [js.Object], false], ["Index", "", [Go$Int], [js.Object], false], ["Int", "", [], [Go$Int], false], ["Interface", "", [], [go$emptyInterface], false], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["IsNull", "", [], [Go$Bool], false], ["IsUndefined", "", [], [Go$Bool], false], ["Length", "", [], [Go$Int], false], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["Set", "", [Go$String, go$emptyInterface], [], false], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false], ["String", "", [], [Go$String], false]];
 	(go$ptrType(Event)).methods = [["Bool", "", [], [Go$Bool], false], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true], ["Float", "", [], [Go$Float64], false], ["Get", "", [Go$String], [js.Object], false], ["Index", "", [Go$Int], [js.Object], false], ["Int", "", [], [Go$Int], false], ["Interface", "", [], [go$emptyInterface], false], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["IsNull", "", [], [Go$Bool], false], ["IsUndefined", "", [], [Go$Bool], false], ["Length", "", [], [Go$Int], false], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["Set", "", [Go$String, go$emptyInterface], [], false], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false], ["String", "", [], [Go$String], false]];
@@ -3470,13 +3474,6 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return j;
 	};
 	JQuery.prototype.TextByFunc = function(fn) { return this.go$val.TextByFunc(fn); };
-	JQuery.Ptr.prototype.Find = function(selector) {
-		var j, found;
-		j = this;
-		found = j.o.find(go$externalize(selector, Go$String));
-		return new JQuery.Ptr(found);
-	};
-	JQuery.prototype.Find = function(selector) { return this.go$val.Find(selector); };
 	JQuery.Ptr.prototype.Closest = function(selector) {
 		var j, closest;
 		j = this;
@@ -3547,20 +3544,6 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return j;
 	};
 	JQuery.prototype.CloneDeep = function(withDataAndEvents, deepWithDataAndEvents) { return this.go$val.CloneDeep(withDataAndEvents, deepWithDataAndEvents); };
-	JQuery.Ptr.prototype.Next = function() {
-		var j;
-		j = this;
-		j.o = j.o.next();
-		return j;
-	};
-	JQuery.prototype.Next = function() { return this.go$val.Next(); };
-	JQuery.Ptr.prototype.NextSelector = function(selector) {
-		var j;
-		j = this;
-		j.o = j.o.next(go$externalize(selector, Go$String));
-		return j;
-	};
-	JQuery.prototype.NextSelector = function(selector) { return this.go$val.NextSelector(selector); };
 	JQuery.Ptr.prototype.Height = function() {
 		var j;
 		j = this;
@@ -3662,6 +3645,302 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return j;
 	};
 	JQuery.prototype.RemoveData = function(name) { return this.go$val.RemoveData(name); };
+	JQuery.Ptr.prototype.OffsetParent = function() {
+		var j;
+		j = this;
+		j.o = j.o.offsetParent();
+		return j;
+	};
+	JQuery.prototype.OffsetParent = function() { return this.go$val.OffsetParent(); };
+	JQuery.Ptr.prototype.Parent = function() {
+		var j;
+		j = this;
+		j.o = j.o.parent();
+		return j;
+	};
+	JQuery.prototype.Parent = function() { return this.go$val.Parent(); };
+	JQuery.Ptr.prototype.ParentBySelector = function(selector) {
+		var j;
+		j = this;
+		j.o = j.o.parent(go$externalize(selector, Go$String));
+		return j;
+	};
+	JQuery.prototype.ParentBySelector = function(selector) { return this.go$val.ParentBySelector(selector); };
+	JQuery.Ptr.prototype.Parents = function() {
+		var j;
+		j = this;
+		j.o = j.o.parents();
+		return j;
+	};
+	JQuery.prototype.Parents = function() { return this.go$val.Parents(); };
+	JQuery.Ptr.prototype.ParentsBySelector = function(selector) {
+		var j;
+		j = this;
+		j.o = j.o.parents(go$externalize(selector, Go$String));
+		return j;
+	};
+	JQuery.prototype.ParentsBySelector = function(selector) { return this.go$val.ParentsBySelector(selector); };
+	JQuery.Ptr.prototype.ParentsUntil = function(selector) {
+		var j;
+		j = this;
+		j.o = j.o.parentsUntil(go$externalize(selector, Go$String));
+		return j;
+	};
+	JQuery.prototype.ParentsUntil = function(selector) { return this.go$val.ParentsUntil(selector); };
+	JQuery.Ptr.prototype.ParentsUntilByFilter = function(selector, filter) {
+		var j;
+		j = this;
+		j.o = j.o.parentsUntil(go$externalize(selector, Go$String), go$externalize(filter, Go$String));
+		return j;
+	};
+	JQuery.prototype.ParentsUntilByFilter = function(selector, filter) { return this.go$val.ParentsUntilByFilter(selector, filter); };
+	JQuery.Ptr.prototype.ParentsUntilByJQuery = function(obj) {
+		var j;
+		j = this;
+		j.o = j.o.parentsUntil(go$externalize(obj, (go$ptrType(JQuery))));
+		return j;
+	};
+	JQuery.prototype.ParentsUntilByJQuery = function(obj) { return this.go$val.ParentsUntilByJQuery(obj); };
+	JQuery.Ptr.prototype.ParentsUntilByJQueryAndFilter = function(obj, filter) {
+		var j;
+		j = this;
+		j.o = j.o.parentsUntil(go$externalize(obj, (go$ptrType(JQuery))), go$externalize(filter, Go$String));
+		return j;
+	};
+	JQuery.prototype.ParentsUntilByJQueryAndFilter = function(obj, filter) { return this.go$val.ParentsUntilByJQueryAndFilter(obj, filter); };
+	JQuery.Ptr.prototype.Prev = function() {
+		var j;
+		j = this;
+		j.o = j.o.prev();
+		return j;
+	};
+	JQuery.prototype.Prev = function() { return this.go$val.Prev(); };
+	JQuery.Ptr.prototype.PrevBySelector = function(selector) {
+		var j;
+		j = this;
+		j.o = j.o.prev(go$externalize(selector, Go$String));
+		return j;
+	};
+	JQuery.prototype.PrevBySelector = function(selector) { return this.go$val.PrevBySelector(selector); };
+	JQuery.Ptr.prototype.PrevAll = function() {
+		var j;
+		j = this;
+		j.o = j.o.prevAll();
+		return j;
+	};
+	JQuery.prototype.PrevAll = function() { return this.go$val.PrevAll(); };
+	JQuery.Ptr.prototype.PrevAllBySelector = function(selector) {
+		var j;
+		j = this;
+		j.o = j.o.prevAll(go$externalize(selector, Go$String));
+		return j;
+	};
+	JQuery.prototype.PrevAllBySelector = function(selector) { return this.go$val.PrevAllBySelector(selector); };
+	JQuery.Ptr.prototype.PrevUntil = function(selector) {
+		var j;
+		j = this;
+		j.o = j.o.prevUntil(go$externalize(selector, Go$String));
+		return j;
+	};
+	JQuery.prototype.PrevUntil = function(selector) { return this.go$val.PrevUntil(selector); };
+	JQuery.Ptr.prototype.PrevUntilByFilter = function(selector, filter) {
+		var j;
+		j = this;
+		j.o = j.o.prevUntil(go$externalize(selector, Go$String), go$externalize(filter, Go$String));
+		return j;
+	};
+	JQuery.prototype.PrevUntilByFilter = function(selector, filter) { return this.go$val.PrevUntilByFilter(selector, filter); };
+	JQuery.Ptr.prototype.PrevUntilByJQuery = function(obj) {
+		var j;
+		j = this;
+		j.o = j.o.prevUntil(go$externalize(obj, (go$ptrType(JQuery))));
+		return j;
+	};
+	JQuery.prototype.PrevUntilByJQuery = function(obj) { return this.go$val.PrevUntilByJQuery(obj); };
+	JQuery.Ptr.prototype.PrevUntilByJQueryAndFilter = function(obj, filter) {
+		var j;
+		j = this;
+		j.o = j.o.prevUntil(go$externalize(obj, (go$ptrType(JQuery))), go$externalize(filter, Go$String));
+		return j;
+	};
+	JQuery.prototype.PrevUntilByJQueryAndFilter = function(obj, filter) { return this.go$val.PrevUntilByJQueryAndFilter(obj, filter); };
+	JQuery.Ptr.prototype.Siblings = function() {
+		var j;
+		j = this;
+		j.o = j.o.siblings();
+		return j;
+	};
+	JQuery.prototype.Siblings = function() { return this.go$val.Siblings(); };
+	JQuery.Ptr.prototype.SiblingsBySelector = function(selector) {
+		var j;
+		j = this;
+		j.o = j.o.siblings(go$externalize(selector, Go$String));
+		return j;
+	};
+	JQuery.prototype.SiblingsBySelector = function(selector) { return this.go$val.SiblingsBySelector(selector); };
+	JQuery.Ptr.prototype.Slice = function(start) {
+		var j;
+		j = this;
+		j.o = j.o.slice(start);
+		return j;
+	};
+	JQuery.prototype.Slice = function(start) { return this.go$val.Slice(start); };
+	JQuery.Ptr.prototype.SliceByEnd = function(start, end) {
+		var j;
+		j = this;
+		j.o = j.o.slice(start, end);
+		return j;
+	};
+	JQuery.prototype.SliceByEnd = function(start, end) { return this.go$val.SliceByEnd(start, end); };
+	JQuery.Ptr.prototype.Next = function() {
+		var j;
+		j = this;
+		j.o = j.o.next();
+		return j;
+	};
+	JQuery.prototype.Next = function() { return this.go$val.Next(); };
+	JQuery.Ptr.prototype.NextBySelector = function(selector) {
+		var j;
+		j = this;
+		j.o = j.o.next(go$externalize(selector, Go$String));
+		return j;
+	};
+	JQuery.prototype.NextBySelector = function(selector) { return this.go$val.NextBySelector(selector); };
+	JQuery.Ptr.prototype.NextAll = function() {
+		var j;
+		j = this;
+		j.o = j.o.nextAll();
+		return j;
+	};
+	JQuery.prototype.NextAll = function() { return this.go$val.NextAll(); };
+	JQuery.Ptr.prototype.NextAllBySelector = function(selector) {
+		var j;
+		j = this;
+		j.o = j.o.nextAll(go$externalize(selector, Go$String));
+		return j;
+	};
+	JQuery.prototype.NextAllBySelector = function(selector) { return this.go$val.NextAllBySelector(selector); };
+	JQuery.Ptr.prototype.NextUntil = function(selector) {
+		var j;
+		j = this;
+		j.o = j.o.nextUntil(go$externalize(selector, Go$String));
+		return j;
+	};
+	JQuery.prototype.NextUntil = function(selector) { return this.go$val.NextUntil(selector); };
+	JQuery.Ptr.prototype.NextUntilByFilter = function(selector, filter) {
+		var j;
+		j = this;
+		j.o = j.o.nextUntil(go$externalize(selector, Go$String), go$externalize(filter, Go$String));
+		return j;
+	};
+	JQuery.prototype.NextUntilByFilter = function(selector, filter) { return this.go$val.NextUntilByFilter(selector, filter); };
+	JQuery.Ptr.prototype.NextUntilByJQuery = function(obj) {
+		var j;
+		j = this;
+		j.o = j.o.nextUntil(go$externalize(obj, (go$ptrType(JQuery))));
+		return j;
+	};
+	JQuery.prototype.NextUntilByJQuery = function(obj) { return this.go$val.NextUntilByJQuery(obj); };
+	JQuery.Ptr.prototype.NextUntilByJQueryAndFilter = function(obj, filter) {
+		var j;
+		j = this;
+		j.o = j.o.nextUntil(go$externalize(obj, (go$ptrType(JQuery))), go$externalize(filter, Go$String));
+		return j;
+	};
+	JQuery.prototype.NextUntilByJQueryAndFilter = function(obj, filter) { return this.go$val.NextUntilByJQueryAndFilter(obj, filter); };
+	JQuery.Ptr.prototype.Not = function(selector) {
+		var j;
+		j = this;
+		j.o = j.o.not(go$externalize(selector, Go$String));
+		return j;
+	};
+	JQuery.prototype.Not = function(selector) { return this.go$val.Not(selector); };
+	JQuery.Ptr.prototype.NotByJQuery = function(obj) {
+		var j;
+		j = this;
+		j.o = j.o.not(go$externalize(obj, (go$ptrType(JQuery))));
+		return j;
+	};
+	JQuery.prototype.NotByJQuery = function(obj) { return this.go$val.NotByJQuery(obj); };
+	JQuery.Ptr.prototype.Filter = function(selector) {
+		var j;
+		j = this;
+		j.o = j.o.filter(go$externalize(selector, Go$String));
+		return j;
+	};
+	JQuery.prototype.Filter = function(selector) { return this.go$val.Filter(selector); };
+	JQuery.Ptr.prototype.FilterByFunc = function(fn) {
+		var j;
+		j = this;
+		j.o.filter(go$externalize((function(index) {
+			return fn(index);
+		}), (go$funcType([Go$Int], [Go$Int], false))));
+		return j;
+	};
+	JQuery.prototype.FilterByFunc = function(fn) { return this.go$val.FilterByFunc(fn); };
+	JQuery.Ptr.prototype.FilterByJQuery = function(obj) {
+		var j;
+		j = this;
+		j.o = j.o.filter(go$externalize(obj, (go$ptrType(JQuery))));
+		return j;
+	};
+	JQuery.prototype.FilterByJQuery = function(obj) { return this.go$val.FilterByJQuery(obj); };
+	JQuery.Ptr.prototype.Find = function(selector) {
+		var j, found;
+		j = this;
+		found = j.o.find(go$externalize(selector, Go$String));
+		return new JQuery.Ptr(found);
+	};
+	JQuery.prototype.Find = function(selector) { return this.go$val.Find(selector); };
+	JQuery.Ptr.prototype.FindByJQuery = function(obj) {
+		var j;
+		j = this;
+		j.o = j.o.find(go$externalize(obj, (go$ptrType(JQuery))));
+		return j;
+	};
+	JQuery.prototype.FindByJQuery = function(obj) { return this.go$val.FindByJQuery(obj); };
+	JQuery.Ptr.prototype.First = function() {
+		var j;
+		j = this;
+		j.o = j.o.first();
+		return j;
+	};
+	JQuery.prototype.First = function() { return this.go$val.First(); };
+	JQuery.Ptr.prototype.Has = function(selector) {
+		var j;
+		j = this;
+		j.o = j.o.has(go$externalize(selector, Go$String));
+		return j;
+	};
+	JQuery.prototype.Has = function(selector) { return this.go$val.Has(selector); };
+	JQuery.Ptr.prototype.Is = function(selector) {
+		var j;
+		j = this;
+		return !!(j.o.Is(go$externalize(selector, Go$String)));
+	};
+	JQuery.prototype.Is = function(selector) { return this.go$val.Is(selector); };
+	JQuery.Ptr.prototype.IsByFunc = function(fn) {
+		var j;
+		j = this;
+		j.o.width(go$externalize((function(index) {
+			return fn(index);
+		}), (go$funcType([Go$Int], [Go$Bool], false))));
+		return j;
+	};
+	JQuery.prototype.IsByFunc = function(fn) { return this.go$val.IsByFunc(fn); };
+	JQuery.Ptr.prototype.IsByJQuery = function(obj) {
+		var j;
+		j = this;
+		return !!(j.o.is(go$externalize(obj, (go$ptrType(JQuery)))));
+	};
+	JQuery.prototype.IsByJQuery = function(obj) { return this.go$val.IsByJQuery(obj); };
+	JQuery.Ptr.prototype.Last = function() {
+		var j;
+		j = this;
+		j.o = j.o.Last();
+		return j;
+	};
+	JQuery.prototype.Last = function() { return this.go$val.Last(); };
 	go$pkg.init = function() {
 	};
 	return go$pkg;
@@ -7694,7 +7973,8 @@ go$packages["math"] = (function() {
 		return y;
 	};
 	var Gamma = go$pkg.Gamma = function(x) {
-		var q, p, signgam, ip, z, z$1;
+		var go$this = this, q, p, signgam, ip, z, z$1;
+		/* */ var go$s = 0, go$f = function() { while (true) { switch (go$s) { case 0:
 		if (isNegInt(x) || IsInf(x, -1) || IsNaN(x)) {
 			return NaN();
 		} else if (x === 0) {
@@ -7732,20 +8012,20 @@ go$packages["math"] = (function() {
 			x = x - 1;
 			z$1 = z$1 * x;
 		}
-		while (x < 0) {
-			if (x > -1e-09) {
-				go$notSupported("goto");
-			}
+		/* while (x < 0) { */ case 2: if(!(x < 0)) { go$s = 3; continue; }
+			/* if (x > -1e-09) { */ if (x > -1e-09) {} else { go$s = 4; continue; }
+				/* goto small */ go$s = 1; continue;
+			/* } */ case 4:
 			z$1 = z$1 / x;
 			x = x + 1;
-		}
-		while (x < 2) {
-			if (x < 1e-09) {
-				go$notSupported("goto");
-			}
+		/* } */ go$s = 2; continue; case 3:
+		/* while (x < 2) { */ case 5: if(!(x < 2)) { go$s = 6; continue; }
+			/* if (x < 1e-09) { */ if (x < 1e-09) {} else { go$s = 7; continue; }
+				/* goto small */ go$s = 1; continue;
+			/* } */ case 7:
 			z$1 = z$1 / x;
 			x = x + 1;
-		}
+		/* } */ go$s = 5; continue; case 6:
 		if (x === 2) {
 			return z$1;
 		}
@@ -7753,10 +8033,12 @@ go$packages["math"] = (function() {
 		p = (((((x * _gamP[0] + _gamP[1]) * x + _gamP[2]) * x + _gamP[3]) * x + _gamP[4]) * x + _gamP[5]) * x + _gamP[6];
 		q = ((((((x * _gamQ[0] + _gamQ[1]) * x + _gamQ[2]) * x + _gamQ[3]) * x + _gamQ[4]) * x + _gamQ[5]) * x + _gamQ[6]) * x + _gamQ[7];
 		return z$1 * p / q;
-		small: switch (0) { default: if (x === 0) {
+		/* small: */ case 1:
+		/* if (x === 0) { */ if (x === 0) {} else { go$s = 8; continue; }
 			return Inf(1);
-		} }
+		/* } */ case 8:
 		return z$1 / ((1 + 0.5772156649015329 * x) * x);
+		/* */ } break; } }; return go$f();
 	};
 	var isNegInt = function(x) {
 		var _tuple, xf;
@@ -9433,25 +9715,26 @@ go$packages["strconv"] = (function() {
 		return [mantissa, exp, neg, trunc, ok];
 	};
 	decimal.Ptr.prototype.floatBits = function(flt) {
-		var b, overflow, d, exp, mant, n, _slice, _index, n$1, _slice$1, _index$1, n$2, y, x, y$1, x$1, x$2, y$2, x$3, x$4, bits, x$5, y$3, x$6, _tuple;
+		var go$this = this, b, overflow, d, exp, mant, n, _slice, _index, n$1, _slice$1, _index$1, n$2, y, x, y$1, x$1, x$2, y$2, x$3, x$4, bits, x$5, y$3, x$6, _tuple;
 		b = new Go$Uint64(0, 0);
 		overflow = false;
-		d = this;
+		/* */ var go$s = 0, go$f = function() { while (true) { switch (go$s) { case 0:
+		d = go$this;
 		exp = 0;
 		mant = new Go$Uint64(0, 0);
-		if (d.nd === 0) {
+		/* if (d.nd === 0) { */ if (d.nd === 0) {} else { go$s = 3; continue; }
 			mant = new Go$Uint64(0, 0);
 			exp = flt.bias;
-			go$notSupported("goto");
-		}
-		if (d.dp > 310) {
-			go$notSupported("goto");
-		}
-		if (d.dp < -330) {
+			/* goto out */ go$s = 1; continue;
+		/* } */ case 3:
+		/* if (d.dp > 310) { */ if (d.dp > 310) {} else { go$s = 4; continue; }
+			/* goto overflow */ go$s = 2; continue;
+		/* } */ case 4:
+		/* if (d.dp < -330) { */ if (d.dp < -330) {} else { go$s = 5; continue; }
 			mant = new Go$Uint64(0, 0);
 			exp = flt.bias;
-			go$notSupported("goto");
-		}
+			/* goto out */ go$s = 1; continue;
+		/* } */ case 5:
 		exp = 0;
 		while (d.dp > 0) {
 			n = 0;
@@ -9479,32 +9762,35 @@ go$packages["strconv"] = (function() {
 			d.Shift(-n$2);
 			exp = exp + (n$2) >> 0;
 		}
-		if ((exp - flt.bias >> 0) >= (((y = flt.expbits, y < 32 ? (1 << y) : 0) >> 0) - 1 >> 0)) {
-			go$notSupported("goto");
-		}
+		/* if ((exp - flt.bias >> 0) >= (((y = flt.expbits, y < 32 ? (1 << y) : 0) >> 0) - 1 >> 0)) { */ if ((exp - flt.bias >> 0) >= (((y = flt.expbits, y < 32 ? (1 << y) : 0) >> 0) - 1 >> 0)) {} else { go$s = 6; continue; }
+			/* goto overflow */ go$s = 2; continue;
+		/* } */ case 6:
 		d.Shift(((1 + flt.mantbits >>> 0) >> 0));
 		mant = d.RoundedInteger();
-		if ((x = go$shiftLeft64(new Go$Uint64(0, 2), flt.mantbits), (mant.high === x.high && mant.low === x.low))) {
+		/* if ((x = go$shiftLeft64(new Go$Uint64(0, 2), flt.mantbits), (mant.high === x.high && mant.low === x.low))) { */ if ((x = go$shiftLeft64(new Go$Uint64(0, 2), flt.mantbits), (mant.high === x.high && mant.low === x.low))) {} else { go$s = 7; continue; }
 			mant = go$shiftRightUint64(mant, 1);
 			exp = exp + 1 >> 0;
-			if ((exp - flt.bias >> 0) >= (((y$1 = flt.expbits, y$1 < 32 ? (1 << y$1) : 0) >> 0) - 1 >> 0)) {
-				go$notSupported("goto");
-			}
-		}
+			/* if ((exp - flt.bias >> 0) >= (((y$1 = flt.expbits, y$1 < 32 ? (1 << y$1) : 0) >> 0) - 1 >> 0)) { */ if ((exp - flt.bias >> 0) >= (((y$1 = flt.expbits, y$1 < 32 ? (1 << y$1) : 0) >> 0) - 1 >> 0)) {} else { go$s = 8; continue; }
+				/* goto overflow */ go$s = 2; continue;
+			/* } */ case 8:
+		/* } */ case 7:
 		if ((x$1 = (x$2 = go$shiftLeft64(new Go$Uint64(0, 1), flt.mantbits), new Go$Uint64(mant.high & x$2.high, (mant.low & x$2.low) >>> 0)), (x$1.high === 0 && x$1.low === 0))) {
 			exp = flt.bias;
 		}
-		go$notSupported("goto");
-		overflow: mant = new Go$Uint64(0, 0);
+		/* goto out */ go$s = 1; continue;
+		/* overflow: */ case 2:
+		mant = new Go$Uint64(0, 0);
 		exp = (((y$2 = flt.expbits, y$2 < 32 ? (1 << y$2) : 0) >> 0) - 1 >> 0) + flt.bias >> 0;
 		overflow = true;
-		out: bits = (x$3 = (x$4 = go$shiftLeft64(new Go$Uint64(0, 1), flt.mantbits), new Go$Uint64(x$4.high - 0, x$4.low - 1)), new Go$Uint64(mant.high & x$3.high, (mant.low & x$3.low) >>> 0));
+		/* out: */ case 1:
+		bits = (x$3 = (x$4 = go$shiftLeft64(new Go$Uint64(0, 1), flt.mantbits), new Go$Uint64(x$4.high - 0, x$4.low - 1)), new Go$Uint64(mant.high & x$3.high, (mant.low & x$3.low) >>> 0));
 		bits = (x$5 = go$shiftLeft64(new Go$Uint64(0, (((exp - flt.bias >> 0)) & ((((y$3 = flt.expbits, y$3 < 32 ? (1 << y$3) : 0) >> 0) - 1 >> 0)))), flt.mantbits), new Go$Uint64(bits.high | x$5.high, (bits.low | x$5.low) >>> 0));
 		if (d.neg) {
 			bits = (x$6 = go$shiftLeft64(go$shiftLeft64(new Go$Uint64(0, 1), flt.mantbits), flt.expbits), new Go$Uint64(bits.high | x$6.high, (bits.low | x$6.low) >>> 0));
 		}
 		_tuple = [bits, overflow], b = _tuple[0], overflow = _tuple[1];
 		return [b, overflow];
+		/* */ } break; } }; return go$f();
 	};
 	decimal.prototype.floatBits = function(flt) { return this.go$val.floatBits(flt); };
 	decimal.Ptr.prototype.atof32int = function() {
@@ -9699,77 +9985,80 @@ go$packages["strconv"] = (function() {
 		return (x = go$div64(new Go$Uint64(4294967295, 4294967295), new Go$Uint64(0, base), false), new Go$Uint64(x.high + 0, x.low + 1));
 	};
 	var ParseUint = go$pkg.ParseUint = function(s, base, bitSize) {
-		var n, err, _tuple, cutoff, maxVal, s0, x, i, v, d, x$1, n1, _tuple$1, _tuple$2;
+		var go$this = this, n, err, _tuple, cutoff, maxVal, s0, x, i, v, d, x$1, n1, _tuple$1, _tuple$2;
 		n = new Go$Uint64(0, 0);
 		err = null;
+		/* */ var go$s = 0, go$f = function() { while (true) { switch (go$s) { case 0:
 		_tuple = [new Go$Uint64(0, 0), new Go$Uint64(0, 0)], cutoff = _tuple[0], maxVal = _tuple[1];
 		if (bitSize === 0) {
 			bitSize = 32;
 		}
 		s0 = s;
-		if (s.length < 1) {
+		/* if (s.length < 1) { */ if (s.length < 1) {} else if (2 <= base && base <= 36) { go$s = 2; continue; } else if (base === 0) { go$s = 3; continue; } else { go$s = 4; continue; }
 			err = go$pkg.ErrSyntax;
-			go$notSupported("goto");
-		} else if (2 <= base && base <= 36) {
-		} else if (base === 0) {
-			if ((s.charCodeAt(0) === 48) && s.length > 1 && ((s.charCodeAt(1) === 120) || (s.charCodeAt(1) === 88))) {
+			/* goto Error */ go$s = 1; continue;
+		/* } else if (2 <= base && base <= 36) { */ go$s = 5; continue; case 2: 
+		/* } else if (base === 0) { */ go$s = 5; continue; case 3: 
+			/* if ((s.charCodeAt(0) === 48) && s.length > 1 && ((s.charCodeAt(1) === 120) || (s.charCodeAt(1) === 88))) { */ if ((s.charCodeAt(0) === 48) && s.length > 1 && ((s.charCodeAt(1) === 120) || (s.charCodeAt(1) === 88))) {} else if (s.charCodeAt(0) === 48) { go$s = 6; continue; } else { go$s = 7; continue; }
 				base = 16;
 				s = s.substring(2);
-				if (s.length < 1) {
+				/* if (s.length < 1) { */ if (s.length < 1) {} else { go$s = 9; continue; }
 					err = go$pkg.ErrSyntax;
-					go$notSupported("goto");
-				}
-			} else if (s.charCodeAt(0) === 48) {
+					/* goto Error */ go$s = 1; continue;
+				/* } */ case 9:
+			/* } else if (s.charCodeAt(0) === 48) { */ go$s = 8; continue; case 6: 
 				base = 8;
-			} else {
+			/* } else { */ go$s = 8; continue; case 7: 
 				base = 10;
-			}
-		} else {
+			/* } */ case 8:
+		/* } else { */ go$s = 5; continue; case 4: 
 			err = errors.New("invalid base " + Itoa(base));
-			go$notSupported("goto");
-		}
+			/* goto Error */ go$s = 1; continue;
+		/* } */ case 5:
 		n = new Go$Uint64(0, 0);
 		cutoff = cutoff64(base);
 		maxVal = (x = go$shiftLeft64(new Go$Uint64(0, 1), (bitSize >>> 0)), new Go$Uint64(x.high - 0, x.low - 1));
 		i = 0;
-		while (i < s.length) {
+		/* while (i < s.length) { */ case 10: if(!(i < s.length)) { go$s = 11; continue; }
 			v = 0;
 			d = s.charCodeAt(i);
-			if (48 <= d && d <= 57) {
+			/* if (48 <= d && d <= 57) { */ if (48 <= d && d <= 57) {} else if (97 <= d && d <= 122) { go$s = 12; continue; } else if (65 <= d && d <= 90) { go$s = 13; continue; } else { go$s = 14; continue; }
 				v = d - 48 << 24 >>> 24;
-			} else if (97 <= d && d <= 122) {
+			/* } else if (97 <= d && d <= 122) { */ go$s = 15; continue; case 12: 
 				v = (d - 97 << 24 >>> 24) + 10 << 24 >>> 24;
-			} else if (65 <= d && d <= 90) {
+			/* } else if (65 <= d && d <= 90) { */ go$s = 15; continue; case 13: 
 				v = (d - 65 << 24 >>> 24) + 10 << 24 >>> 24;
-			} else {
+			/* } else { */ go$s = 15; continue; case 14: 
 				n = new Go$Uint64(0, 0);
 				err = go$pkg.ErrSyntax;
-				go$notSupported("goto");
-			}
-			if ((v >> 0) >= base) {
+				/* goto Error */ go$s = 1; continue;
+			/* } */ case 15:
+			/* if ((v >> 0) >= base) { */ if ((v >> 0) >= base) {} else { go$s = 16; continue; }
 				n = new Go$Uint64(0, 0);
 				err = go$pkg.ErrSyntax;
-				go$notSupported("goto");
-			}
-			if ((n.high > cutoff.high || (n.high === cutoff.high && n.low >= cutoff.low))) {
+				/* goto Error */ go$s = 1; continue;
+			/* } */ case 16:
+			/* if ((n.high > cutoff.high || (n.high === cutoff.high && n.low >= cutoff.low))) { */ if ((n.high > cutoff.high || (n.high === cutoff.high && n.low >= cutoff.low))) {} else { go$s = 17; continue; }
 				n = new Go$Uint64(4294967295, 4294967295);
 				err = go$pkg.ErrRange;
-				go$notSupported("goto");
-			}
+				/* goto Error */ go$s = 1; continue;
+			/* } */ case 17:
 			n = go$mul64(n, (new Go$Uint64(0, base)));
 			n1 = (x$1 = new Go$Uint64(0, v), new Go$Uint64(n.high + x$1.high, n.low + x$1.low));
-			if ((n1.high < n.high || (n1.high === n.high && n1.low < n.low)) || (n1.high > maxVal.high || (n1.high === maxVal.high && n1.low > maxVal.low))) {
+			/* if ((n1.high < n.high || (n1.high === n.high && n1.low < n.low)) || (n1.high > maxVal.high || (n1.high === maxVal.high && n1.low > maxVal.low))) { */ if ((n1.high < n.high || (n1.high === n.high && n1.low < n.low)) || (n1.high > maxVal.high || (n1.high === maxVal.high && n1.low > maxVal.low))) {} else { go$s = 18; continue; }
 				n = new Go$Uint64(4294967295, 4294967295);
 				err = go$pkg.ErrRange;
-				go$notSupported("goto");
-			}
+				/* goto Error */ go$s = 1; continue;
+			/* } */ case 18:
 			n = n1;
 			i = i + 1 >> 0;
-		}
+		/* } */ go$s = 10; continue; case 11:
 		_tuple$1 = [n, null], n = _tuple$1[0], err = _tuple$1[1];
 		return [n, err];
-		Error: _tuple$2 = [n, new NumError.Ptr("ParseUint", s0, err)], n = _tuple$2[0], err = _tuple$2[1];
+		/* Error: */ case 1:
+		_tuple$2 = [n, new NumError.Ptr("ParseUint", s0, err)], n = _tuple$2[0], err = _tuple$2[1];
 		return [n, err];
+		/* */ } break; } }; return go$f();
 	};
 	var ParseInt = go$pkg.ParseInt = function(s, base, bitSize) {
 		var i, err, _tuple, s0, neg, un, _tuple$1, _tuple$2, cutoff, x, _tuple$3, x$1, _tuple$4, n, _tuple$5;
@@ -10263,7 +10552,8 @@ go$packages["strconv"] = (function() {
 		f = this;
 		approxExp10 = (_q = (x = (-46 - f.exp >> 0), x$1 = 28, (((x >>> 16 << 16) * x$1 >> 0) + (x << 16 >>> 16) * x$1) >> 0) / 93, (_q === _q && _q !== 1/0 && _q !== -1/0) ? _q >> 0 : go$throwRuntimeError("integer divide by zero"));
 		i = (_q$1 = ((approxExp10 - -348 >> 0)) / 8, (_q$1 === _q$1 && _q$1 !== 1/0 && _q$1 !== -1/0) ? _q$1 >> 0 : go$throwRuntimeError("integer divide by zero"));
-		Loop: while (true) {
+		Loop:
+		while (true) {
 			exp = (f.exp + powersOfTen[i].exp >> 0) + 64 >> 0;
 			if (exp < -60) {
 				i = i + 1 >> 0;
@@ -22237,9 +22527,10 @@ go$packages["os"] = (function() {
 		return go$runesToString(utf16.Decode(go$subslice(dirw, 0, n)));
 	};
 	var Getwd = go$pkg.Getwd = function() {
-		var pwd, err, _tuple, s, e, _tuple$1, _tuple$2, dot, _tuple$3, _tuple$4, d, err$1, _tuple$5, _tuple$6, d$1, err$2, _tuple$7, _tuple$8, root, _tuple$9, _tuple$10, parent, _tuple$11, _tuple$12, fd, err$3, _tuple$13, _tuple$14, names, err$4, _tuple$15, _ref, _i, _slice, _index, name, _tuple$16, d$2, _tuple$17, pd, _tuple$18, _tuple$19;
+		var go$this = this, pwd, err, _tuple, s, e, _tuple$1, _tuple$2, dot, _tuple$3, _tuple$4, d, err$1, _tuple$5, _tuple$6, d$1, err$2, _tuple$7, _tuple$8, root, _tuple$9, _tuple$10, parent, _tuple$11, _tuple$12, fd, err$3, _tuple$13, _tuple$14, names, err$4, _tuple$15, _ref, _i, _slice, _index, name, _tuple$16, d$2, _tuple$17, pd, _tuple$18, _tuple$19;
 		pwd = "";
 		err = null;
+		/* */ var go$s = 0, go$f = function() { while (true) { switch (go$s) { case 0:
 		_tuple = syscall.Getwd(), s = _tuple[0], e = _tuple[1];
 		if (useSyscallwd(e)) {
 			_tuple$1 = [s, NewSyscallError("getwd", e)], pwd = _tuple$1[0], err = _tuple$1[1];
@@ -22279,7 +22570,7 @@ go$packages["os"] = (function() {
 		}
 		pwd = "";
 		parent = "..";
-		while (true) {
+		/* while (true) { */ case 2: if(!(true)) { go$s = 3; continue; }
 			if (parent.length >= 1024) {
 				_tuple$11 = ["", new syscall.Errno(536870975)], pwd = _tuple$11[0], err = _tuple$11[1];
 				return [pwd, err];
@@ -22289,7 +22580,7 @@ go$packages["os"] = (function() {
 				_tuple$13 = ["", err$3], pwd = _tuple$13[0], err = _tuple$13[1];
 				return [pwd, err];
 			}
-			while (true) {
+			/* while (true) { */ case 4: if(!(true)) { go$s = 5; continue; }
 				_tuple$14 = fd.Readdirnames(100), names = _tuple$14[0], err$4 = _tuple$14[1];
 				if (!(go$interfaceIsEqual(err$4, null))) {
 					fd.Close();
@@ -22298,33 +22589,35 @@ go$packages["os"] = (function() {
 				}
 				_ref = names;
 				_i = 0;
-				while (_i < _ref.length) {
+				/* while (_i < _ref.length) { */ case 6: if(!(_i < _ref.length)) { go$s = 7; continue; }
 					name = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
 					_tuple$16 = Lstat(parent + "/" + name), d$2 = _tuple$16[0];
-					if (SameFile(d$2, dot)) {
+					/* if (SameFile(d$2, dot)) { */ if (SameFile(d$2, dot)) {} else { go$s = 8; continue; }
 						pwd = "/" + name + pwd;
-						go$notSupported("goto");
-					}
+						/* goto Found */ go$s = 1; continue;
+					/* } */ case 8:
 					_i++;
-				}
-			}
-			Found: _tuple$17 = fd.Stat(), pd = _tuple$17[0], err$3 = _tuple$17[1];
+				/* } */ go$s = 6; continue; case 7:
+			/* } */ go$s = 4; continue; case 5:
+			/* Found: */ case 1:
+			_tuple$17 = fd.Stat(), pd = _tuple$17[0], err$3 = _tuple$17[1];
 			if (!(go$interfaceIsEqual(err$3, null))) {
 				_tuple$18 = ["", err$3], pwd = _tuple$18[0], err = _tuple$18[1];
 				return [pwd, err];
 			}
 			fd.Close();
 			if (SameFile(pd, root)) {
-				break;
+				/* break; */ go$s = 3; continue;
 			}
 			dot = pd;
 			parent = "../" + parent;
-		}
+		/* } */ go$s = 2; continue; case 3:
 		getwdCache.Mutex.Lock();
 		getwdCache.dir = pwd;
 		getwdCache.Mutex.Unlock();
 		_tuple$19 = [pwd, null], pwd = _tuple$19[0], err = _tuple$19[1];
 		return [pwd, err];
+		/* */ } break; } }; return go$f();
 	};
 	var MkdirAll = go$pkg.MkdirAll = function(path, perm) {
 		var _tuple, dir, err, i, j, _tuple$1, dir$1, err1;
@@ -24784,7 +25077,8 @@ go$packages["reflect"] = (function() {
 		var p, argcnt, _ref, i;
 		p = t.gc;
 		p = (p + 4 >>> 0);
-		loop: while (true) {
+		loop:
+		while (true) {
 			argcnt = 0;
 			_ref = p.go$get();
 			if (_ref === 0) {
@@ -28366,7 +28660,8 @@ go$packages["fmt"] = (function() {
 		p.value = (_struct$1 = value, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
 		f = (_struct$2 = value, new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
 		_ref = f.Kind();
-		BigSwitch: switch (0) { default: if (_ref === 1) {
+		BigSwitch:
+		switch (0) { default: if (_ref === 1) {
 			p.fmtBool(f.Bool(), verb);
 		} else if (_ref === 2 || _ref === 3 || _ref === 4 || _ref === 5 || _ref === 6) {
 			p.fmtInt64(f.Int(), verb);
@@ -28608,7 +28903,8 @@ go$packages["fmt"] = (function() {
 			}
 			i = i + 1 >> 0;
 			p.fmt.clearflags();
-			F: while (i < end) {
+			F:
+			while (i < end) {
 				_ref = format.charCodeAt(i);
 				if (_ref === 35) {
 					p.fmt.sharp = true;
@@ -29684,7 +29980,7 @@ go$packages["fmt"] = (function() {
 	};
 	ss.prototype.scanOne = function(verb, arg) { return this.go$val.scanOne(verb, arg); };
 	var errorHandler = function(errp) {
-		var e, ok, ok$1, eof, _tuple, _struct, se, _tuple$1;
+		var e, ok, _tuple, _struct, se, ok$1, eof, _tuple$1;
 		if (e = go$recover(), !(go$interfaceIsEqual(e, null))) {
 			if (_tuple = (e !== null && e.constructor === scanError ? [e.go$val, true] : [new scanError.Ptr(), false]), se = (_struct = _tuple[0], new scanError.Ptr(_struct.err)), ok = _tuple[1], ok) {
 				errp.go$set(se.err);
@@ -33028,7 +33324,8 @@ go$packages["encoding/json"] = (function() {
 		dec.scan.reset();
 		scanp = 0;
 		err = null;
-		Input: while (true) {
+		Input:
+		while (true) {
 			_ref = go$subslice(dec.buf, scanp);
 			_i = 0;
 			while (_i < _ref.length) {
