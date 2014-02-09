@@ -4,7 +4,7 @@ import (
 	jQ "github.com/rusco/jquery"
 	"github.com/rusco/todomvc/utils"
 
-	"github.com/neelance/gopherjs/js"
+	"github.com/neelance/gopherjs/js" //2do: refactor: remove dependency on this package
 )
 
 const (
@@ -28,15 +28,15 @@ type App struct {
 	todos       []ToDo
 	todoHb      *utils.Handlebar
 	footerHb    *utils.Handlebar
-	todoAppJq   *jQ.JQuery
-	headerJq    *jQ.JQuery
-	mainJq      *jQ.JQuery
-	footerJq    *jQ.JQuery
-	newTodoJq   *jQ.JQuery
-	toggleAllJq *jQ.JQuery
-	todoListJq  *jQ.JQuery
-	countJq     *jQ.JQuery
-	clearBtnJq  *jQ.JQuery
+	todoAppJq   jQ.JQuery
+	headerJq    jQ.JQuery
+	mainJq      jQ.JQuery
+	footerJq    jQ.JQuery
+	newTodoJq   jQ.JQuery
+	toggleAllJq jQ.JQuery
+	todoListJq  jQ.JQuery
+	countJq     jQ.JQuery
+	clearBtnJq  jQ.JQuery
 }
 
 //constructor
@@ -59,7 +59,6 @@ func NewApp() *App {
 	todoListJq := mainJq.Find("#todo-list")
 	countJq := footerJq.Find("#todo-count")
 	clearBtnJq := footerJq.Find("#clear-completed")
-
 	return &App{somethingToDo, todoHb, footerHb, todoAppJq, headerJq, mainJq, footerJq, newTodoJq, toggleAllJq, todoListJq, countJq, clearBtnJq}
 }
 
@@ -134,6 +133,8 @@ func (a *App) destroyCompleted(this js.Object, e *jQ.Event) {
 func (a *App) create(this js.Object, e *jQ.Event) {
 
 	val := jQ.Trim(a.newTodoJq.Val())
+
+	print(e.KeyCode, val)
 
 	if val == "" || e.KeyCode != ENTER_KEY {
 		return
