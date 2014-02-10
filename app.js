@@ -33977,6 +33977,19 @@ go$packages["github.com/rusco/todomvc/utils"] = (function() {
 	var RenderHandlebar = go$pkg.RenderHandlebar = function(hb, i) {
 		return go$internalize(hb.Object(go$externalize(i, go$emptyInterface)), Go$String);
 	};
+	var RegisterHelper = go$pkg.RegisterHelper = function() {
+		var fn;
+		fn = (function(a, b, options) {
+			var this$1;
+			this$1 = this;
+			if (go$internalize(a, Go$String) === go$internalize(b, Go$String)) {
+				return options.fn(this$1);
+			} else {
+				return options.inverse(this$1);
+			}
+		});
+		go$global.Handlebars.registerHelper(go$externalize("eq", Go$String), go$externalize(fn, (go$funcType([js.Object, js.Object, js.Object], [js.Object], false))));
+	};
 	go$pkg.init = function() {
 	};
 	return go$pkg;
@@ -33995,7 +34008,7 @@ go$packages["main"] = (function() {
 	});
 	go$pkg.ToDo = ToDo;
 	var App;
-	App = go$newType(0, "Struct", "main.App", "App", "main", function(todos_, todoHb_, footerHb_, todoAppJq_, headerJq_, mainJq_, footerJq_, newTodoJq_, toggleAllJq_, todoListJq_, countJq_, clearBtnJq_) {
+	App = go$newType(0, "Struct", "main.App", "App", "main", function(todos_, todoHb_, footerHb_, todoAppJq_, headerJq_, mainJq_, footerJq_, newTodoJq_, toggleAllJq_, todoListJq_, countJq_, clearBtnJq_, filter_) {
 		this.go$val = this;
 		this.todos = todos_ !== undefined ? todos_ : (go$sliceType(ToDo)).nil;
 		this.todoHb = todoHb_ !== undefined ? todoHb_ : (go$ptrType(utils.Handlebar)).nil;
@@ -34009,19 +34022,22 @@ go$packages["main"] = (function() {
 		this.todoListJq = todoListJq_ !== undefined ? todoListJq_ : new jquery.JQuery.Ptr();
 		this.countJq = countJq_ !== undefined ? countJq_ : new jquery.JQuery.Ptr();
 		this.clearBtnJq = clearBtnJq_ !== undefined ? clearBtnJq_ : new jquery.JQuery.Ptr();
+		this.filter = filter_ !== undefined ? filter_ : "";
 	});
 	go$pkg.App = App;
 	ToDo.init([["Id", "", Go$String, ""], ["Text", "", Go$String, ""], ["Completed", "", Go$Bool, ""]]);
-	App.init([["todos", "main", (go$sliceType(ToDo)), ""], ["todoHb", "main", (go$ptrType(utils.Handlebar)), ""], ["footerHb", "main", (go$ptrType(utils.Handlebar)), ""], ["todoAppJq", "main", jquery.JQuery, ""], ["headerJq", "main", jquery.JQuery, ""], ["mainJq", "main", jquery.JQuery, ""], ["footerJq", "main", jquery.JQuery, ""], ["newTodoJq", "main", jquery.JQuery, ""], ["toggleAllJq", "main", jquery.JQuery, ""], ["todoListJq", "main", jquery.JQuery, ""], ["countJq", "main", jquery.JQuery, ""], ["clearBtnJq", "main", jquery.JQuery, ""]]);
-	(go$ptrType(App)).methods = [["activeTodoCount", "main", [], [Go$Int], false], ["bindEvents", "main", [], [], false], ["blurOnEnter", "main", [js.Object, (go$ptrType(jquery.Event))], [], false], ["create", "main", [js.Object, (go$ptrType(jquery.Event))], [], false], ["destroy", "main", [js.Object, (go$ptrType(jquery.Event))], [], false], ["destroyCompleted", "main", [js.Object, (go$ptrType(jquery.Event))], [], false], ["edit", "main", [js.Object, (go$ptrType(jquery.Event))], [], false], ["render", "main", [], [], false], ["renderfooter", "main", [], [], false], ["toggle", "main", [js.Object, (go$ptrType(jquery.Event))], [], false], ["toggleAll", "main", [js.Object, (go$ptrType(jquery.Event))], [], false], ["update", "main", [js.Object, (go$ptrType(jquery.Event))], [], false]];
+	App.init([["todos", "main", (go$sliceType(ToDo)), ""], ["todoHb", "main", (go$ptrType(utils.Handlebar)), ""], ["footerHb", "main", (go$ptrType(utils.Handlebar)), ""], ["todoAppJq", "main", jquery.JQuery, ""], ["headerJq", "main", jquery.JQuery, ""], ["mainJq", "main", jquery.JQuery, ""], ["footerJq", "main", jquery.JQuery, ""], ["newTodoJq", "main", jquery.JQuery, ""], ["toggleAllJq", "main", jquery.JQuery, ""], ["todoListJq", "main", jquery.JQuery, ""], ["countJq", "main", jquery.JQuery, ""], ["clearBtnJq", "main", jquery.JQuery, ""], ["filter", "main", Go$String, ""]]);
+	(go$ptrType(App)).methods = [["activeTodoCount", "main", [], [Go$Int], false], ["bindEvents", "main", [], [], false], ["blurOnEnter", "main", [js.Object, (go$ptrType(jquery.Event))], [], false], ["create", "main", [js.Object, (go$ptrType(jquery.Event))], [], false], ["destroy", "main", [js.Object, (go$ptrType(jquery.Event))], [], false], ["destroyCompleted", "main", [js.Object, (go$ptrType(jquery.Event))], [], false], ["edit", "main", [js.Object, (go$ptrType(jquery.Event))], [], false], ["initRouter", "main", [], [], false], ["render", "main", [], [], false], ["renderfooter", "main", [], [], false], ["toggle", "main", [js.Object, (go$ptrType(jquery.Event))], [], false], ["toggleAll", "main", [js.Object, (go$ptrType(jquery.Event))], [], false], ["update", "main", [js.Object, (go$ptrType(jquery.Event))], [], false]];
 	var main = go$pkg.main = function() {
 		var app;
+		utils.RegisterHelper();
 		app = NewApp();
 		app.bindEvents();
+		app.initRouter();
 		app.render();
 	};
 	var NewApp = go$pkg.NewApp = function() {
-		var somethingToDo, v, todoTemplate, todoHb, footerTemplate, footerHb, _struct, todoAppJq, _struct$1, headerJq, _struct$2, mainJq, _struct$3, footerJq, _struct$4, newTodoJq, _struct$5, toggleAllJq, _struct$6, todoListJq, _struct$7, countJq, _struct$8, clearBtnJq, _struct$9, _struct$10, _struct$11, _struct$12, _struct$13, _struct$14, _struct$15, _struct$16, _struct$17;
+		var somethingToDo, v, todoTemplate, todoHb, footerTemplate, footerHb, _struct, todoAppJq, _struct$1, headerJq, _struct$2, mainJq, _struct$3, footerJq, _struct$4, newTodoJq, _struct$5, toggleAllJq, _struct$6, todoListJq, _struct$7, countJq, _struct$8, clearBtnJq, filter, _struct$9, _struct$10, _struct$11, _struct$12, _struct$13, _struct$14, _struct$15, _struct$16, _struct$17;
 		somethingToDo = (go$sliceType(ToDo)).make(0, 0, function() { return new ToDo.Ptr(); });
 		utils.Retrieve("TodoMVC-GopherJS", new (go$ptrType((go$sliceType(ToDo))))(function() { return somethingToDo; }, function(v) { somethingToDo = v; }));
 		todoTemplate = jquery.NewJQuery(new (go$sliceType(Go$String))(["#todo-template"])).Html();
@@ -34037,7 +34053,8 @@ go$packages["main"] = (function() {
 		todoListJq = (_struct$6 = mainJq.Find("#todo-list"), new jquery.JQuery.Ptr(_struct$6.o, _struct$6.Jquery, _struct$6.Selector, _struct$6.Length));
 		countJq = (_struct$7 = footerJq.Find("#todo-count"), new jquery.JQuery.Ptr(_struct$7.o, _struct$7.Jquery, _struct$7.Selector, _struct$7.Length));
 		clearBtnJq = (_struct$8 = footerJq.Find("#clear-completed"), new jquery.JQuery.Ptr(_struct$8.o, _struct$8.Jquery, _struct$8.Selector, _struct$8.Length));
-		return new App.Ptr(somethingToDo, todoHb, footerHb, (_struct$9 = todoAppJq, new jquery.JQuery.Ptr(_struct$9.o, _struct$9.Jquery, _struct$9.Selector, _struct$9.Length)), (_struct$10 = headerJq, new jquery.JQuery.Ptr(_struct$10.o, _struct$10.Jquery, _struct$10.Selector, _struct$10.Length)), (_struct$11 = mainJq, new jquery.JQuery.Ptr(_struct$11.o, _struct$11.Jquery, _struct$11.Selector, _struct$11.Length)), (_struct$12 = footerJq, new jquery.JQuery.Ptr(_struct$12.o, _struct$12.Jquery, _struct$12.Selector, _struct$12.Length)), (_struct$13 = newTodoJq, new jquery.JQuery.Ptr(_struct$13.o, _struct$13.Jquery, _struct$13.Selector, _struct$13.Length)), (_struct$14 = toggleAllJq, new jquery.JQuery.Ptr(_struct$14.o, _struct$14.Jquery, _struct$14.Selector, _struct$14.Length)), (_struct$15 = todoListJq, new jquery.JQuery.Ptr(_struct$15.o, _struct$15.Jquery, _struct$15.Selector, _struct$15.Length)), (_struct$16 = countJq, new jquery.JQuery.Ptr(_struct$16.o, _struct$16.Jquery, _struct$16.Selector, _struct$16.Length)), (_struct$17 = clearBtnJq, new jquery.JQuery.Ptr(_struct$17.o, _struct$17.Jquery, _struct$17.Selector, _struct$17.Length)));
+		filter = "all";
+		return new App.Ptr(somethingToDo, todoHb, footerHb, (_struct$9 = todoAppJq, new jquery.JQuery.Ptr(_struct$9.o, _struct$9.Jquery, _struct$9.Selector, _struct$9.Length)), (_struct$10 = headerJq, new jquery.JQuery.Ptr(_struct$10.o, _struct$10.Jquery, _struct$10.Selector, _struct$10.Length)), (_struct$11 = mainJq, new jquery.JQuery.Ptr(_struct$11.o, _struct$11.Jquery, _struct$11.Selector, _struct$11.Length)), (_struct$12 = footerJq, new jquery.JQuery.Ptr(_struct$12.o, _struct$12.Jquery, _struct$12.Selector, _struct$12.Length)), (_struct$13 = newTodoJq, new jquery.JQuery.Ptr(_struct$13.o, _struct$13.Jquery, _struct$13.Selector, _struct$13.Length)), (_struct$14 = toggleAllJq, new jquery.JQuery.Ptr(_struct$14.o, _struct$14.Jquery, _struct$14.Selector, _struct$14.Length)), (_struct$15 = todoListJq, new jquery.JQuery.Ptr(_struct$15.o, _struct$15.Jquery, _struct$15.Selector, _struct$15.Length)), (_struct$16 = countJq, new jquery.JQuery.Ptr(_struct$16.o, _struct$16.Jquery, _struct$16.Selector, _struct$16.Length)), (_struct$17 = clearBtnJq, new jquery.JQuery.Ptr(_struct$17.o, _struct$17.Jquery, _struct$17.Selector, _struct$17.Length)), filter);
 	};
 	App.Ptr.prototype.bindEvents = function() {
 		var a, this$1, e, _recv, this$2, e$1, _recv$1, this$3, e$2, _recv$2, this$4, e$3, _recv$3, this$5, e$4, _recv$4, this$6, e$5, _recv$5, this$7, e$6, _recv$6, this$8, e$7, _recv$7;
@@ -34052,6 +34069,17 @@ go$packages["main"] = (function() {
 		a.todoListJq.OnSelector("click", ".destroy", (_recv$7 = a, function(this$8, e$7) { return _recv$7.destroy(this$8, e$7); }));
 	};
 	App.prototype.bindEvents = function() { return this.go$val.bindEvents(); };
+	App.Ptr.prototype.initRouter = function() {
+		var a, router;
+		a = this;
+		router = new go$global.Router();
+		router.on(go$externalize("/:filter", Go$String), go$externalize((function(filter) {
+			a.filter = filter;
+			a.render();
+		}), (go$funcType([Go$String], [], false))));
+		router.init(go$externalize("/all", Go$String));
+	};
+	App.prototype.initRouter = function() { return this.go$val.initRouter(); };
 	App.Ptr.prototype.render = function() {
 		var a, strtodoHb;
 		a = this;
@@ -34064,13 +34092,14 @@ go$packages["main"] = (function() {
 	};
 	App.prototype.render = function() { return this.go$val.render(); };
 	App.Ptr.prototype.renderfooter = function() {
-		var a, activeTodoCount, activeTodoWord, completedTodos, footerData, footerJqStr;
+		var a, activeTodoCount, activeTodoWord, completedTodos, filter, footerData, footerJqStr;
 		a = this;
 		activeTodoCount = a.activeTodoCount();
 		activeTodoWord = utils.Pluralize(activeTodoCount, "item");
 		completedTodos = a.todos.length - activeTodoCount >> 0;
-		footerData = new (go$structType([["ActiveTodoCount", "", Go$Int, ""], ["ActiveTodoWord", "", Go$String, ""], ["CompletedTodos", "", Go$Int, ""]])).Ptr(activeTodoCount, activeTodoWord, completedTodos);
-		footerJqStr = go$internalize(a.footerHb.Object(go$externalize(footerData, (go$structType([["ActiveTodoCount", "", Go$Int, ""], ["ActiveTodoWord", "", Go$String, ""], ["CompletedTodos", "", Go$Int, ""]])))), Go$String);
+		filter = a.filter;
+		footerData = new (go$structType([["ActiveTodoCount", "", Go$Int, ""], ["ActiveTodoWord", "", Go$String, ""], ["CompletedTodos", "", Go$Int, ""], ["Filter", "", Go$String, ""]])).Ptr(activeTodoCount, activeTodoWord, completedTodos, filter);
+		footerJqStr = go$internalize(a.footerHb.Object(go$externalize(footerData, (go$structType([["ActiveTodoCount", "", Go$Int, ""], ["ActiveTodoWord", "", Go$String, ""], ["CompletedTodos", "", Go$Int, ""], ["Filter", "", Go$String, ""]])))), Go$String);
 		a.footerJq.Toggle(a.todos.length > 0).SetHtml(footerJqStr);
 	};
 	App.prototype.renderfooter = function() { return this.go$val.renderfooter(); };
@@ -34126,7 +34155,6 @@ go$packages["main"] = (function() {
 		var a, val, newToDo, _struct;
 		a = this;
 		val = jquery.Trim(a.newTodoJq.Val());
-		console.log(go$parseInt(e.Object.keyCode) >> 0, val);
 		if (val === "" || !(((go$parseInt(e.Object.keyCode) >> 0) === 13))) {
 			return;
 		}

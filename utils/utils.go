@@ -86,3 +86,18 @@ func CompileHandlebar(template string) *Handlebar {
 func RenderHandlebar(hb *Handlebar, i interface{}) string {
 	return hb.Object.Invoke(i).String()
 }
+
+func RegisterHelper() {
+
+	fn := func(a, b, options js.Object) js.Object {
+		this := js.This()
+		if a.String() == b.String() {
+			return options.Call("fn", this)
+		} else {
+			return options.Call("inverse", this)
+		}
+	}
+
+	js.Global("Handlebars").Call("registerHelper", "eq", fn)
+
+}

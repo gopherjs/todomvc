@@ -8,13 +8,18 @@ import (
 )
 
 const (
-	KEY       = "TodoMVC-GopherJS"
-	ENTER_KEY = 13
+	KEY        = "TodoMVC-GopherJS"
+	ENTER_KEY  = 13
+	ESCAPE_KEY = 27
 )
 
 func main() {
+
+	utils.RegisterHelper()
+
 	app := NewApp()
 	app.bindEvents()
+	app.initRouter()
 	app.render()
 }
 
@@ -37,6 +42,7 @@ type App struct {
 	todoListJq  jQ.JQuery
 	countJq     jQ.JQuery
 	clearBtnJq  jQ.JQuery
+	filter      string
 }
 
 //constructor
@@ -59,7 +65,8 @@ func NewApp() *App {
 	todoListJq := mainJq.Find("#todo-list")
 	countJq := footerJq.Find("#todo-count")
 	clearBtnJq := footerJq.Find("#clear-completed")
-	return &App{somethingToDo, todoHb, footerHb, todoAppJq, headerJq, mainJq, footerJq, newTodoJq, toggleAllJq, todoListJq, countJq, clearBtnJq}
+	filter := "all"
+	return &App{somethingToDo, todoHb, footerHb, todoAppJq, headerJq, mainJq, footerJq, newTodoJq, toggleAllJq, todoListJq, countJq, clearBtnJq, filter}
 }
 
 func (a *App) bindEvents() {
@@ -72,6 +79,17 @@ func (a *App) bindEvents() {
 	a.todoListJq.OnSelector(jQ.EvtKEYPRESS, ".edit", a.blurOnEnter)
 	a.todoListJq.OnSelector(jQ.EvtBLUR, ".edit", a.update)
 	a.todoListJq.OnSelector(jQ.EvtCLICK, ".destroy", a.destroy)
+}
+
+
+func (a *App) initRouter() {
+	
+	router := js.Global("Router").New()
+	router.Call("on", "/:filter", func(filter string) {
+		a.filter = filter
+		a.render()
+	})
+	router.Call("init", "/all")
 }
 
 func (a *App) render() {
@@ -89,12 +107,15 @@ func (a *App) renderfooter() {
 	activeTodoCount := a.activeTodoCount()
 	activeTodoWord := utils.Pluralize(activeTodoCount, "item")
 	completedTodos := len(a.todos) - activeTodoCount
+	filter := a.filter
+
 	footerData := struct {
 		ActiveTodoCount int
 		ActiveTodoWord  string
 		CompletedTodos  int
+		Filter          string
 	}{
-		activeTodoCount, activeTodoWord, completedTodos,
+		activeTodoCount, activeTodoWord, completedTodos, filter,
 	}
 	footerJqStr := a.footerHb.Invoke(footerData).String()
 	a.footerJq.Toggle(len(a.todos) > 0).SetHtml(footerJqStr)
@@ -133,9 +154,6 @@ func (a *App) destroyCompleted(this js.Object, e *jQ.Event) {
 func (a *App) create(this js.Object, e *jQ.Event) {
 
 	val := jQ.Trim(a.newTodoJq.Val())
-
-	print(e.KeyCode, val)
-
 	if val == "" || e.KeyCode != ENTER_KEY {
 		return
 	}

@@ -44,10 +44,22 @@
 		</script>
 		<script id="footer-template" type="text/x-handlebars-template">
 			<span id="todo-count"><strong>{{ActiveTodoCount}}</strong> {{ActiveTodoWord}} left</span>
+			<ul id="filters">
+				<li>
+					<a {{#eq Filter 'all'}}class="selected"{{/eq}} href="#/all">All</a>
+				</li>
+				<li>
+					<a {{#eq Filter 'active'}}class="selected"{{/eq}}href="#/active">Active</a>
+				</li>
+				<li>
+					<a {{#eq Filter 'completed'}}class="selected"{{/eq}}href="#/completed">Completed</a>
+				</li>
+			</ul>
 			{{#if CompletedTodos}}<button id="clear-completed">Clear completed ({{CompletedTodos}})</button>{{/if}}
 		</script>
 		<script src="bower_components/jquery/jquery-2.1.0.min.js"></script>
 		<script src="bower_components/handlebars/handlebars.js"></script>
+		<script src="bower_components/director/build/director.js"></script>
 		<script src="app.js"></script>
 	</body>
 </html>
