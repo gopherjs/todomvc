@@ -52,6 +52,7 @@ func NewApp() *App {
 
 	utils.Retrieve(KEY, &somethingToDo)
 	todoTemplate := jQ.NewJQuery("#todo-template").Html()
+
 	todoHb := utils.CompileHandlebar(todoTemplate)
 	footerTemplate := jQ.NewJQuery("#footer-template").Html()
 	footerHb := utils.CompileHandlebar(footerTemplate)
@@ -76,14 +77,13 @@ func (a *App) bindEvents() {
 	a.footerJq.OnSelector(jQ.EvtCLICK, "#clear-completed", a.destroyCompleted)
 	a.todoListJq.OnSelector(jQ.EvtCHANGE, ".toggle", a.toggle)
 	a.todoListJq.OnSelector(jQ.EvtDBLCLICK, "label", a.edit)
-	a.todoListJq.OnSelector(jQ.EvtKEYPRESS, ".edit", a.blurOnEnter)
-	a.todoListJq.OnSelector(jQ.EvtBLUR, ".edit", a.update)
+	a.todoListJq.OnSelector(jQ.EvtKEYUP, ".edit", a.blurOnEnter)
+	a.todoListJq.OnSelector(jQ.EvtFOCUSOUT, ".edit", a.update)
 	a.todoListJq.OnSelector(jQ.EvtCLICK, ".destroy", a.destroy)
 }
 
-
 func (a *App) initRouter() {
-	
+
 	router := js.Global("Router").New()
 	router.Call("on", "/:filter", func(filter string) {
 		a.filter = filter
@@ -94,7 +94,9 @@ func (a *App) initRouter() {
 
 func (a *App) render() {
 
-	strtodoHb := a.todoHb.Invoke(a.todos).String()
+	todos := a.getFilteredTodos()
+
+	strtodoHb := a.todoHb.Invoke(todos).String()
 	a.todoListJq.SetHtml(strtodoHb)
 	a.mainJq.Toggle(len(a.todos) > 0)
 	a.toggleAllJq.SetProp("checked", a.activeTodoCount() != 0)
@@ -120,7 +122,7 @@ func (a *App) renderfooter() {
 	footerJqStr := a.footerHb.Invoke(footerData).String()
 	a.footerJq.Toggle(len(a.todos) > 0).SetHtml(footerJqStr)
 }
-func (a *App) toggleAll(this js.Object, e *jQ.Event) {
+func (a *App) toggleAll(e jQ.Event) {
 
 	checked := !a.toggleAllJq.Prop("checked")
 	for idx := range a.todos {
@@ -138,7 +140,43 @@ func (a *App) activeTodoCount() int {
 	}
 	return count
 }
-func (a *App) destroyCompleted(this js.Object, e *jQ.Event) {
+
+func (a *App) getActiveTodos() []ToDo {
+
+	todosTmp := make([]ToDo, 0)
+	for _, val := range a.todos {
+		if !val.Completed {
+			todosTmp = append(todosTmp, val)
+		}
+	}
+	return todosTmp
+}
+
+func (a *App) getCompletedTodos() []ToDo {
+
+	todosTmp := make([]ToDo, 0)
+	for _, val := range a.todos {
+		if val.Completed {
+			todosTmp = append(todosTmp, val)
+		}
+	}
+	return todosTmp
+}
+
+func (a *App) getFilteredTodos() []ToDo {
+
+	if a.filter == "active" {
+		return a.getActiveTodos()
+	}
+
+	if a.filter == "completed" {
+		return a.getCompletedTodos()
+	}
+
+	return a.todos
+}
+
+func (a *App) destroyCompleted(e jQ.Event) {
 
 	todosTmp := make([]ToDo, 0)
 	for _, val := range a.todos {
@@ -148,10 +186,11 @@ func (a *App) destroyCompleted(this js.Object, e *jQ.Event) {
 	}
 	a.todos = make([]ToDo, len(todosTmp))
 	copy(a.todos, todosTmp)
+	a.filter = "all"
 	a.render()
 }
 
-func (a *App) create(this js.Object, e *jQ.Event) {
+func (a *App) create(e jQ.Event) {
 
 	val := jQ.Trim(a.newTodoJq.Val())
 	if val == "" || e.KeyCode != ENTER_KEY {
@@ -163,36 +202,45 @@ func (a *App) create(this js.Object, e *jQ.Event) {
 	a.render()
 }
 
-func (a *App) toggle(this js.Object, e *jQ.Event) {
+func (a *App) toggle(e jQ.Event) {
 
-	id := jQ.NewJQueryByObject(this).Closest("li").Data("id")
+	id := jQ.NewJQuery(e.Target).Closest("li").Data("id")
 	for idx, val := range a.todos {
 		if val.Id == id {
 			a.todos[idx].Completed = !a.todos[idx].Completed
 		}
 	}
 	a.render()
-
 }
 
-func (a *App) edit(this js.Object, e *jQ.Event) {
-	thisJq := jQ.NewJQueryByObject(this)
+func (a *App) edit(e jQ.Event) {
+	thisJq := jQ.NewJQuery(e.Target)
 	input := thisJq.Closest("li").AddClass("editing").Find(".edit")
 	val := input.Val()
 	input.SetVal(val).Focus()
 
 }
 
-func (a *App) blurOnEnter(this js.Object, e *jQ.Event) {
+func (a *App) blurOnEnter(e jQ.Event) {
 
 	if e.KeyCode == ENTER_KEY {
-		jQ.NewJQueryByObject(this).Blur()
+		jQ.NewJQuery(e.Target).Blur()
+	}
+
+	if e.KeyCode == ESCAPE_KEY {
+		jQ.NewJQuery(e.Target).SetData("abort", "true").Blur()
 	}
 }
 
-func (a *App) update(this js.Object, e *jQ.Event) {
-	thisJq := jQ.NewJQueryByObject(this)
+func (a *App) update(e jQ.Event) {
+	thisJq := jQ.NewJQuery(e.Target)
 	val := jQ.Trim(thisJq.Val())
+
+	if thisJq.Data("abort") == "true" {
+		thisJq.SetData("abort", "false")
+		a.render()
+		return
+	}
 
 	id := thisJq.Closest("li").RemoveClass("editing").Data("id")
 	for idx := range a.todos {
@@ -216,9 +264,9 @@ func (a *App) update(this js.Object, e *jQ.Event) {
 
 }
 
-func (a *App) destroy(this js.Object, e *jQ.Event) {
+func (a *App) destroy(e jQ.Event) {
 
-	id := jQ.NewJQueryByObject(this).Closest("li").Data("id")
+	id := jQ.NewJQuery(e.Target).Closest("li").Data("id")
 
 	todosTmp := make([]ToDo, 0)
 	for _, val := range a.todos {
