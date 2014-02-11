@@ -2,7 +2,6 @@ package utils
 
 import (
 	"encoding/json"
-
 	"fmt"
 	"github.com/neelance/gopherjs/js"
 	"math/rand"
@@ -14,7 +13,6 @@ func Store(key string, val interface{}) {
 	str := string(byteArr)
 	js.Global("localStorage").Call("setItem", key, str)
 }
-
 func Retrieve(key string, val interface{}) {
 	item := js.Global("localStorage").Call("getItem", key)
 	if item.IsNull() {
@@ -24,7 +22,6 @@ func Retrieve(key string, val interface{}) {
 	str := item.String()
 	json.Unmarshal([]byte(str), &val)
 }
-
 func Pluralize(count int, word string) string {
 	if count == 1 {
 		return word
@@ -33,7 +30,6 @@ func Pluralize(count int, word string) string {
 }
 
 func Uuid() string {
-
 	uuid := ""
 	for i := 0; i < 32; i++ {
 		rand := int(js.Global("Math").Call("random").Float()*16) | 0
@@ -52,9 +48,7 @@ func Uuid() string {
 	}
 	return uuid
 }
-
-//2do: compare speed of pure go
-func UuidNative() (uuid string) {
+func UuidGo() (uuid string) { //"pure" Go, but slower than native JS bindings
 	for i := 0; i < 32; i++ {
 		rand.Seed(time.Now().UnixNano() + int64(i))
 		random := rand.Intn(16)
@@ -74,6 +68,7 @@ func UuidNative() (uuid string) {
 	return
 }
 
+//handlebar templates
 type Handlebar struct {
 	js.Object
 }
@@ -82,13 +77,10 @@ func CompileHandlebar(template string) *Handlebar {
 	h := js.Global("Handlebars").Call("compile", template)
 	return &Handlebar{h}
 }
-
 func RenderHandlebar(hb *Handlebar, i interface{}) string {
 	return hb.Object.Invoke(i).String()
 }
-
-func RegisterHelper() {
-
+func RegisterHandlebarsHelper() {
 	fn := func(a, b, options js.Object) js.Object {
 		this := js.This()
 		if a.String() == b.String() {
@@ -97,7 +89,21 @@ func RegisterHelper() {
 			return options.Call("inverse", this)
 		}
 	}
-
 	js.Global("Handlebars").Call("registerHelper", "eq", fn)
+}
 
+//router (Director.js)
+type Router struct {
+	js.Object
+}
+
+func NewRouter() Router {
+	return Router{Object: js.Global("Router").New()}
+}
+func (r Router) On(path string, handler func(string)) {
+	r.Call("on", path, handler)
+}
+
+func (r Router) Init(path string) {
+	r.Call("init", path)
 }

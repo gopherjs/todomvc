@@ -34110,9 +34110,48 @@ go$packages["github.com/rusco/todomvc/utils"] = (function() {
 	Handlebar.prototype.String = function() { return this.go$val.String(); };
 	Handlebar.Ptr.prototype.String = function() { return this.Object.String(); };
 	go$pkg.Handlebar = Handlebar;
+	var Router;
+	Router = go$newType(0, "Struct", "utils.Router", "Router", "github.com/rusco/todomvc/utils", function(Object_) {
+		this.go$val = this;
+		this.Object = Object_ !== undefined ? Object_ : null;
+	});
+	Router.prototype.Bool = function() { return this.go$val.Bool(); };
+	Router.Ptr.prototype.Bool = function() { return this.Object.Bool(); };
+	Router.prototype.Call = function(name, args) { return this.go$val.Call(name, args); };
+	Router.Ptr.prototype.Call = function(name, args) { return this.Object.Call(name, args); };
+	Router.prototype.Float = function() { return this.go$val.Float(); };
+	Router.Ptr.prototype.Float = function() { return this.Object.Float(); };
+	Router.prototype.Get = function(name) { return this.go$val.Get(name); };
+	Router.Ptr.prototype.Get = function(name) { return this.Object.Get(name); };
+	Router.prototype.Index = function(i) { return this.go$val.Index(i); };
+	Router.Ptr.prototype.Index = function(i) { return this.Object.Index(i); };
+	Router.prototype.Int = function() { return this.go$val.Int(); };
+	Router.Ptr.prototype.Int = function() { return this.Object.Int(); };
+	Router.prototype.Interface = function() { return this.go$val.Interface(); };
+	Router.Ptr.prototype.Interface = function() { return this.Object.Interface(); };
+	Router.prototype.Invoke = function(args) { return this.go$val.Invoke(args); };
+	Router.Ptr.prototype.Invoke = function(args) { return this.Object.Invoke(args); };
+	Router.prototype.IsNull = function() { return this.go$val.IsNull(); };
+	Router.Ptr.prototype.IsNull = function() { return this.Object.IsNull(); };
+	Router.prototype.IsUndefined = function() { return this.go$val.IsUndefined(); };
+	Router.Ptr.prototype.IsUndefined = function() { return this.Object.IsUndefined(); };
+	Router.prototype.Length = function() { return this.go$val.Length(); };
+	Router.Ptr.prototype.Length = function() { return this.Object.Length(); };
+	Router.prototype.New = function(args) { return this.go$val.New(args); };
+	Router.Ptr.prototype.New = function(args) { return this.Object.New(args); };
+	Router.prototype.Set = function(name, value) { return this.go$val.Set(name, value); };
+	Router.Ptr.prototype.Set = function(name, value) { return this.Object.Set(name, value); };
+	Router.prototype.SetIndex = function(i, value) { return this.go$val.SetIndex(i, value); };
+	Router.Ptr.prototype.SetIndex = function(i, value) { return this.Object.SetIndex(i, value); };
+	Router.prototype.String = function() { return this.go$val.String(); };
+	Router.Ptr.prototype.String = function() { return this.Object.String(); };
+	go$pkg.Router = Router;
 	Handlebar.init([["", "", js.Object, ""]]);
 	Handlebar.methods = [["Bool", "", [], [Go$Bool], false], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true], ["Float", "", [], [Go$Float64], false], ["Get", "", [Go$String], [js.Object], false], ["Index", "", [Go$Int], [js.Object], false], ["Int", "", [], [Go$Int], false], ["Interface", "", [], [go$emptyInterface], false], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["IsNull", "", [], [Go$Bool], false], ["IsUndefined", "", [], [Go$Bool], false], ["Length", "", [], [Go$Int], false], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["Set", "", [Go$String, go$emptyInterface], [], false], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false], ["String", "", [], [Go$String], false]];
 	(go$ptrType(Handlebar)).methods = [["Bool", "", [], [Go$Bool], false], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true], ["Float", "", [], [Go$Float64], false], ["Get", "", [Go$String], [js.Object], false], ["Index", "", [Go$Int], [js.Object], false], ["Int", "", [], [Go$Int], false], ["Interface", "", [], [go$emptyInterface], false], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["IsNull", "", [], [Go$Bool], false], ["IsUndefined", "", [], [Go$Bool], false], ["Length", "", [], [Go$Int], false], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["Set", "", [Go$String, go$emptyInterface], [], false], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false], ["String", "", [], [Go$String], false]];
+	Router.init([["", "", js.Object, ""]]);
+	Router.methods = [["Bool", "", [], [Go$Bool], false], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true], ["Float", "", [], [Go$Float64], false], ["Get", "", [Go$String], [js.Object], false], ["Index", "", [Go$Int], [js.Object], false], ["Init", "", [Go$String], [], false], ["Int", "", [], [Go$Int], false], ["Interface", "", [], [go$emptyInterface], false], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["IsNull", "", [], [Go$Bool], false], ["IsUndefined", "", [], [Go$Bool], false], ["Length", "", [], [Go$Int], false], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["On", "", [Go$String, (go$funcType([Go$String], [], false))], [], false], ["Set", "", [Go$String, go$emptyInterface], [], false], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false], ["String", "", [], [Go$String], false]];
+	(go$ptrType(Router)).methods = [["Bool", "", [], [Go$Bool], false], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true], ["Float", "", [], [Go$Float64], false], ["Get", "", [Go$String], [js.Object], false], ["Index", "", [Go$Int], [js.Object], false], ["Init", "", [Go$String], [], false], ["Int", "", [], [Go$Int], false], ["Interface", "", [], [go$emptyInterface], false], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["IsNull", "", [], [Go$Bool], false], ["IsUndefined", "", [], [Go$Bool], false], ["Length", "", [], [Go$Int], false], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["On", "", [Go$String, (go$funcType([Go$String], [], false))], [], false], ["Set", "", [Go$String, go$emptyInterface], [], false], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false], ["String", "", [], [Go$String], false]];
 	var Store = go$pkg.Store = function(key, val) {
 		var _tuple, byteArr, str;
 		_tuple = json.Marshal(val), byteArr = _tuple[0];
@@ -34157,7 +34196,7 @@ go$packages["github.com/rusco/todomvc/utils"] = (function() {
 		}
 		return uuid;
 	};
-	var UuidNative = go$pkg.UuidNative = function() {
+	var UuidGo = go$pkg.UuidGo = function() {
 		var uuid, i, x, x$1, random, _ref, _ref$1;
 		uuid = "";
 		i = 0;
@@ -34188,7 +34227,7 @@ go$packages["github.com/rusco/todomvc/utils"] = (function() {
 	var RenderHandlebar = go$pkg.RenderHandlebar = function(hb, i) {
 		return go$internalize(hb.Object(go$externalize(i, go$emptyInterface)), Go$String);
 	};
-	var RegisterHelper = go$pkg.RegisterHelper = function() {
+	var RegisterHandlebarsHelper = go$pkg.RegisterHandlebarsHelper = function() {
 		var fn;
 		fn = (function(a, b, options) {
 			var this$1;
@@ -34201,6 +34240,21 @@ go$packages["github.com/rusco/todomvc/utils"] = (function() {
 		});
 		go$global.Handlebars.registerHelper(go$externalize("eq", Go$String), go$externalize(fn, (go$funcType([js.Object, js.Object, js.Object], [js.Object], false))));
 	};
+	var NewRouter = go$pkg.NewRouter = function() {
+		return new Router.Ptr(new go$global.Router());
+	};
+	Router.Ptr.prototype.On = function(path, handler) {
+		var _struct, r;
+		r = (_struct = this, new Router.Ptr(_struct.Object));
+		r.Object.on(go$externalize(path, Go$String), go$externalize(handler, (go$funcType([Go$String], [], false))));
+	};
+	Router.prototype.On = function(path, handler) { return this.go$val.On(path, handler); };
+	Router.Ptr.prototype.Init = function(path) {
+		var _struct, r;
+		r = (_struct = this, new Router.Ptr(_struct.Object));
+		r.Object.init(go$externalize(path, Go$String));
+	};
+	Router.prototype.Init = function(path) { return this.go$val.Init(path); };
 	go$pkg.init = function() {
 	};
 	return go$pkg;
@@ -34209,7 +34263,6 @@ go$packages["main"] = (function() {
 	var go$pkg = {};
 	var jquery = go$packages["github.com/rusco/jquery"];
 	var utils = go$packages["github.com/rusco/todomvc/utils"];
-	var js = go$packages["github.com/neelance/gopherjs/js"];
 	var ToDo;
 	ToDo = go$newType(0, "Struct", "main.ToDo", "ToDo", "main", function(Id_, Text_, Completed_) {
 		this.go$val = this;
@@ -34238,10 +34291,10 @@ go$packages["main"] = (function() {
 	go$pkg.App = App;
 	ToDo.init([["Id", "", Go$String, ""], ["Text", "", Go$String, ""], ["Completed", "", Go$Bool, ""]]);
 	App.init([["todos", "main", (go$sliceType(ToDo)), ""], ["todoHb", "main", (go$ptrType(utils.Handlebar)), ""], ["footerHb", "main", (go$ptrType(utils.Handlebar)), ""], ["todoAppJq", "main", jquery.JQuery, ""], ["headerJq", "main", jquery.JQuery, ""], ["mainJq", "main", jquery.JQuery, ""], ["footerJq", "main", jquery.JQuery, ""], ["newTodoJq", "main", jquery.JQuery, ""], ["toggleAllJq", "main", jquery.JQuery, ""], ["todoListJq", "main", jquery.JQuery, ""], ["countJq", "main", jquery.JQuery, ""], ["clearBtnJq", "main", jquery.JQuery, ""], ["filter", "main", Go$String, ""]]);
-	(go$ptrType(App)).methods = [["activeTodoCount", "main", [], [Go$Int], false], ["bindEvents", "main", [], [], false], ["blurOnEnter", "main", [jquery.Event], [], false], ["create", "main", [jquery.Event], [], false], ["destroy", "main", [jquery.Event], [], false], ["destroyCompleted", "main", [jquery.Event], [], false], ["edit", "main", [jquery.Event], [], false], ["getActiveTodos", "main", [], [(go$sliceType(ToDo))], false], ["getCompletedTodos", "main", [], [(go$sliceType(ToDo))], false], ["getFilteredTodos", "main", [], [(go$sliceType(ToDo))], false], ["initRouter", "main", [], [], false], ["render", "main", [], [], false], ["renderfooter", "main", [], [], false], ["toggle", "main", [jquery.Event], [], false], ["toggleAll", "main", [jquery.Event], [], false], ["update", "main", [jquery.Event], [], false]];
+	(go$ptrType(App)).methods = [["bindEvents", "main", [], [], false], ["blurOnEnter", "main", [jquery.Event], [], false], ["create", "main", [jquery.Event], [], false], ["destroy", "main", [jquery.Event], [], false], ["destroyCompleted", "main", [jquery.Event], [], false], ["edit", "main", [jquery.Event], [], false], ["getActiveTodos", "main", [], [(go$sliceType(ToDo))], false], ["getCompletedTodos", "main", [], [(go$sliceType(ToDo))], false], ["getFilteredTodos", "main", [], [(go$sliceType(ToDo))], false], ["indexFromEl", "main", [jquery.Event], [Go$Int], false], ["initRouter", "main", [], [], false], ["render", "main", [], [], false], ["renderfooter", "main", [], [], false], ["toggle", "main", [jquery.Event], [], false], ["toggleAll", "main", [jquery.Event], [], false], ["update", "main", [jquery.Event], [], false]];
 	var main = go$pkg.main = function() {
 		var app;
-		utils.RegisterHelper();
+		utils.RegisterHandlebarsHelper();
 		app = NewApp();
 		app.bindEvents();
 		app.initRouter();
@@ -34281,14 +34334,15 @@ go$packages["main"] = (function() {
 	};
 	App.prototype.bindEvents = function() { return this.go$val.bindEvents(); };
 	App.Ptr.prototype.initRouter = function() {
-		var a, router;
+		var a, _struct, router;
 		a = this;
-		router = new go$global.Router();
-		router.on(go$externalize("/:filter", Go$String), go$externalize((function(filter) {
+		router = (_struct = utils.NewRouter(), new utils.Router.Ptr(_struct.Object));
+		router.On("/:filter", (function(filter) {
 			a.filter = filter;
 			a.render();
-		}), (go$funcType([Go$String], [], false))));
-		router.init(go$externalize("/all", Go$String));
+			console.log(" in filter handler: ", filter);
+		}));
+		router.Init("/all");
 	};
 	App.prototype.initRouter = function() { return this.go$val.initRouter(); };
 	App.Ptr.prototype.render = function() {
@@ -34298,15 +34352,16 @@ go$packages["main"] = (function() {
 		strtodoHb = go$internalize(a.todoHb.Object(go$externalize(todos, (go$sliceType(ToDo)))), Go$String);
 		a.todoListJq.SetHtml(strtodoHb);
 		a.mainJq.Toggle(a.todos.length > 0);
-		a.toggleAllJq.SetProp("checked", !((a.activeTodoCount() === 0)));
+		a.toggleAllJq.SetProp("checked", !((a.getActiveTodos().length === 0)));
 		a.renderfooter();
+		a.newTodoJq.Focus();
 		utils.Store("TodoMVC-GopherJS", a.todos);
 	};
 	App.prototype.render = function() { return this.go$val.render(); };
 	App.Ptr.prototype.renderfooter = function() {
 		var a, activeTodoCount, activeTodoWord, completedTodos, filter, footerData, footerJqStr;
 		a = this;
-		activeTodoCount = a.activeTodoCount();
+		activeTodoCount = a.getActiveTodos().length;
 		activeTodoWord = utils.Pluralize(activeTodoCount, "item");
 		completedTodos = a.todos.length - activeTodoCount >> 0;
 		filter = a.filter;
@@ -34329,22 +34384,6 @@ go$packages["main"] = (function() {
 		a.render();
 	};
 	App.prototype.toggleAll = function(e) { return this.go$val.toggleAll(e); };
-	App.Ptr.prototype.activeTodoCount = function() {
-		var a, count, _ref, _i, _slice, _index, _struct, val;
-		a = this;
-		count = 0;
-		_ref = a.todos;
-		_i = 0;
-		while (_i < _ref.length) {
-			val = (_struct = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), new ToDo.Ptr(_struct.Id, _struct.Text, _struct.Completed));
-			if (!val.Completed) {
-				count = count + 1 >> 0;
-			}
-			_i++;
-		}
-		return count;
-	};
-	App.prototype.activeTodoCount = function() { return this.go$val.activeTodoCount(); };
 	App.Ptr.prototype.getActiveTodos = function() {
 		var a, todosTmp, _ref, _i, _slice, _index, _struct, val, _struct$1;
 		a = this;
@@ -34378,41 +34417,48 @@ go$packages["main"] = (function() {
 	};
 	App.prototype.getCompletedTodos = function() { return this.go$val.getCompletedTodos(); };
 	App.Ptr.prototype.getFilteredTodos = function() {
-		var a;
+		var a, _ref;
 		a = this;
-		if (a.filter === "active") {
+		_ref = a.filter;
+		if (_ref === "active") {
 			return a.getActiveTodos();
-		}
-		if (a.filter === "completed") {
+		} else if (_ref === "completed") {
 			return a.getCompletedTodos();
+		} else {
+			return a.todos;
 		}
-		return a.todos;
 	};
 	App.prototype.getFilteredTodos = function() { return this.go$val.getFilteredTodos(); };
 	App.Ptr.prototype.destroyCompleted = function(e) {
-		var a, todosTmp, _ref, _i, _slice, _index, _struct, val, _struct$1;
+		var a;
 		a = this;
-		todosTmp = (go$sliceType(ToDo)).make(0, 0, function() { return new ToDo.Ptr(); });
-		_ref = a.todos;
-		_i = 0;
-		while (_i < _ref.length) {
-			val = (_struct = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), new ToDo.Ptr(_struct.Id, _struct.Text, _struct.Completed));
-			if (!val.Completed) {
-				todosTmp = go$append(todosTmp, (_struct$1 = val, new ToDo.Ptr(_struct$1.Id, _struct$1.Text, _struct$1.Completed)));
-			}
-			_i++;
-		}
-		a.todos = (go$sliceType(ToDo)).make(todosTmp.length, 0, function() { return new ToDo.Ptr(); });
-		go$copySlice(a.todos, todosTmp);
+		a.todos = a.getActiveTodos();
 		a.filter = "all";
 		a.render();
 	};
 	App.prototype.destroyCompleted = function(e) { return this.go$val.destroyCompleted(e); };
+	App.Ptr.prototype.indexFromEl = function(e) {
+		var a, id, _ref, _i, _slice, _index, _struct, val, idx;
+		a = this;
+		id = jquery.NewJQuery(new (go$sliceType(go$emptyInterface))([e.Object.target])).Closest("li").Data("id");
+		_ref = a.todos;
+		_i = 0;
+		while (_i < _ref.length) {
+			val = (_struct = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), new ToDo.Ptr(_struct.Id, _struct.Text, _struct.Completed));
+			idx = _i;
+			if (val.Id === id) {
+				return idx;
+			}
+			_i++;
+		}
+		return -1;
+	};
+	App.prototype.indexFromEl = function(e) { return this.go$val.indexFromEl(e); };
 	App.Ptr.prototype.create = function(e) {
 		var a, val, newToDo, _struct;
 		a = this;
 		val = jquery.Trim(a.newTodoJq.Val());
-		if (val === "" || !(((go$parseInt(e.Object.keyCode) >> 0) === 13))) {
+		if ((val.length === 0) || !(((go$parseInt(e.Object.keyCode) >> 0) === 13))) {
 			return;
 		}
 		newToDo = new ToDo.Ptr(utils.Uuid(), val, false);
@@ -34422,44 +34468,33 @@ go$packages["main"] = (function() {
 	};
 	App.prototype.create = function(e) { return this.go$val.create(e); };
 	App.Ptr.prototype.toggle = function(e) {
-		var a, id, _ref, _i, _slice, _index, _struct, val, idx, _slice$1, _index$1, _slice$2, _index$2;
+		var a, _struct, idx, _slice, _index, _slice$1, _index$1;
 		a = this;
-		id = jquery.NewJQuery(new (go$sliceType(go$emptyInterface))([e.Object.target])).Closest("li").Data("id");
-		_ref = a.todos;
-		_i = 0;
-		while (_i < _ref.length) {
-			val = (_struct = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), new ToDo.Ptr(_struct.Id, _struct.Text, _struct.Completed));
-			idx = _i;
-			if (val.Id === id) {
-				(_slice$2 = a.todos, _index$2 = idx, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range")).Completed = !(_slice$1 = a.todos, _index$1 = idx, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).Completed;
-			}
-			_i++;
-		}
+		idx = a.indexFromEl((_struct = e, new jquery.Event.Ptr(_struct.Object, _struct.KeyCode, _struct.Target, _struct.Data, _struct.Which)));
+		(_slice$1 = a.todos, _index$1 = idx, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).Completed = !(_slice = a.todos, _index = idx, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).Completed;
 		a.render();
 	};
 	App.prototype.toggle = function(e) { return this.go$val.toggle(e); };
 	App.Ptr.prototype.edit = function(e) {
-		var a, _struct, thisJq, _struct$1, input, val;
+		var a, _struct, input;
 		a = this;
-		thisJq = (_struct = jquery.NewJQuery(new (go$sliceType(go$emptyInterface))([e.Object.target])), new jquery.JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length));
-		input = (_struct$1 = thisJq.Closest("li").AddClass("editing").Find(".edit"), new jquery.JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length));
-		val = input.Val();
-		input.SetVal(val).Focus();
+		input = (_struct = jquery.NewJQuery(new (go$sliceType(go$emptyInterface))([e.Object.target])).Closest("li").AddClass("editing").Find(".edit"), new jquery.JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length));
+		input.SetVal(input.Val()).Focus();
 	};
 	App.prototype.edit = function(e) { return this.go$val.edit(e); };
 	App.Ptr.prototype.blurOnEnter = function(e) {
-		var a;
+		var a, _ref;
 		a = this;
-		if ((go$parseInt(e.Object.keyCode) >> 0) === 13) {
+		_ref = go$parseInt(e.Object.keyCode) >> 0;
+		if (_ref === 13) {
 			jquery.NewJQuery(new (go$sliceType(go$emptyInterface))([e.Object.target])).Blur();
-		}
-		if ((go$parseInt(e.Object.keyCode) >> 0) === 27) {
+		} else if (_ref === 27) {
 			jquery.NewJQuery(new (go$sliceType(go$emptyInterface))([e.Object.target])).SetData("abort", "true").Blur();
 		}
 	};
 	App.prototype.blurOnEnter = function(e) { return this.go$val.blurOnEnter(e); };
 	App.Ptr.prototype.update = function(e) {
-		var a, _struct, thisJq, val, id, _ref, _i, idx, _slice, _index, _slice$1, _index$1, _slice$2, _index$2, todosTmp, _ref$1, _i$1, _slice$3, _index$3, _struct$1, val$1, _struct$2;
+		var a, _struct, thisJq, val, _struct$1, idx, _slice, _index;
 		a = this;
 		thisJq = (_struct = jquery.NewJQuery(new (go$sliceType(go$emptyInterface))([e.Object.target])), new jquery.JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length));
 		val = jquery.Trim(thisJq.Val());
@@ -34468,51 +34503,20 @@ go$packages["main"] = (function() {
 			a.render();
 			return;
 		}
-		id = thisJq.Closest("li").RemoveClass("editing").Data("id");
-		_ref = a.todos;
-		_i = 0;
-		while (_i < _ref.length) {
-			idx = _i;
-			if ((_slice = a.todos, _index = idx, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).Id === id) {
-				if (val.length > 0) {
-					(_slice$1 = a.todos, _index$1 = idx, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).Text = val;
-				} else {
-					(_slice$2 = a.todos, _index$2 = idx, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range")).Id = "delete";
-				}
-			}
-			_i++;
+		idx = a.indexFromEl((_struct$1 = e, new jquery.Event.Ptr(_struct$1.Object, _struct$1.KeyCode, _struct$1.Target, _struct$1.Data, _struct$1.Which)));
+		if (val.length > 0) {
+			(_slice = a.todos, _index = idx, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).Text = val;
+		} else {
+			a.todos = go$appendSlice(go$subslice(a.todos, 0, idx), go$subslice(a.todos, (idx + 1 >> 0)));
 		}
-		todosTmp = (go$sliceType(ToDo)).make(0, 0, function() { return new ToDo.Ptr(); });
-		_ref$1 = a.todos;
-		_i$1 = 0;
-		while (_i$1 < _ref$1.length) {
-			val$1 = (_struct$1 = (_slice$3 = _ref$1, _index$3 = _i$1, (_index$3 >= 0 && _index$3 < _slice$3.length) ? _slice$3.array[_slice$3.offset + _index$3] : go$throwRuntimeError("index out of range")), new ToDo.Ptr(_struct$1.Id, _struct$1.Text, _struct$1.Completed));
-			if (!(val$1.Id === "delete")) {
-				todosTmp = go$append(todosTmp, (_struct$2 = val$1, new ToDo.Ptr(_struct$2.Id, _struct$2.Text, _struct$2.Completed)));
-			}
-			_i$1++;
-		}
-		a.todos = (go$sliceType(ToDo)).make(todosTmp.length, 0, function() { return new ToDo.Ptr(); });
-		go$copySlice(a.todos, todosTmp);
 		a.render();
 	};
 	App.prototype.update = function(e) { return this.go$val.update(e); };
 	App.Ptr.prototype.destroy = function(e) {
-		var a, id, todosTmp, _ref, _i, _slice, _index, _struct, val, _struct$1;
+		var a, _struct, idx;
 		a = this;
-		id = jquery.NewJQuery(new (go$sliceType(go$emptyInterface))([e.Object.target])).Closest("li").Data("id");
-		todosTmp = (go$sliceType(ToDo)).make(0, 0, function() { return new ToDo.Ptr(); });
-		_ref = a.todos;
-		_i = 0;
-		while (_i < _ref.length) {
-			val = (_struct = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), new ToDo.Ptr(_struct.Id, _struct.Text, _struct.Completed));
-			if (!(val.Id === id)) {
-				todosTmp = go$append(todosTmp, (_struct$1 = val, new ToDo.Ptr(_struct$1.Id, _struct$1.Text, _struct$1.Completed)));
-			}
-			_i++;
-		}
-		a.todos = (go$sliceType(ToDo)).make(todosTmp.length, 0, function() { return new ToDo.Ptr(); });
-		go$copySlice(a.todos, todosTmp);
+		idx = a.indexFromEl((_struct = e, new jquery.Event.Ptr(_struct.Object, _struct.KeyCode, _struct.Target, _struct.Data, _struct.Which)));
+		a.todos = go$appendSlice(go$subslice(a.todos, 0, idx), go$subslice(a.todos, (idx + 1 >> 0)));
 		a.render();
 	};
 	App.prototype.destroy = function(e) { return this.go$val.destroy(e); };
@@ -34522,8 +34526,8 @@ go$packages["main"] = (function() {
 })();
 go$error.implementedBy = [go$packages["encoding/base64"].CorruptInputError, go$packages["encoding/json"].InvalidUTF8Error.Ptr, go$packages["encoding/json"].InvalidUnmarshalError.Ptr, go$packages["encoding/json"].MarshalerError.Ptr, go$packages["encoding/json"].SyntaxError.Ptr, go$packages["encoding/json"].UnmarshalFieldError.Ptr, go$packages["encoding/json"].UnmarshalTypeError.Ptr, go$packages["encoding/json"].UnsupportedTypeError.Ptr, go$packages["encoding/json"].UnsupportedValueError.Ptr, go$packages["errors"].errorString.Ptr, go$packages["github.com/neelance/gopherjs/js"].Error.Ptr, go$packages["os"].LinkError.Ptr, go$packages["os"].PathError.Ptr, go$packages["os"].SyscallError.Ptr, go$packages["reflect"].ValueError.Ptr, go$packages["runtime"].TypeAssertionError.Ptr, go$packages["runtime"].errorCString, go$packages["runtime"].errorString, go$packages["strconv"].NumError.Ptr, go$packages["syscall"].DLLError.Ptr, go$packages["syscall"].Errno, go$packages["time"].ParseError.Ptr, go$ptrType(go$packages["encoding/base64"].CorruptInputError), go$ptrType(go$packages["runtime"].errorCString), go$ptrType(go$packages["runtime"].errorString), go$ptrType(go$packages["syscall"].Errno)];
 go$packages["runtime"].Error.implementedBy = [go$packages["runtime"].TypeAssertionError.Ptr, go$packages["runtime"].errorCString, go$packages["runtime"].errorString, go$ptrType(go$packages["runtime"].errorCString), go$ptrType(go$packages["runtime"].errorString)];
-go$packages["runtime"].stringer.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].Number, go$packages["encoding/json"].encodeState.Ptr, go$packages["github.com/neelance/gopherjs/js"].Error, go$packages["github.com/neelance/gopherjs/js"].Error.Ptr, go$packages["github.com/rusco/jquery"].Event, go$packages["github.com/rusco/jquery"].Event.Ptr, go$packages["github.com/rusco/todomvc/utils"].Handlebar, go$packages["github.com/rusco/todomvc/utils"].Handlebar.Ptr, go$packages["os"].FileMode, go$packages["os"].ProcessState.Ptr, go$packages["reflect"].ChanDir, go$packages["reflect"].Kind, go$packages["reflect"].Value, go$packages["reflect"].Value.Ptr, go$packages["reflect"].arrayType.Ptr, go$packages["reflect"].chanType.Ptr, go$packages["reflect"].funcType.Ptr, go$packages["reflect"].interfaceType.Ptr, go$packages["reflect"].mapType.Ptr, go$packages["reflect"].ptrType.Ptr, go$packages["reflect"].rtype.Ptr, go$packages["reflect"].sliceType.Ptr, go$packages["reflect"].structType.Ptr, go$packages["strconv"].decimal.Ptr, go$packages["syscall"].Signal, go$packages["time"].Duration, go$packages["time"].Location.Ptr, go$packages["time"].Month, go$packages["time"].Time, go$packages["time"].Time.Ptr, go$packages["time"].Weekday, go$ptrType(go$packages["encoding/json"].Number), go$ptrType(go$packages["os"].FileMode), go$ptrType(go$packages["reflect"].ChanDir), go$ptrType(go$packages["reflect"].Kind), go$ptrType(go$packages["syscall"].Signal), go$ptrType(go$packages["time"].Duration), go$ptrType(go$packages["time"].Month), go$ptrType(go$packages["time"].Weekday)];
-go$packages["github.com/neelance/gopherjs/js"].Object.implementedBy = [go$packages["github.com/neelance/gopherjs/js"].Error, go$packages["github.com/neelance/gopherjs/js"].Error.Ptr, go$packages["github.com/rusco/jquery"].Event, go$packages["github.com/rusco/jquery"].Event.Ptr, go$packages["github.com/rusco/todomvc/utils"].Handlebar, go$packages["github.com/rusco/todomvc/utils"].Handlebar.Ptr];
+go$packages["runtime"].stringer.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].Number, go$packages["encoding/json"].encodeState.Ptr, go$packages["github.com/neelance/gopherjs/js"].Error, go$packages["github.com/neelance/gopherjs/js"].Error.Ptr, go$packages["github.com/rusco/jquery"].Event, go$packages["github.com/rusco/jquery"].Event.Ptr, go$packages["github.com/rusco/todomvc/utils"].Handlebar, go$packages["github.com/rusco/todomvc/utils"].Handlebar.Ptr, go$packages["github.com/rusco/todomvc/utils"].Router, go$packages["github.com/rusco/todomvc/utils"].Router.Ptr, go$packages["os"].FileMode, go$packages["os"].ProcessState.Ptr, go$packages["reflect"].ChanDir, go$packages["reflect"].Kind, go$packages["reflect"].Value, go$packages["reflect"].Value.Ptr, go$packages["reflect"].arrayType.Ptr, go$packages["reflect"].chanType.Ptr, go$packages["reflect"].funcType.Ptr, go$packages["reflect"].interfaceType.Ptr, go$packages["reflect"].mapType.Ptr, go$packages["reflect"].ptrType.Ptr, go$packages["reflect"].rtype.Ptr, go$packages["reflect"].sliceType.Ptr, go$packages["reflect"].structType.Ptr, go$packages["strconv"].decimal.Ptr, go$packages["syscall"].Signal, go$packages["time"].Duration, go$packages["time"].Location.Ptr, go$packages["time"].Month, go$packages["time"].Time, go$packages["time"].Time.Ptr, go$packages["time"].Weekday, go$ptrType(go$packages["encoding/json"].Number), go$ptrType(go$packages["os"].FileMode), go$ptrType(go$packages["reflect"].ChanDir), go$ptrType(go$packages["reflect"].Kind), go$ptrType(go$packages["syscall"].Signal), go$ptrType(go$packages["time"].Duration), go$ptrType(go$packages["time"].Month), go$ptrType(go$packages["time"].Weekday)];
+go$packages["github.com/neelance/gopherjs/js"].Object.implementedBy = [go$packages["github.com/neelance/gopherjs/js"].Error, go$packages["github.com/neelance/gopherjs/js"].Error.Ptr, go$packages["github.com/rusco/jquery"].Event, go$packages["github.com/rusco/jquery"].Event.Ptr, go$packages["github.com/rusco/todomvc/utils"].Handlebar, go$packages["github.com/rusco/todomvc/utils"].Handlebar.Ptr, go$packages["github.com/rusco/todomvc/utils"].Router, go$packages["github.com/rusco/todomvc/utils"].Router.Ptr];
 go$packages["sync"].Locker.implementedBy = [go$packages["os"].fileStat.Ptr, go$packages["sync"].Mutex.Ptr, go$packages["sync"].RWMutex.Ptr, go$packages["sync"].rlocker.Ptr];
 go$packages["io"].ByteReader.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["bytes"].Reader.Ptr, go$packages["encoding/json"].encodeState.Ptr, go$packages["strings"].Reader.Ptr];
 go$packages["io"].ByteScanner.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["bytes"].Reader.Ptr, go$packages["encoding/json"].encodeState.Ptr, go$packages["strings"].Reader.Ptr];
@@ -34561,7 +34565,7 @@ go$packages["fmt"].GoStringer.implementedBy = [];
 go$packages["fmt"].ScanState.implementedBy = [go$packages["fmt"].ss.Ptr];
 go$packages["fmt"].Scanner.implementedBy = [];
 go$packages["fmt"].State.implementedBy = [go$packages["fmt"].pp.Ptr];
-go$packages["fmt"].Stringer.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].Number, go$packages["encoding/json"].encodeState.Ptr, go$packages["github.com/neelance/gopherjs/js"].Error, go$packages["github.com/neelance/gopherjs/js"].Error.Ptr, go$packages["github.com/rusco/jquery"].Event, go$packages["github.com/rusco/jquery"].Event.Ptr, go$packages["github.com/rusco/todomvc/utils"].Handlebar, go$packages["github.com/rusco/todomvc/utils"].Handlebar.Ptr, go$packages["os"].FileMode, go$packages["os"].ProcessState.Ptr, go$packages["reflect"].ChanDir, go$packages["reflect"].Kind, go$packages["reflect"].Value, go$packages["reflect"].Value.Ptr, go$packages["reflect"].arrayType.Ptr, go$packages["reflect"].chanType.Ptr, go$packages["reflect"].funcType.Ptr, go$packages["reflect"].interfaceType.Ptr, go$packages["reflect"].mapType.Ptr, go$packages["reflect"].ptrType.Ptr, go$packages["reflect"].rtype.Ptr, go$packages["reflect"].sliceType.Ptr, go$packages["reflect"].structType.Ptr, go$packages["strconv"].decimal.Ptr, go$packages["syscall"].Signal, go$packages["time"].Duration, go$packages["time"].Location.Ptr, go$packages["time"].Month, go$packages["time"].Time, go$packages["time"].Time.Ptr, go$packages["time"].Weekday, go$ptrType(go$packages["encoding/json"].Number), go$ptrType(go$packages["os"].FileMode), go$ptrType(go$packages["reflect"].ChanDir), go$ptrType(go$packages["reflect"].Kind), go$ptrType(go$packages["syscall"].Signal), go$ptrType(go$packages["time"].Duration), go$ptrType(go$packages["time"].Month), go$ptrType(go$packages["time"].Weekday)];
+go$packages["fmt"].Stringer.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].Number, go$packages["encoding/json"].encodeState.Ptr, go$packages["github.com/neelance/gopherjs/js"].Error, go$packages["github.com/neelance/gopherjs/js"].Error.Ptr, go$packages["github.com/rusco/jquery"].Event, go$packages["github.com/rusco/jquery"].Event.Ptr, go$packages["github.com/rusco/todomvc/utils"].Handlebar, go$packages["github.com/rusco/todomvc/utils"].Handlebar.Ptr, go$packages["github.com/rusco/todomvc/utils"].Router, go$packages["github.com/rusco/todomvc/utils"].Router.Ptr, go$packages["os"].FileMode, go$packages["os"].ProcessState.Ptr, go$packages["reflect"].ChanDir, go$packages["reflect"].Kind, go$packages["reflect"].Value, go$packages["reflect"].Value.Ptr, go$packages["reflect"].arrayType.Ptr, go$packages["reflect"].chanType.Ptr, go$packages["reflect"].funcType.Ptr, go$packages["reflect"].interfaceType.Ptr, go$packages["reflect"].mapType.Ptr, go$packages["reflect"].ptrType.Ptr, go$packages["reflect"].rtype.Ptr, go$packages["reflect"].sliceType.Ptr, go$packages["reflect"].structType.Ptr, go$packages["strconv"].decimal.Ptr, go$packages["syscall"].Signal, go$packages["time"].Duration, go$packages["time"].Location.Ptr, go$packages["time"].Month, go$packages["time"].Time, go$packages["time"].Time.Ptr, go$packages["time"].Weekday, go$ptrType(go$packages["encoding/json"].Number), go$ptrType(go$packages["os"].FileMode), go$ptrType(go$packages["reflect"].ChanDir), go$ptrType(go$packages["reflect"].Kind), go$ptrType(go$packages["syscall"].Signal), go$ptrType(go$packages["time"].Duration), go$ptrType(go$packages["time"].Month), go$ptrType(go$packages["time"].Weekday)];
 go$packages["fmt"].runeUnreader.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["bytes"].Reader.Ptr, go$packages["encoding/json"].encodeState.Ptr, go$packages["fmt"].ss.Ptr, go$packages["strings"].Reader.Ptr];
 go$packages["sort"].Interface.implementedBy = [go$packages["encoding/json"].byIndex, go$packages["encoding/json"].byName, go$packages["encoding/json"].stringValues, go$packages["sort"].Float64Slice, go$packages["sort"].IntSlice, go$packages["sort"].StringSlice, go$packages["sort"].reverse, go$packages["sort"].reverse.Ptr, go$ptrType(go$packages["encoding/json"].byIndex), go$ptrType(go$packages["encoding/json"].byName), go$ptrType(go$packages["encoding/json"].stringValues), go$ptrType(go$packages["sort"].Float64Slice), go$ptrType(go$packages["sort"].IntSlice), go$ptrType(go$packages["sort"].StringSlice)];
 go$packages["encoding/json"].Marshaler.implementedBy = [go$packages["time"].Time, go$packages["time"].Time.Ptr, go$ptrType(go$packages["encoding/json"].RawMessage)];
