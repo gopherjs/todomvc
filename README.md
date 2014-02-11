@@ -1,8 +1,6 @@
-#TodoMVC App for GopherJS and jQuery
----------------------------------------------
+##TodoMVC App for GopherJS and jQuery
 
 	This is a GopherJS Port of the original jQuery TodoMVC Implementation.
-
 
 ### Why
 
