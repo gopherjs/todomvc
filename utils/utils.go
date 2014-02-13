@@ -3,7 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/neelance/gopherjs/js"
+	"github.com/gopherjs/gopherjs/js"
 	"math/rand"
 	"time"
 )
@@ -29,7 +29,7 @@ func Pluralize(count int, word string) string {
 	return word + "s"
 }
 
-func Uuid() string {
+func UuidJS() string {
 	uuid := ""
 	for i := 0; i < 32; i++ {
 		rand := int(js.Global("Math").Call("random").Float()*16) | 0
@@ -48,7 +48,7 @@ func Uuid() string {
 	}
 	return uuid
 }
-func UuidGo() (uuid string) { //"pure" Go, but slower than native JS bindings
+func Uuid() (uuid string) {
 	for i := 0; i < 32; i++ {
 		rand.Seed(time.Now().UnixNano() + int64(i))
 		random := rand.Intn(16)
@@ -58,11 +58,11 @@ func UuidGo() (uuid string) { //"pure" Go, but slower than native JS bindings
 		}
 		switch i {
 		case 12:
-			uuid += fmt.Sprintf("%X", 4)
+			uuid += fmt.Sprintf("%x", 4)
 		case 16:
-			uuid += fmt.Sprintf("%X", random&3|8)
+			uuid += fmt.Sprintf("%x", random&3|8)
 		default:
-			uuid += fmt.Sprintf("%X", random)
+			uuid += fmt.Sprintf("%x", random)
 		}
 	}
 	return

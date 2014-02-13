@@ -849,7 +849,7 @@ var go$externalize = function(v, t) {
 		var convert = false;
 		var i;
 		for (i = 0; i < t.params.length; i++) {
-			convert = convert || (t.params[i] !== go$packages["github.com/neelance/gopherjs/js"].Object);
+			convert = convert || (t.params[i] !== go$packages["github.com/gopherjs/gopherjs/js"].Object);
 		}
 		for (i = 0; i < t.results.length; i++) {
 			convert = convert || go$needsExternalization(t.results[i]);
@@ -982,7 +982,7 @@ var go$internalize = function(v, t, recv) {
 			}
 		};
 	case "Interface":
-		if (t === go$packages["github.com/neelance/gopherjs/js"].Object) {
+		if (t === go$packages["github.com/gopherjs/gopherjs/js"].Object) {
 			return v;
 		}
 		switch (v.constructor) {
@@ -1012,7 +1012,7 @@ var go$internalize = function(v, t, recv) {
 				return new timePkg.Time(timePkg.Unix(new Go$Int64(0, 0), new Go$Int64(0, v.getTime() * 1000000)));
 			}
 		case Function:
-			var funcType = go$funcType([go$sliceType(go$emptyInterface)], [go$packages["github.com/neelance/gopherjs/js"].Object], true);
+			var funcType = go$funcType([go$sliceType(go$emptyInterface)], [go$packages["github.com/gopherjs/gopherjs/js"].Object], true);
 			return new funcType(go$internalize(v, funcType));
 		case Number:
 			return new Go$Float64(parseFloat(v));
@@ -1165,7 +1165,7 @@ var go$errorStack = [], go$jsErr = null;
 
 var go$pushErr = function(err) {
 	if (err.go$panicValue === undefined) {
-		var jsPkg = go$packages["github.com/neelance/gopherjs/js"];
+		var jsPkg = go$packages["github.com/gopherjs/gopherjs/js"];
 		if (err.go$notSupported !== undefined || jsPkg === undefined) {
 			go$jsErr = err;
 			return;
@@ -3101,13 +3101,13 @@ go$packages["runtime"] = (function() {
 	};
 	return go$pkg;
 })();
-go$packages["github.com/neelance/gopherjs/js"] = (function() {
+go$packages["github.com/gopherjs/gopherjs/js"] = (function() {
 	var go$pkg = {};
 	var Object;
-	Object = go$newType(0, "Interface", "js.Object", "Object", "github.com/neelance/gopherjs/js", null);
+	Object = go$newType(0, "Interface", "js.Object", "Object", "github.com/gopherjs/gopherjs/js", null);
 	go$pkg.Object = Object;
 	var Error;
-	Error = go$newType(0, "Struct", "js.Error", "Error", "github.com/neelance/gopherjs/js", function(Object_) {
+	Error = go$newType(0, "Struct", "js.Error", "Error", "github.com/gopherjs/gopherjs/js", function(Object_) {
 		this.go$val = this;
 		this.Object = Object_ !== undefined ? Object_ : null;
 	});
@@ -3164,7 +3164,7 @@ go$packages["github.com/neelance/gopherjs/js"] = (function() {
 })();
 go$packages["github.com/rusco/jquery"] = (function() {
 	var go$pkg = {};
-	var js = go$packages["github.com/neelance/gopherjs/js"];
+	var js = go$packages["github.com/gopherjs/gopherjs/js"];
 	var JQuery;
 	JQuery = go$newType(0, "Struct", "jquery.JQuery", "JQuery", "github.com/rusco/jquery", function(o_, Jquery_, Selector_, Length_) {
 		this.go$val = this;
@@ -34071,7 +34071,7 @@ go$packages["github.com/rusco/todomvc/utils"] = (function() {
 	var go$pkg = {};
 	var json = go$packages["encoding/json"];
 	var fmt = go$packages["fmt"];
-	var js = go$packages["github.com/neelance/gopherjs/js"];
+	var js = go$packages["github.com/gopherjs/gopherjs/js"];
 	var rand = go$packages["math/rand"];
 	var time = go$packages["time"];
 	var Handlebar;
@@ -34174,7 +34174,7 @@ go$packages["github.com/rusco/todomvc/utils"] = (function() {
 		}
 		return word + "s";
 	};
-	var Uuid = go$pkg.Uuid = function() {
+	var UuidJS = go$pkg.UuidJS = function() {
 		var uuid, i, rand$1, _ref, _ref$1;
 		uuid = "";
 		i = 0;
@@ -34196,7 +34196,7 @@ go$packages["github.com/rusco/todomvc/utils"] = (function() {
 		}
 		return uuid;
 	};
-	var UuidGo = go$pkg.UuidGo = function() {
+	var Uuid = go$pkg.Uuid = function() {
 		var uuid, i, x, x$1, random, _ref, _ref$1;
 		uuid = "";
 		i = 0;
@@ -34209,11 +34209,11 @@ go$packages["github.com/rusco/todomvc/utils"] = (function() {
 			}
 			_ref$1 = i;
 			if (_ref$1 === 12) {
-				uuid = uuid + (fmt.Sprintf("%X", new (go$sliceType(go$emptyInterface))([new Go$Int(4)])));
+				uuid = uuid + (fmt.Sprintf("%x", new (go$sliceType(go$emptyInterface))([new Go$Int(4)])));
 			} else if (_ref$1 === 16) {
-				uuid = uuid + (fmt.Sprintf("%X", new (go$sliceType(go$emptyInterface))([new Go$Int(((random & 3) | 8))])));
+				uuid = uuid + (fmt.Sprintf("%x", new (go$sliceType(go$emptyInterface))([new Go$Int(((random & 3) | 8))])));
 			} else {
-				uuid = uuid + (fmt.Sprintf("%X", new (go$sliceType(go$emptyInterface))([new Go$Int(random)])));
+				uuid = uuid + (fmt.Sprintf("%x", new (go$sliceType(go$emptyInterface))([new Go$Int(random)])));
 			}
 			i = i + 1 >> 0;
 		}
@@ -34340,7 +34340,6 @@ go$packages["main"] = (function() {
 		router.On("/:filter", (function(filter) {
 			a.filter = filter;
 			a.render();
-			console.log(" in filter handler: ", filter);
 		}));
 		router.Init("/all");
 	};
@@ -34524,10 +34523,10 @@ go$packages["main"] = (function() {
 	};
 	return go$pkg;
 })();
-go$error.implementedBy = [go$packages["encoding/base64"].CorruptInputError, go$packages["encoding/json"].InvalidUTF8Error.Ptr, go$packages["encoding/json"].InvalidUnmarshalError.Ptr, go$packages["encoding/json"].MarshalerError.Ptr, go$packages["encoding/json"].SyntaxError.Ptr, go$packages["encoding/json"].UnmarshalFieldError.Ptr, go$packages["encoding/json"].UnmarshalTypeError.Ptr, go$packages["encoding/json"].UnsupportedTypeError.Ptr, go$packages["encoding/json"].UnsupportedValueError.Ptr, go$packages["errors"].errorString.Ptr, go$packages["github.com/neelance/gopherjs/js"].Error.Ptr, go$packages["os"].LinkError.Ptr, go$packages["os"].PathError.Ptr, go$packages["os"].SyscallError.Ptr, go$packages["reflect"].ValueError.Ptr, go$packages["runtime"].TypeAssertionError.Ptr, go$packages["runtime"].errorCString, go$packages["runtime"].errorString, go$packages["strconv"].NumError.Ptr, go$packages["syscall"].DLLError.Ptr, go$packages["syscall"].Errno, go$packages["time"].ParseError.Ptr, go$ptrType(go$packages["encoding/base64"].CorruptInputError), go$ptrType(go$packages["runtime"].errorCString), go$ptrType(go$packages["runtime"].errorString), go$ptrType(go$packages["syscall"].Errno)];
+go$error.implementedBy = [go$packages["encoding/base64"].CorruptInputError, go$packages["encoding/json"].InvalidUTF8Error.Ptr, go$packages["encoding/json"].InvalidUnmarshalError.Ptr, go$packages["encoding/json"].MarshalerError.Ptr, go$packages["encoding/json"].SyntaxError.Ptr, go$packages["encoding/json"].UnmarshalFieldError.Ptr, go$packages["encoding/json"].UnmarshalTypeError.Ptr, go$packages["encoding/json"].UnsupportedTypeError.Ptr, go$packages["encoding/json"].UnsupportedValueError.Ptr, go$packages["errors"].errorString.Ptr, go$packages["github.com/gopherjs/gopherjs/js"].Error.Ptr, go$packages["os"].LinkError.Ptr, go$packages["os"].PathError.Ptr, go$packages["os"].SyscallError.Ptr, go$packages["reflect"].ValueError.Ptr, go$packages["runtime"].TypeAssertionError.Ptr, go$packages["runtime"].errorCString, go$packages["runtime"].errorString, go$packages["strconv"].NumError.Ptr, go$packages["syscall"].DLLError.Ptr, go$packages["syscall"].Errno, go$packages["time"].ParseError.Ptr, go$ptrType(go$packages["encoding/base64"].CorruptInputError), go$ptrType(go$packages["runtime"].errorCString), go$ptrType(go$packages["runtime"].errorString), go$ptrType(go$packages["syscall"].Errno)];
 go$packages["runtime"].Error.implementedBy = [go$packages["runtime"].TypeAssertionError.Ptr, go$packages["runtime"].errorCString, go$packages["runtime"].errorString, go$ptrType(go$packages["runtime"].errorCString), go$ptrType(go$packages["runtime"].errorString)];
-go$packages["runtime"].stringer.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].Number, go$packages["encoding/json"].encodeState.Ptr, go$packages["github.com/neelance/gopherjs/js"].Error, go$packages["github.com/neelance/gopherjs/js"].Error.Ptr, go$packages["github.com/rusco/jquery"].Event, go$packages["github.com/rusco/jquery"].Event.Ptr, go$packages["github.com/rusco/todomvc/utils"].Handlebar, go$packages["github.com/rusco/todomvc/utils"].Handlebar.Ptr, go$packages["github.com/rusco/todomvc/utils"].Router, go$packages["github.com/rusco/todomvc/utils"].Router.Ptr, go$packages["os"].FileMode, go$packages["os"].ProcessState.Ptr, go$packages["reflect"].ChanDir, go$packages["reflect"].Kind, go$packages["reflect"].Value, go$packages["reflect"].Value.Ptr, go$packages["reflect"].arrayType.Ptr, go$packages["reflect"].chanType.Ptr, go$packages["reflect"].funcType.Ptr, go$packages["reflect"].interfaceType.Ptr, go$packages["reflect"].mapType.Ptr, go$packages["reflect"].ptrType.Ptr, go$packages["reflect"].rtype.Ptr, go$packages["reflect"].sliceType.Ptr, go$packages["reflect"].structType.Ptr, go$packages["strconv"].decimal.Ptr, go$packages["syscall"].Signal, go$packages["time"].Duration, go$packages["time"].Location.Ptr, go$packages["time"].Month, go$packages["time"].Time, go$packages["time"].Time.Ptr, go$packages["time"].Weekday, go$ptrType(go$packages["encoding/json"].Number), go$ptrType(go$packages["os"].FileMode), go$ptrType(go$packages["reflect"].ChanDir), go$ptrType(go$packages["reflect"].Kind), go$ptrType(go$packages["syscall"].Signal), go$ptrType(go$packages["time"].Duration), go$ptrType(go$packages["time"].Month), go$ptrType(go$packages["time"].Weekday)];
-go$packages["github.com/neelance/gopherjs/js"].Object.implementedBy = [go$packages["github.com/neelance/gopherjs/js"].Error, go$packages["github.com/neelance/gopherjs/js"].Error.Ptr, go$packages["github.com/rusco/jquery"].Event, go$packages["github.com/rusco/jquery"].Event.Ptr, go$packages["github.com/rusco/todomvc/utils"].Handlebar, go$packages["github.com/rusco/todomvc/utils"].Handlebar.Ptr, go$packages["github.com/rusco/todomvc/utils"].Router, go$packages["github.com/rusco/todomvc/utils"].Router.Ptr];
+go$packages["runtime"].stringer.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].Number, go$packages["encoding/json"].encodeState.Ptr, go$packages["github.com/gopherjs/gopherjs/js"].Error, go$packages["github.com/gopherjs/gopherjs/js"].Error.Ptr, go$packages["github.com/rusco/jquery"].Event, go$packages["github.com/rusco/jquery"].Event.Ptr, go$packages["github.com/rusco/todomvc/utils"].Handlebar, go$packages["github.com/rusco/todomvc/utils"].Handlebar.Ptr, go$packages["github.com/rusco/todomvc/utils"].Router, go$packages["github.com/rusco/todomvc/utils"].Router.Ptr, go$packages["os"].FileMode, go$packages["os"].ProcessState.Ptr, go$packages["reflect"].ChanDir, go$packages["reflect"].Kind, go$packages["reflect"].Value, go$packages["reflect"].Value.Ptr, go$packages["reflect"].arrayType.Ptr, go$packages["reflect"].chanType.Ptr, go$packages["reflect"].funcType.Ptr, go$packages["reflect"].interfaceType.Ptr, go$packages["reflect"].mapType.Ptr, go$packages["reflect"].ptrType.Ptr, go$packages["reflect"].rtype.Ptr, go$packages["reflect"].sliceType.Ptr, go$packages["reflect"].structType.Ptr, go$packages["strconv"].decimal.Ptr, go$packages["syscall"].Signal, go$packages["time"].Duration, go$packages["time"].Location.Ptr, go$packages["time"].Month, go$packages["time"].Time, go$packages["time"].Time.Ptr, go$packages["time"].Weekday, go$ptrType(go$packages["encoding/json"].Number), go$ptrType(go$packages["os"].FileMode), go$ptrType(go$packages["reflect"].ChanDir), go$ptrType(go$packages["reflect"].Kind), go$ptrType(go$packages["syscall"].Signal), go$ptrType(go$packages["time"].Duration), go$ptrType(go$packages["time"].Month), go$ptrType(go$packages["time"].Weekday)];
+go$packages["github.com/gopherjs/gopherjs/js"].Object.implementedBy = [go$packages["github.com/gopherjs/gopherjs/js"].Error, go$packages["github.com/gopherjs/gopherjs/js"].Error.Ptr, go$packages["github.com/rusco/jquery"].Event, go$packages["github.com/rusco/jquery"].Event.Ptr, go$packages["github.com/rusco/todomvc/utils"].Handlebar, go$packages["github.com/rusco/todomvc/utils"].Handlebar.Ptr, go$packages["github.com/rusco/todomvc/utils"].Router, go$packages["github.com/rusco/todomvc/utils"].Router.Ptr];
 go$packages["sync"].Locker.implementedBy = [go$packages["os"].fileStat.Ptr, go$packages["sync"].Mutex.Ptr, go$packages["sync"].RWMutex.Ptr, go$packages["sync"].rlocker.Ptr];
 go$packages["io"].ByteReader.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["bytes"].Reader.Ptr, go$packages["encoding/json"].encodeState.Ptr, go$packages["strings"].Reader.Ptr];
 go$packages["io"].ByteScanner.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["bytes"].Reader.Ptr, go$packages["encoding/json"].encodeState.Ptr, go$packages["strings"].Reader.Ptr];
@@ -34565,14 +34564,14 @@ go$packages["fmt"].GoStringer.implementedBy = [];
 go$packages["fmt"].ScanState.implementedBy = [go$packages["fmt"].ss.Ptr];
 go$packages["fmt"].Scanner.implementedBy = [];
 go$packages["fmt"].State.implementedBy = [go$packages["fmt"].pp.Ptr];
-go$packages["fmt"].Stringer.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].Number, go$packages["encoding/json"].encodeState.Ptr, go$packages["github.com/neelance/gopherjs/js"].Error, go$packages["github.com/neelance/gopherjs/js"].Error.Ptr, go$packages["github.com/rusco/jquery"].Event, go$packages["github.com/rusco/jquery"].Event.Ptr, go$packages["github.com/rusco/todomvc/utils"].Handlebar, go$packages["github.com/rusco/todomvc/utils"].Handlebar.Ptr, go$packages["github.com/rusco/todomvc/utils"].Router, go$packages["github.com/rusco/todomvc/utils"].Router.Ptr, go$packages["os"].FileMode, go$packages["os"].ProcessState.Ptr, go$packages["reflect"].ChanDir, go$packages["reflect"].Kind, go$packages["reflect"].Value, go$packages["reflect"].Value.Ptr, go$packages["reflect"].arrayType.Ptr, go$packages["reflect"].chanType.Ptr, go$packages["reflect"].funcType.Ptr, go$packages["reflect"].interfaceType.Ptr, go$packages["reflect"].mapType.Ptr, go$packages["reflect"].ptrType.Ptr, go$packages["reflect"].rtype.Ptr, go$packages["reflect"].sliceType.Ptr, go$packages["reflect"].structType.Ptr, go$packages["strconv"].decimal.Ptr, go$packages["syscall"].Signal, go$packages["time"].Duration, go$packages["time"].Location.Ptr, go$packages["time"].Month, go$packages["time"].Time, go$packages["time"].Time.Ptr, go$packages["time"].Weekday, go$ptrType(go$packages["encoding/json"].Number), go$ptrType(go$packages["os"].FileMode), go$ptrType(go$packages["reflect"].ChanDir), go$ptrType(go$packages["reflect"].Kind), go$ptrType(go$packages["syscall"].Signal), go$ptrType(go$packages["time"].Duration), go$ptrType(go$packages["time"].Month), go$ptrType(go$packages["time"].Weekday)];
+go$packages["fmt"].Stringer.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].Number, go$packages["encoding/json"].encodeState.Ptr, go$packages["github.com/gopherjs/gopherjs/js"].Error, go$packages["github.com/gopherjs/gopherjs/js"].Error.Ptr, go$packages["github.com/rusco/jquery"].Event, go$packages["github.com/rusco/jquery"].Event.Ptr, go$packages["github.com/rusco/todomvc/utils"].Handlebar, go$packages["github.com/rusco/todomvc/utils"].Handlebar.Ptr, go$packages["github.com/rusco/todomvc/utils"].Router, go$packages["github.com/rusco/todomvc/utils"].Router.Ptr, go$packages["os"].FileMode, go$packages["os"].ProcessState.Ptr, go$packages["reflect"].ChanDir, go$packages["reflect"].Kind, go$packages["reflect"].Value, go$packages["reflect"].Value.Ptr, go$packages["reflect"].arrayType.Ptr, go$packages["reflect"].chanType.Ptr, go$packages["reflect"].funcType.Ptr, go$packages["reflect"].interfaceType.Ptr, go$packages["reflect"].mapType.Ptr, go$packages["reflect"].ptrType.Ptr, go$packages["reflect"].rtype.Ptr, go$packages["reflect"].sliceType.Ptr, go$packages["reflect"].structType.Ptr, go$packages["strconv"].decimal.Ptr, go$packages["syscall"].Signal, go$packages["time"].Duration, go$packages["time"].Location.Ptr, go$packages["time"].Month, go$packages["time"].Time, go$packages["time"].Time.Ptr, go$packages["time"].Weekday, go$ptrType(go$packages["encoding/json"].Number), go$ptrType(go$packages["os"].FileMode), go$ptrType(go$packages["reflect"].ChanDir), go$ptrType(go$packages["reflect"].Kind), go$ptrType(go$packages["syscall"].Signal), go$ptrType(go$packages["time"].Duration), go$ptrType(go$packages["time"].Month), go$ptrType(go$packages["time"].Weekday)];
 go$packages["fmt"].runeUnreader.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["bytes"].Reader.Ptr, go$packages["encoding/json"].encodeState.Ptr, go$packages["fmt"].ss.Ptr, go$packages["strings"].Reader.Ptr];
 go$packages["sort"].Interface.implementedBy = [go$packages["encoding/json"].byIndex, go$packages["encoding/json"].byName, go$packages["encoding/json"].stringValues, go$packages["sort"].Float64Slice, go$packages["sort"].IntSlice, go$packages["sort"].StringSlice, go$packages["sort"].reverse, go$packages["sort"].reverse.Ptr, go$ptrType(go$packages["encoding/json"].byIndex), go$ptrType(go$packages["encoding/json"].byName), go$ptrType(go$packages["encoding/json"].stringValues), go$ptrType(go$packages["sort"].Float64Slice), go$ptrType(go$packages["sort"].IntSlice), go$ptrType(go$packages["sort"].StringSlice)];
 go$packages["encoding/json"].Marshaler.implementedBy = [go$packages["time"].Time, go$packages["time"].Time.Ptr, go$ptrType(go$packages["encoding/json"].RawMessage)];
 go$packages["encoding/json"].Unmarshaler.implementedBy = [go$packages["time"].Time.Ptr, go$ptrType(go$packages["encoding/json"].RawMessage)];
 go$packages["math/rand"].Source.implementedBy = [go$packages["math/rand"].Rand.Ptr, go$packages["math/rand"].lockedSource.Ptr, go$packages["math/rand"].rngSource.Ptr];
 go$packages["runtime"].init();
-go$packages["github.com/neelance/gopherjs/js"].init();
+go$packages["github.com/gopherjs/gopherjs/js"].init();
 go$packages["github.com/rusco/jquery"].init();
 go$packages["errors"].init();
 go$packages["sync/atomic"].init();
