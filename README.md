@@ -17,7 +17,7 @@ then open app.html in your src directory
 - Original TodoMVC jQuery Example (http://todomvc.com/architecture-examples/jquery)
 - GopherJS (https://github.com/gopherjs/gopherjs)
 
-### Credits: 
+### Credits 
 
 The makers of jQuery, TodoMVC, Golang and GopherJS
 
