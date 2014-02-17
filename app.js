@@ -10,7 +10,7 @@ if (typeof window !== "undefined") {
 	go$global = GLOBAL;
 }
 
-var go$idCounter = 1;
+var go$idCounter = 0;
 var go$keys = function(m) { return m ? Object.keys(m) : []; };
 var go$min = Math.min;
 var go$parseInt = parseInt;
@@ -18,6 +18,14 @@ var go$parseFloat = parseFloat;
 var go$reflect, go$newStringPtr;
 var Go$Array = Array;
 var Go$Error = Error;
+
+var go$floatKey = function(f) {
+	if (f !== f) {
+		go$idCounter++;
+		return "NaN$" + go$idCounter;
+	}
+	return String(f);
+};
 
 var go$mapArray = function(array, f) {
 	var newArray = new array.constructor(array.length), i;
@@ -40,12 +48,16 @@ var go$newType = function(size, kind, string, name, pkgPath, constructor) {
 	case "Uint16":
 	case "Uint32":
 	case "Uintptr":
-	case "Float32":
-	case "Float64":
 	case "String":
 	case "UnsafePointer":
 		typ = function(v) { this.go$val = v; };
 		typ.prototype.go$key = function() { return string + "$" + this.go$val; };
+		break;
+
+	case "Float32":
+	case "Float64":
+		typ = function(v) { this.go$val = v; };
+		typ.prototype.go$key = function() { return string + "$" + go$floatKey(this.go$val); };
 		break;
 
 	case "Int64":
@@ -102,8 +114,8 @@ var go$newType = function(size, kind, string, name, pkgPath, constructor) {
 		typ = function() { this.go$val = this; };
 		typ.prototype.go$key = function() {
 			if (this.go$id === undefined) {
-				this.go$id = go$idCounter;
 				go$idCounter++;
+				this.go$id = go$idCounter;
 			}
 			return String(this.go$id);
 		};
@@ -160,8 +172,8 @@ var go$newType = function(size, kind, string, name, pkgPath, constructor) {
 		};
 		typ.prototype.go$key = function() {
 			if (this.go$id === undefined) {
-				this.go$id = go$idCounter;
 				go$idCounter++;
+				this.go$id = go$idCounter;
 			}
 			return String(this.go$id);
 		};
@@ -484,15 +496,21 @@ var go$newDataPointer = function(data, constructor) {
 	return new constructor(function() { return data; }, function(v) { data = v; });
 };
 
+var go$ldexp = function(frac, exp) {
+	if (frac === 0) { return frac; }
+	if (exp >= 1024) { return frac * Math.pow(2, 1023) * Math.pow(2, exp - 1023); }
+	if (exp <= -1024) { return frac * Math.pow(2, -1023) * Math.pow(2, exp + 1023); }
+	return frac * Math.pow(2, exp);
+};
 var go$float32bits = function(f) {
-	var s, e;
+	var s, e, r;
 	if (f === 0) {
 		if (f === 0 && 1 / f === 1 / -0) {
 			return 2147483648;
 		}
 		return 0;
 	}
-	if (!(f === f)) {
+	if (f !== f) {
 		return 2143289344;
 	}
 	s = 0;
@@ -502,20 +520,46 @@ var go$float32bits = function(f) {
 	}
 	e = 150;
 	while (f >= 1.6777216e+07) {
-		f = f / (2);
+		f = f / 2;
 		if (e === 255) {
 			break;
 		}
-		e = (e + (1) >>> 0);
+		e = e + 1 >>> 0;
 	}
 	while (f < 8.388608e+06) {
-		e = (e - (1) >>> 0);
+		e = e - 1 >>> 0;
 		if (e === 0) {
 			break;
 		}
-		f = f * (2);
+		f = f * 2;
 	}
-	return ((((s | (((e >>> 0) << 23) >>> 0)) >>> 0) | ((((((f + 0.5) >> 0) >>> 0) &~ 8388608) >>> 0))) >>> 0);
+	r = f % 2;
+	if ((r > 0.5 && r < 1) || r >= 1.5) {
+		f++;
+	}
+	return (((s | (e << 23 >>> 0)) >>> 0) | (((f >> 0) & ~8388608))) >>> 0;
+};
+var go$float32frombits = function(b) {
+	var s, e, m;
+	s = 1;
+	if (((b & 2147483648) >>> 0) !== 0) {
+		s = -1;
+	}
+	e = (((b >>> 23 >>> 0)) & 255) >>> 0;
+	m = (b & 8388607) >>> 0;
+	if (e === 255) {
+		if (m === 0) {
+			return s / 0;
+		}
+		return 0/0;
+	}
+	if (e !== 0) {
+		m = m + 8388608 >>> 0;
+	}
+	if (e === 0) {
+		e = 1;
+	}
+	return go$ldexp(m, e - 127 - 23) * s;
 };
 
 var go$flatten64 = function(x) {
@@ -1231,9 +1275,9 @@ var go$interfaceIsEqual = function(a, b) {
 	}
 	switch (a.constructor.kind) {
 	case "Float32":
-		return go$float32bits(a.go$val) === go$float32bits(b.go$val);
+		return go$float32IsEqual(a.go$val, b.go$val);
 	case "Complex64":
-		return go$float32bits(a.go$val.real) === go$float32bits(b.go$val.real) && go$float32bits(a.go$val.imag) === go$float32bits(b.go$val.imag);
+		return go$float32IsEqual(a.go$val.real, b.go$val.real) && go$float32IsEqual(a.go$val.imag, b.go$val.imag);
 	case "Complex128":
 		return a.go$val.real === b.go$val.real && a.go$val.imag === b.go$val.imag;
 	case "Int64":
@@ -1257,6 +1301,9 @@ var go$interfaceIsEqual = function(a, b) {
 		return a.go$val === b.go$val;
 	}
 };
+var go$float32IsEqual = function(a, b) {
+	return a === a && b === b && go$float32bits(a) === go$float32bits(b);
+}
 var go$arrayIsEqual = function(a, b) {
 	if (a.length != b.length) {
 		return false;
@@ -3218,12 +3265,20 @@ go$packages["github.com/rusco/jquery"] = (function() {
 	Event.prototype.String = function() { return this.go$val.String(); };
 	Event.Ptr.prototype.String = function() { return this.Object.String(); };
 	go$pkg.Event = Event;
+	var JQueryCoordinates;
+	JQueryCoordinates = go$newType(0, "Struct", "jquery.JQueryCoordinates", "JQueryCoordinates", "github.com/rusco/jquery", function(Left_, Top_) {
+		this.go$val = this;
+		this.Left = Left_ !== undefined ? Left_ : 0;
+		this.Top = Top_ !== undefined ? Top_ : 0;
+	});
+	go$pkg.JQueryCoordinates = JQueryCoordinates;
 	JQuery.init([["o", "github.com/rusco/jquery", js.Object, ""], ["Jquery", "", Go$String, "js:\"jquery\""], ["Selector", "", Go$String, "js:\"selector\""], ["Length", "", Go$String, "js:\"length\""], ["Context", "", Go$String, "js:\"context\""]]);
-	JQuery.methods = [["Add", "", [Go$String], [JQuery], false], ["AddBack", "", [], [JQuery], false], ["AddBackBySelector", "", [Go$String], [JQuery], false], ["AddByContext", "", [Go$String, go$emptyInterface], [JQuery], false], ["AddClass", "", [Go$String], [JQuery], false], ["AddClassFn", "", [(go$funcType([Go$Int], [Go$String], false))], [JQuery], false], ["AddClassFnClass", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false], ["AddHtml", "", [Go$String], [JQuery], false], ["AddJQuery", "", [JQuery], [JQuery], false], ["AppendTo", "", [Go$String], [JQuery], false], ["AppendToJQuery", "", [JQuery], [JQuery], false], ["Attr", "", [Go$String], [Go$String], false], ["Blur", "", [], [JQuery], false], ["ClearQueue", "", [Go$String], [JQuery], false], ["Clone", "", [], [JQuery], false], ["CloneDeep", "", [Go$Bool, Go$Bool], [JQuery], false], ["CloneWithDataAndEvents", "", [Go$Bool], [JQuery], false], ["Closest", "", [Go$String], [JQuery], false], ["Css", "", [Go$String], [Go$String], false], ["Data", "", [Go$String], [Go$String], false], ["Dequeue", "", [Go$String], [JQuery], false], ["End", "", [], [JQuery], false], ["Eq", "", [Go$Int], [JQuery], false], ["FadeOut", "", [Go$String], [JQuery], false], ["Filter", "", [Go$String], [JQuery], false], ["FilterByFunc", "", [(go$funcType([Go$Int], [Go$Int], false))], [JQuery], false], ["FilterByJQuery", "", [JQuery], [JQuery], false], ["Find", "", [Go$String], [JQuery], false], ["FindByJQuery", "", [JQuery], [JQuery], false], ["First", "", [], [JQuery], false], ["Focus", "", [], [JQuery], false], ["Has", "", [Go$String], [JQuery], false], ["HasClass", "", [Go$String], [Go$Bool], false], ["Height", "", [], [Go$Int], false], ["Hide", "", [], [JQuery], false], ["Html", "", [], [Go$String], false], ["HtmlByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false], ["Is", "", [Go$String], [Go$Bool], false], ["IsByFunc", "", [(go$funcType([Go$Int], [Go$Bool], false))], [JQuery], false], ["IsByJQuery", "", [JQuery], [Go$Bool], false], ["Last", "", [], [JQuery], false], ["Next", "", [], [JQuery], false], ["NextAll", "", [], [JQuery], false], ["NextAllBySelector", "", [Go$String], [JQuery], false], ["NextBySelector", "", [Go$String], [JQuery], false], ["NextUntil", "", [Go$String], [JQuery], false], ["NextUntilByFilter", "", [Go$String, Go$String], [JQuery], false], ["NextUntilByJQuery", "", [JQuery], [JQuery], false], ["NextUntilByJQueryAndFilter", "", [JQuery, Go$String], [JQuery], false], ["Not", "", [Go$String], [JQuery], false], ["NotByJQuery", "", [JQuery], [JQuery], false], ["Off", "", [Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["OffsetParent", "", [], [JQuery], false], ["On", "", [Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["OnParam", "", [Go$String, go$emptyInterface], [JQuery], false], ["OnSelector", "", [Go$String, Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["One", "", [Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["Parent", "", [], [JQuery], false], ["ParentBySelector", "", [Go$String], [JQuery], false], ["Parents", "", [], [JQuery], false], ["ParentsBySelector", "", [Go$String], [JQuery], false], ["ParentsUntil", "", [Go$String], [JQuery], false], ["ParentsUntilByFilter", "", [Go$String, Go$String], [JQuery], false], ["ParentsUntilByJQuery", "", [JQuery], [JQuery], false], ["ParentsUntilByJQueryAndFilter", "", [JQuery, Go$String], [JQuery], false], ["Prev", "", [], [JQuery], false], ["PrevAll", "", [], [JQuery], false], ["PrevAllBySelector", "", [Go$String], [JQuery], false], ["PrevBySelector", "", [Go$String], [JQuery], false], ["PrevUntil", "", [Go$String], [JQuery], false], ["PrevUntilByFilter", "", [Go$String, Go$String], [JQuery], false], ["PrevUntilByJQuery", "", [JQuery], [JQuery], false], ["PrevUntilByJQueryAndFilter", "", [JQuery, Go$String], [JQuery], false], ["Prop", "", [Go$String], [Go$Bool], false], ["Ready", "", [(go$funcType([], [], false))], [JQuery], false], ["RemoveClass", "", [Go$String], [JQuery], false], ["RemoveData", "", [Go$String], [JQuery], false], ["Resize", "", [], [JQuery], false], ["ResizeDataFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["ResizeFn", "", [(go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["Scroll", "", [], [JQuery], false], ["ScrollDataFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["ScrollFn", "", [(go$funcType([], [], false))], [JQuery], false], ["ScrollLeft", "", [], [Go$Int], false], ["ScrollTop", "", [], [Go$Int], false], ["Select", "", [], [JQuery], false], ["SelectDataFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["SelectFn", "", [(go$funcType([], [], false))], [JQuery], false], ["Serialize", "", [], [Go$String], false], ["SetCss", "", [go$emptyInterface, go$emptyInterface], [JQuery], false], ["SetData", "", [Go$String, Go$String], [JQuery], false], ["SetHeight", "", [Go$String], [JQuery], false], ["SetHtml", "", [Go$String], [JQuery], false], ["SetProp", "", [Go$String, Go$Bool], [JQuery], false], ["SetScrollLeft", "", [Go$Int], [JQuery], false], ["SetScrollTop", "", [Go$Int], [JQuery], false], ["SetText", "", [Go$String], [JQuery], false], ["SetVal", "", [Go$String], [JQuery], false], ["SetWidth", "", [Go$String], [JQuery], false], ["Show", "", [], [JQuery], false], ["Siblings", "", [], [JQuery], false], ["SiblingsBySelector", "", [Go$String], [JQuery], false], ["Slice", "", [Go$Int], [JQuery], false], ["SliceByEnd", "", [Go$Int, Go$Int], [JQuery], false], ["Submit", "", [], [JQuery], false], ["SubmitDataFn", "", [js.Object, (go$funcType([Event], [], false))], [JQuery], false], ["SubmitFn", "", [(go$funcType([], [], false))], [JQuery], false], ["Text", "", [], [Go$String], false], ["TextByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false], ["ToArray", "", [], [(go$sliceType(go$emptyInterface))], false], ["Toggle", "", [Go$Bool], [JQuery], false], ["ToggleClass", "", [Go$Bool], [JQuery], false], ["ToggleClassByName", "", [Go$String, Go$Bool], [JQuery], false], ["Trigger", "", [Go$String], [JQuery], false], ["TriggerHandler", "", [Go$String, go$emptyInterface], [JQuery], false], ["TriggerParam", "", [Go$String, go$emptyInterface], [JQuery], false], ["Unbind", "", [], [JQuery], false], ["UnbindEvent", "", [js.Object], [JQuery], false], ["UnbindFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["Undelegate", "", [], [JQuery], false], ["UndelegateEvent", "", [js.Object], [JQuery], false], ["UndelegateFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["UndelegateNamespace", "", [Go$String], [JQuery], false], ["Unload", "", [(go$funcType([Event], [js.Object], false))], [JQuery], false], ["UnloadEventdata", "", [js.Object, (go$funcType([Event], [js.Object], false))], [JQuery], false], ["Val", "", [], [Go$String], false], ["Width", "", [], [Go$Int], false], ["WidthByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false]];
-	(go$ptrType(JQuery)).methods = [["Add", "", [Go$String], [JQuery], false], ["AddBack", "", [], [JQuery], false], ["AddBackBySelector", "", [Go$String], [JQuery], false], ["AddByContext", "", [Go$String, go$emptyInterface], [JQuery], false], ["AddClass", "", [Go$String], [JQuery], false], ["AddClassFn", "", [(go$funcType([Go$Int], [Go$String], false))], [JQuery], false], ["AddClassFnClass", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false], ["AddHtml", "", [Go$String], [JQuery], false], ["AddJQuery", "", [JQuery], [JQuery], false], ["AppendTo", "", [Go$String], [JQuery], false], ["AppendToJQuery", "", [JQuery], [JQuery], false], ["Attr", "", [Go$String], [Go$String], false], ["Blur", "", [], [JQuery], false], ["ClearQueue", "", [Go$String], [JQuery], false], ["Clone", "", [], [JQuery], false], ["CloneDeep", "", [Go$Bool, Go$Bool], [JQuery], false], ["CloneWithDataAndEvents", "", [Go$Bool], [JQuery], false], ["Closest", "", [Go$String], [JQuery], false], ["Css", "", [Go$String], [Go$String], false], ["Data", "", [Go$String], [Go$String], false], ["Dequeue", "", [Go$String], [JQuery], false], ["End", "", [], [JQuery], false], ["Eq", "", [Go$Int], [JQuery], false], ["FadeOut", "", [Go$String], [JQuery], false], ["Filter", "", [Go$String], [JQuery], false], ["FilterByFunc", "", [(go$funcType([Go$Int], [Go$Int], false))], [JQuery], false], ["FilterByJQuery", "", [JQuery], [JQuery], false], ["Find", "", [Go$String], [JQuery], false], ["FindByJQuery", "", [JQuery], [JQuery], false], ["First", "", [], [JQuery], false], ["Focus", "", [], [JQuery], false], ["Has", "", [Go$String], [JQuery], false], ["HasClass", "", [Go$String], [Go$Bool], false], ["Height", "", [], [Go$Int], false], ["Hide", "", [], [JQuery], false], ["Html", "", [], [Go$String], false], ["HtmlByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false], ["Is", "", [Go$String], [Go$Bool], false], ["IsByFunc", "", [(go$funcType([Go$Int], [Go$Bool], false))], [JQuery], false], ["IsByJQuery", "", [JQuery], [Go$Bool], false], ["Last", "", [], [JQuery], false], ["Next", "", [], [JQuery], false], ["NextAll", "", [], [JQuery], false], ["NextAllBySelector", "", [Go$String], [JQuery], false], ["NextBySelector", "", [Go$String], [JQuery], false], ["NextUntil", "", [Go$String], [JQuery], false], ["NextUntilByFilter", "", [Go$String, Go$String], [JQuery], false], ["NextUntilByJQuery", "", [JQuery], [JQuery], false], ["NextUntilByJQueryAndFilter", "", [JQuery, Go$String], [JQuery], false], ["Not", "", [Go$String], [JQuery], false], ["NotByJQuery", "", [JQuery], [JQuery], false], ["Off", "", [Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["OffsetParent", "", [], [JQuery], false], ["On", "", [Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["OnParam", "", [Go$String, go$emptyInterface], [JQuery], false], ["OnSelector", "", [Go$String, Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["One", "", [Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["Parent", "", [], [JQuery], false], ["ParentBySelector", "", [Go$String], [JQuery], false], ["Parents", "", [], [JQuery], false], ["ParentsBySelector", "", [Go$String], [JQuery], false], ["ParentsUntil", "", [Go$String], [JQuery], false], ["ParentsUntilByFilter", "", [Go$String, Go$String], [JQuery], false], ["ParentsUntilByJQuery", "", [JQuery], [JQuery], false], ["ParentsUntilByJQueryAndFilter", "", [JQuery, Go$String], [JQuery], false], ["Prev", "", [], [JQuery], false], ["PrevAll", "", [], [JQuery], false], ["PrevAllBySelector", "", [Go$String], [JQuery], false], ["PrevBySelector", "", [Go$String], [JQuery], false], ["PrevUntil", "", [Go$String], [JQuery], false], ["PrevUntilByFilter", "", [Go$String, Go$String], [JQuery], false], ["PrevUntilByJQuery", "", [JQuery], [JQuery], false], ["PrevUntilByJQueryAndFilter", "", [JQuery, Go$String], [JQuery], false], ["Prop", "", [Go$String], [Go$Bool], false], ["Ready", "", [(go$funcType([], [], false))], [JQuery], false], ["RemoveClass", "", [Go$String], [JQuery], false], ["RemoveData", "", [Go$String], [JQuery], false], ["Resize", "", [], [JQuery], false], ["ResizeDataFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["ResizeFn", "", [(go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["Scroll", "", [], [JQuery], false], ["ScrollDataFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["ScrollFn", "", [(go$funcType([], [], false))], [JQuery], false], ["ScrollLeft", "", [], [Go$Int], false], ["ScrollTop", "", [], [Go$Int], false], ["Select", "", [], [JQuery], false], ["SelectDataFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["SelectFn", "", [(go$funcType([], [], false))], [JQuery], false], ["Serialize", "", [], [Go$String], false], ["SetCss", "", [go$emptyInterface, go$emptyInterface], [JQuery], false], ["SetData", "", [Go$String, Go$String], [JQuery], false], ["SetHeight", "", [Go$String], [JQuery], false], ["SetHtml", "", [Go$String], [JQuery], false], ["SetProp", "", [Go$String, Go$Bool], [JQuery], false], ["SetScrollLeft", "", [Go$Int], [JQuery], false], ["SetScrollTop", "", [Go$Int], [JQuery], false], ["SetText", "", [Go$String], [JQuery], false], ["SetVal", "", [Go$String], [JQuery], false], ["SetWidth", "", [Go$String], [JQuery], false], ["Show", "", [], [JQuery], false], ["Siblings", "", [], [JQuery], false], ["SiblingsBySelector", "", [Go$String], [JQuery], false], ["Slice", "", [Go$Int], [JQuery], false], ["SliceByEnd", "", [Go$Int, Go$Int], [JQuery], false], ["Submit", "", [], [JQuery], false], ["SubmitDataFn", "", [js.Object, (go$funcType([Event], [], false))], [JQuery], false], ["SubmitFn", "", [(go$funcType([], [], false))], [JQuery], false], ["Text", "", [], [Go$String], false], ["TextByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false], ["ToArray", "", [], [(go$sliceType(go$emptyInterface))], false], ["Toggle", "", [Go$Bool], [JQuery], false], ["ToggleClass", "", [Go$Bool], [JQuery], false], ["ToggleClassByName", "", [Go$String, Go$Bool], [JQuery], false], ["Trigger", "", [Go$String], [JQuery], false], ["TriggerHandler", "", [Go$String, go$emptyInterface], [JQuery], false], ["TriggerParam", "", [Go$String, go$emptyInterface], [JQuery], false], ["Unbind", "", [], [JQuery], false], ["UnbindEvent", "", [js.Object], [JQuery], false], ["UnbindFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["Undelegate", "", [], [JQuery], false], ["UndelegateEvent", "", [js.Object], [JQuery], false], ["UndelegateFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["UndelegateNamespace", "", [Go$String], [JQuery], false], ["Unload", "", [(go$funcType([Event], [js.Object], false))], [JQuery], false], ["UnloadEventdata", "", [js.Object, (go$funcType([Event], [js.Object], false))], [JQuery], false], ["Val", "", [], [Go$String], false], ["Width", "", [], [Go$Int], false], ["WidthByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false]];
+	JQuery.methods = [["Add", "", [go$emptyInterface], [JQuery], false], ["AddBack", "", [], [JQuery], false], ["AddBackBySelector", "", [Go$String], [JQuery], false], ["AddByContext", "", [Go$String, go$emptyInterface], [JQuery], false], ["AddClass", "", [Go$String], [JQuery], false], ["AddClassFn", "", [(go$funcType([Go$Int], [Go$String], false))], [JQuery], false], ["AddClassFnClass", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false], ["After", "", [go$emptyInterface], [JQuery], false], ["AfterContext", "", [go$emptyInterface, go$emptyInterface], [JQuery], false], ["Append", "", [go$emptyInterface], [JQuery], false], ["AppendTo", "", [go$emptyInterface], [JQuery], false], ["Attr", "", [Go$String], [Go$String], false], ["Before", "", [go$emptyInterface], [JQuery], false], ["BeforeContext", "", [go$emptyInterface, go$emptyInterface], [JQuery], false], ["Blur", "", [], [JQuery], false], ["Children", "", [go$emptyInterface], [JQuery], false], ["ClearQueue", "", [Go$String], [JQuery], false], ["Clone", "", [], [JQuery], false], ["CloneDeep", "", [Go$Bool, Go$Bool], [JQuery], false], ["CloneWithDataAndEvents", "", [Go$Bool], [JQuery], false], ["Closest", "", [go$emptyInterface], [JQuery], false], ["Contents", "", [], [JQuery], false], ["Css", "", [Go$String], [Go$String], false], ["Data", "", [Go$String], [Go$String], false], ["Dequeue", "", [Go$String], [JQuery], false], ["Detach", "", [], [JQuery], false], ["DetachBySelector", "", [Go$String], [JQuery], false], ["Empty", "", [], [JQuery], false], ["End", "", [], [JQuery], false], ["Eq", "", [Go$Int], [JQuery], false], ["FadeOut", "", [Go$String], [JQuery], false], ["Filter", "", [Go$String], [JQuery], false], ["FilterByFunc", "", [(go$funcType([Go$Int], [Go$Int], false))], [JQuery], false], ["FilterByJQuery", "", [JQuery], [JQuery], false], ["Find", "", [Go$String], [JQuery], false], ["FindByJQuery", "", [JQuery], [JQuery], false], ["First", "", [], [JQuery], false], ["Focus", "", [], [JQuery], false], ["Get", "", [], [js.Object], false], ["GetByIndex", "", [Go$Int], [js.Object], false], ["Has", "", [Go$String], [JQuery], false], ["HasClass", "", [Go$String], [Go$Bool], false], ["Height", "", [], [Go$Int], false], ["Hide", "", [], [JQuery], false], ["Html", "", [], [Go$String], false], ["HtmlByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false], ["InnerHeight", "", [], [Go$Int], false], ["InnerWidth", "", [], [Go$Int], false], ["Is", "", [go$emptyInterface], [Go$Bool], false], ["IsByFunc", "", [(go$funcType([Go$Int], [Go$Bool], false))], [JQuery], false], ["IsByJQuery", "", [JQuery], [Go$Bool], false], ["Last", "", [], [JQuery], false], ["Next", "", [], [JQuery], false], ["NextAll", "", [], [JQuery], false], ["NextAllBySelector", "", [Go$String], [JQuery], false], ["NextBySelector", "", [Go$String], [JQuery], false], ["NextUntil", "", [Go$String], [JQuery], false], ["NextUntilByFilter", "", [Go$String, Go$String], [JQuery], false], ["NextUntilByJQuery", "", [JQuery], [JQuery], false], ["NextUntilByJQueryAndFilter", "", [JQuery, Go$String], [JQuery], false], ["Not", "", [Go$String], [JQuery], false], ["NotByJQuery", "", [JQuery], [JQuery], false], ["Off", "", [Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["Offset", "", [], [JQueryCoordinates], false], ["OffsetParent", "", [], [JQuery], false], ["On", "", [Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["OnParam", "", [Go$String, go$emptyInterface], [JQuery], false], ["OnSelector", "", [Go$String, Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["One", "", [Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["OuterHeight", "", [], [Go$Int], false], ["OuterHeightWithMargin", "", [Go$Bool], [Go$Int], false], ["OuterWidth", "", [], [Go$Int], false], ["OuterWidthWithMargin", "", [Go$Bool], [Go$Int], false], ["Parent", "", [], [JQuery], false], ["ParentBySelector", "", [Go$String], [JQuery], false], ["Parents", "", [], [JQuery], false], ["ParentsBySelector", "", [Go$String], [JQuery], false], ["ParentsUntil", "", [], [JQuery], false], ["ParentsUntilBySelector", "", [go$emptyInterface], [JQuery], false], ["ParentsUntilBySelectorAndFilter", "", [go$emptyInterface, go$emptyInterface], [JQuery], false], ["Position", "", [], [JQueryCoordinates], false], ["Prepend", "", [go$emptyInterface], [JQuery], false], ["PrependContext", "", [go$emptyInterface, go$emptyInterface], [JQuery], false], ["PrependTo", "", [go$emptyInterface], [JQuery], false], ["Prev", "", [], [JQuery], false], ["PrevAll", "", [], [JQuery], false], ["PrevAllBySelector", "", [Go$String], [JQuery], false], ["PrevBySelector", "", [Go$String], [JQuery], false], ["PrevUntil", "", [Go$String], [JQuery], false], ["PrevUntilByFilter", "", [Go$String, Go$String], [JQuery], false], ["PrevUntilByJQuery", "", [JQuery], [JQuery], false], ["PrevUntilByJQueryAndFilter", "", [JQuery, Go$String], [JQuery], false], ["Prop", "", [Go$String], [Go$Bool], false], ["Ready", "", [(go$funcType([], [], false))], [JQuery], false], ["Remove", "", [], [JQuery], false], ["RemoveAttr", "", [Go$String], [JQuery], false], ["RemoveBySelector", "", [Go$String], [JQuery], false], ["RemoveClass", "", [Go$String], [JQuery], false], ["RemoveData", "", [Go$String], [JQuery], false], ["RemoveProp", "", [Go$String], [JQuery], false], ["Resize", "", [], [JQuery], false], ["ResizeDataFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["ResizeFn", "", [(go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["Scroll", "", [], [JQuery], false], ["ScrollDataFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["ScrollFn", "", [(go$funcType([], [], false))], [JQuery], false], ["ScrollLeft", "", [], [Go$Int], false], ["ScrollTop", "", [], [Go$Int], false], ["Select", "", [], [JQuery], false], ["SelectDataFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["SelectFn", "", [(go$funcType([], [], false))], [JQuery], false], ["Serialize", "", [], [Go$String], false], ["SetAttr", "", [Go$String, Go$String], [JQuery], false], ["SetAttrMap", "", [(go$mapType(Go$String, go$emptyInterface))], [JQuery], false], ["SetCss", "", [go$emptyInterface, go$emptyInterface], [JQuery], false], ["SetCssMap", "", [(go$mapType(Go$String, go$emptyInterface))], [JQuery], false], ["SetData", "", [Go$String, Go$String], [JQuery], false], ["SetHeight", "", [Go$String], [JQuery], false], ["SetHtml", "", [Go$String], [JQuery], false], ["SetOffset", "", [JQueryCoordinates], [JQuery], false], ["SetProp", "", [Go$String, go$emptyInterface], [JQuery], false], ["SetPropMap", "", [(go$mapType(Go$String, go$emptyInterface))], [JQuery], false], ["SetScrollLeft", "", [Go$Int], [JQuery], false], ["SetScrollTop", "", [Go$Int], [JQuery], false], ["SetText", "", [Go$String], [JQuery], false], ["SetVal", "", [Go$String], [JQuery], false], ["SetWidth", "", [Go$String], [JQuery], false], ["Show", "", [], [JQuery], false], ["Siblings", "", [], [JQuery], false], ["SiblingsBySelector", "", [Go$String], [JQuery], false], ["Slice", "", [Go$Int], [JQuery], false], ["SliceByEnd", "", [Go$Int, Go$Int], [JQuery], false], ["Submit", "", [], [JQuery], false], ["SubmitDataFn", "", [js.Object, (go$funcType([Event], [], false))], [JQuery], false], ["SubmitFn", "", [(go$funcType([], [], false))], [JQuery], false], ["Text", "", [], [Go$String], false], ["TextByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false], ["ToArray", "", [], [(go$sliceType(go$emptyInterface))], false], ["Toggle", "", [Go$Bool], [JQuery], false], ["ToggleClass", "", [Go$Bool], [JQuery], false], ["ToggleClassByName", "", [Go$String, Go$Bool], [JQuery], false], ["Trigger", "", [Go$String], [JQuery], false], ["TriggerHandler", "", [Go$String, go$emptyInterface], [JQuery], false], ["TriggerParam", "", [Go$String, go$emptyInterface], [JQuery], false], ["Unbind", "", [], [JQuery], false], ["UnbindEvent", "", [js.Object], [JQuery], false], ["UnbindFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["Undelegate", "", [], [JQuery], false], ["UndelegateEvent", "", [js.Object], [JQuery], false], ["UndelegateFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["UndelegateNamespace", "", [Go$String], [JQuery], false], ["Underlying", "", [], [js.Object], false], ["Unload", "", [(go$funcType([Event], [js.Object], false))], [JQuery], false], ["UnloadEventdata", "", [js.Object, (go$funcType([Event], [js.Object], false))], [JQuery], false], ["Unwrap", "", [], [JQuery], false], ["Val", "", [], [Go$String], false], ["Width", "", [], [Go$Int], false], ["WidthByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false], ["Wrap", "", [go$emptyInterface], [JQuery], false], ["WrapAll", "", [go$emptyInterface], [JQuery], false], ["WrapInner", "", [go$emptyInterface], [JQuery], false]];
+	(go$ptrType(JQuery)).methods = [["Add", "", [go$emptyInterface], [JQuery], false], ["AddBack", "", [], [JQuery], false], ["AddBackBySelector", "", [Go$String], [JQuery], false], ["AddByContext", "", [Go$String, go$emptyInterface], [JQuery], false], ["AddClass", "", [Go$String], [JQuery], false], ["AddClassFn", "", [(go$funcType([Go$Int], [Go$String], false))], [JQuery], false], ["AddClassFnClass", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false], ["After", "", [go$emptyInterface], [JQuery], false], ["AfterContext", "", [go$emptyInterface, go$emptyInterface], [JQuery], false], ["Append", "", [go$emptyInterface], [JQuery], false], ["AppendTo", "", [go$emptyInterface], [JQuery], false], ["Attr", "", [Go$String], [Go$String], false], ["Before", "", [go$emptyInterface], [JQuery], false], ["BeforeContext", "", [go$emptyInterface, go$emptyInterface], [JQuery], false], ["Blur", "", [], [JQuery], false], ["Children", "", [go$emptyInterface], [JQuery], false], ["ClearQueue", "", [Go$String], [JQuery], false], ["Clone", "", [], [JQuery], false], ["CloneDeep", "", [Go$Bool, Go$Bool], [JQuery], false], ["CloneWithDataAndEvents", "", [Go$Bool], [JQuery], false], ["Closest", "", [go$emptyInterface], [JQuery], false], ["Contents", "", [], [JQuery], false], ["Css", "", [Go$String], [Go$String], false], ["Data", "", [Go$String], [Go$String], false], ["Dequeue", "", [Go$String], [JQuery], false], ["Detach", "", [], [JQuery], false], ["DetachBySelector", "", [Go$String], [JQuery], false], ["Empty", "", [], [JQuery], false], ["End", "", [], [JQuery], false], ["Eq", "", [Go$Int], [JQuery], false], ["FadeOut", "", [Go$String], [JQuery], false], ["Filter", "", [Go$String], [JQuery], false], ["FilterByFunc", "", [(go$funcType([Go$Int], [Go$Int], false))], [JQuery], false], ["FilterByJQuery", "", [JQuery], [JQuery], false], ["Find", "", [Go$String], [JQuery], false], ["FindByJQuery", "", [JQuery], [JQuery], false], ["First", "", [], [JQuery], false], ["Focus", "", [], [JQuery], false], ["Get", "", [], [js.Object], false], ["GetByIndex", "", [Go$Int], [js.Object], false], ["Has", "", [Go$String], [JQuery], false], ["HasClass", "", [Go$String], [Go$Bool], false], ["Height", "", [], [Go$Int], false], ["Hide", "", [], [JQuery], false], ["Html", "", [], [Go$String], false], ["HtmlByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false], ["InnerHeight", "", [], [Go$Int], false], ["InnerWidth", "", [], [Go$Int], false], ["Is", "", [go$emptyInterface], [Go$Bool], false], ["IsByFunc", "", [(go$funcType([Go$Int], [Go$Bool], false))], [JQuery], false], ["IsByJQuery", "", [JQuery], [Go$Bool], false], ["Last", "", [], [JQuery], false], ["Next", "", [], [JQuery], false], ["NextAll", "", [], [JQuery], false], ["NextAllBySelector", "", [Go$String], [JQuery], false], ["NextBySelector", "", [Go$String], [JQuery], false], ["NextUntil", "", [Go$String], [JQuery], false], ["NextUntilByFilter", "", [Go$String, Go$String], [JQuery], false], ["NextUntilByJQuery", "", [JQuery], [JQuery], false], ["NextUntilByJQueryAndFilter", "", [JQuery, Go$String], [JQuery], false], ["Not", "", [Go$String], [JQuery], false], ["NotByJQuery", "", [JQuery], [JQuery], false], ["Off", "", [Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["Offset", "", [], [JQueryCoordinates], false], ["OffsetParent", "", [], [JQuery], false], ["On", "", [Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["OnParam", "", [Go$String, go$emptyInterface], [JQuery], false], ["OnSelector", "", [Go$String, Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["One", "", [Go$String, (go$funcType([Event], [], false))], [JQuery], false], ["OuterHeight", "", [], [Go$Int], false], ["OuterHeightWithMargin", "", [Go$Bool], [Go$Int], false], ["OuterWidth", "", [], [Go$Int], false], ["OuterWidthWithMargin", "", [Go$Bool], [Go$Int], false], ["Parent", "", [], [JQuery], false], ["ParentBySelector", "", [Go$String], [JQuery], false], ["Parents", "", [], [JQuery], false], ["ParentsBySelector", "", [Go$String], [JQuery], false], ["ParentsUntil", "", [], [JQuery], false], ["ParentsUntilBySelector", "", [go$emptyInterface], [JQuery], false], ["ParentsUntilBySelectorAndFilter", "", [go$emptyInterface, go$emptyInterface], [JQuery], false], ["Position", "", [], [JQueryCoordinates], false], ["Prepend", "", [go$emptyInterface], [JQuery], false], ["PrependContext", "", [go$emptyInterface, go$emptyInterface], [JQuery], false], ["PrependTo", "", [go$emptyInterface], [JQuery], false], ["Prev", "", [], [JQuery], false], ["PrevAll", "", [], [JQuery], false], ["PrevAllBySelector", "", [Go$String], [JQuery], false], ["PrevBySelector", "", [Go$String], [JQuery], false], ["PrevUntil", "", [Go$String], [JQuery], false], ["PrevUntilByFilter", "", [Go$String, Go$String], [JQuery], false], ["PrevUntilByJQuery", "", [JQuery], [JQuery], false], ["PrevUntilByJQueryAndFilter", "", [JQuery, Go$String], [JQuery], false], ["Prop", "", [Go$String], [Go$Bool], false], ["Ready", "", [(go$funcType([], [], false))], [JQuery], false], ["Remove", "", [], [JQuery], false], ["RemoveAttr", "", [Go$String], [JQuery], false], ["RemoveBySelector", "", [Go$String], [JQuery], false], ["RemoveClass", "", [Go$String], [JQuery], false], ["RemoveData", "", [Go$String], [JQuery], false], ["RemoveProp", "", [Go$String], [JQuery], false], ["Resize", "", [], [JQuery], false], ["ResizeDataFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["ResizeFn", "", [(go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["Scroll", "", [], [JQuery], false], ["ScrollDataFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["ScrollFn", "", [(go$funcType([], [], false))], [JQuery], false], ["ScrollLeft", "", [], [Go$Int], false], ["ScrollTop", "", [], [Go$Int], false], ["Select", "", [], [JQuery], false], ["SelectDataFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["SelectFn", "", [(go$funcType([], [], false))], [JQuery], false], ["Serialize", "", [], [Go$String], false], ["SetAttr", "", [Go$String, Go$String], [JQuery], false], ["SetAttrMap", "", [(go$mapType(Go$String, go$emptyInterface))], [JQuery], false], ["SetCss", "", [go$emptyInterface, go$emptyInterface], [JQuery], false], ["SetCssMap", "", [(go$mapType(Go$String, go$emptyInterface))], [JQuery], false], ["SetData", "", [Go$String, Go$String], [JQuery], false], ["SetHeight", "", [Go$String], [JQuery], false], ["SetHtml", "", [Go$String], [JQuery], false], ["SetOffset", "", [JQueryCoordinates], [JQuery], false], ["SetProp", "", [Go$String, go$emptyInterface], [JQuery], false], ["SetPropMap", "", [(go$mapType(Go$String, go$emptyInterface))], [JQuery], false], ["SetScrollLeft", "", [Go$Int], [JQuery], false], ["SetScrollTop", "", [Go$Int], [JQuery], false], ["SetText", "", [Go$String], [JQuery], false], ["SetVal", "", [Go$String], [JQuery], false], ["SetWidth", "", [Go$String], [JQuery], false], ["Show", "", [], [JQuery], false], ["Siblings", "", [], [JQuery], false], ["SiblingsBySelector", "", [Go$String], [JQuery], false], ["Slice", "", [Go$Int], [JQuery], false], ["SliceByEnd", "", [Go$Int, Go$Int], [JQuery], false], ["Submit", "", [], [JQuery], false], ["SubmitDataFn", "", [js.Object, (go$funcType([Event], [], false))], [JQuery], false], ["SubmitFn", "", [(go$funcType([], [], false))], [JQuery], false], ["Text", "", [], [Go$String], false], ["TextByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false], ["ToArray", "", [], [(go$sliceType(go$emptyInterface))], false], ["Toggle", "", [Go$Bool], [JQuery], false], ["ToggleClass", "", [Go$Bool], [JQuery], false], ["ToggleClassByName", "", [Go$String, Go$Bool], [JQuery], false], ["Trigger", "", [Go$String], [JQuery], false], ["TriggerHandler", "", [Go$String, go$emptyInterface], [JQuery], false], ["TriggerParam", "", [Go$String, go$emptyInterface], [JQuery], false], ["Unbind", "", [], [JQuery], false], ["UnbindEvent", "", [js.Object], [JQuery], false], ["UnbindFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["Undelegate", "", [], [JQuery], false], ["UndelegateEvent", "", [js.Object], [JQuery], false], ["UndelegateFn", "", [js.Object, (go$funcType([js.Object], [js.Object], false))], [JQuery], false], ["UndelegateNamespace", "", [Go$String], [JQuery], false], ["Underlying", "", [], [js.Object], false], ["Unload", "", [(go$funcType([Event], [js.Object], false))], [JQuery], false], ["UnloadEventdata", "", [js.Object, (go$funcType([Event], [js.Object], false))], [JQuery], false], ["Unwrap", "", [], [JQuery], false], ["Val", "", [], [Go$String], false], ["Width", "", [], [Go$Int], false], ["WidthByFunc", "", [(go$funcType([Go$Int, Go$String], [Go$String], false))], [JQuery], false], ["Wrap", "", [go$emptyInterface], [JQuery], false], ["WrapAll", "", [go$emptyInterface], [JQuery], false], ["WrapInner", "", [go$emptyInterface], [JQuery], false]];
 	Event.init([["", "", js.Object, ""], ["KeyCode", "", Go$Int, "js:\"keyCode\""], ["Target", "", js.Object, "js:\"target\""], ["CurrentTarget", "", js.Object, "js:\"currentTarget\""], ["DelegateTarget", "", js.Object, "js:\"delegateTarget\""], ["RelatedTarget", "", js.Object, "js:\"relatedTarget\""], ["Data", "", go$emptyInterface, "js:\"data\""], ["Which", "", Go$Int, "js:\"which\""]]);
 	Event.methods = [["Bool", "", [], [Go$Bool], false], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true], ["Float", "", [], [Go$Float64], false], ["Get", "", [Go$String], [js.Object], false], ["Index", "", [Go$Int], [js.Object], false], ["Int", "", [], [Go$Int], false], ["Interface", "", [], [go$emptyInterface], false], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["IsNull", "", [], [Go$Bool], false], ["IsUndefined", "", [], [Go$Bool], false], ["Length", "", [], [Go$Int], false], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["Set", "", [Go$String, go$emptyInterface], [], false], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false], ["String", "", [], [Go$String], false]];
 	(go$ptrType(Event)).methods = [["Bool", "", [], [Go$Bool], false], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true], ["Float", "", [], [Go$Float64], false], ["Get", "", [Go$String], [js.Object], false], ["Index", "", [Go$Int], [js.Object], false], ["Int", "", [], [Go$Int], false], ["Interface", "", [], [go$emptyInterface], false], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["IsNull", "", [], [Go$Bool], false], ["IsUndefined", "", [], [Go$Bool], false], ["Length", "", [], [Go$Int], false], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true], ["PreventDefault", "", [], [], false], ["Set", "", [Go$String, go$emptyInterface], [], false], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false], ["String", "", [], [Go$String], false]];
+	JQueryCoordinates.init([["Left", "", Go$Int, "js:\"left\""], ["Top", "", Go$Int, "js:\"top\""]]);
 	Event.Ptr.prototype.PreventDefault = function() {
 		var event;
 		event = this;
@@ -3293,6 +3348,61 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		var x;
 		return (x = go$internalize(go$global.jQuery.map(go$externalize(arr, (go$mapType(Go$String, go$emptyInterface))), go$externalize(fn, (go$funcType([go$emptyInterface, Go$String], [go$emptyInterface], false)))), go$emptyInterface), (x !== null && x.constructor === (go$sliceType(go$emptyInterface)) ? x.go$val : go$typeAssertionFailed(x, (go$sliceType(go$emptyInterface)))));
 	};
+	var Noop = go$pkg.Noop = function() {
+		return go$internalize(go$global.jQuery.noop, go$emptyInterface);
+	};
+	var Now = go$pkg.Now = function() {
+		return go$parseFloat(go$global.jQuery.now());
+	};
+	var Unique = go$pkg.Unique = function(arr) {
+		return go$global.jQuery.unique(arr);
+	};
+	JQuery.Ptr.prototype.Underlying = function() {
+		var _struct, j;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		return j.o;
+	};
+	JQuery.prototype.Underlying = function() { return this.go$val.Underlying(); };
+	JQuery.Ptr.prototype.Get = function() {
+		var _struct, j;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		return j.o.get();
+	};
+	JQuery.prototype.Get = function() { return this.go$val.Get(); };
+	JQuery.Ptr.prototype.GetByIndex = function(index) {
+		var _struct, j;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		return j.o.get(index);
+	};
+	JQuery.prototype.GetByIndex = function(index) { return this.go$val.GetByIndex(index); };
+	JQuery.Ptr.prototype.Append = function(obj) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.append(go$externalize(obj, go$emptyInterface));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.Append = function(obj) { return this.go$val.Append(obj); };
+	JQuery.Ptr.prototype.Empty = function() {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.empty();
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.Empty = function() { return this.go$val.Empty(); };
+	JQuery.Ptr.prototype.Detach = function() {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.detach();
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.Detach = function() { return this.go$val.Detach(); };
+	JQuery.Ptr.prototype.DetachBySelector = function(sel) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.detach(go$externalize(sel, Go$String));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.DetachBySelector = function(sel) { return this.go$val.DetachBySelector(sel); };
 	JQuery.Ptr.prototype.Serialize = function() {
 		var _struct, j;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
@@ -3319,6 +3429,20 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return (x = go$internalize(j.o.toArray(), go$emptyInterface), (x !== null && x.constructor === (go$sliceType(go$emptyInterface)) ? x.go$val : go$typeAssertionFailed(x, (go$sliceType(go$emptyInterface)))));
 	};
 	JQuery.prototype.ToArray = function() { return this.go$val.ToArray(); };
+	JQuery.Ptr.prototype.Remove = function() {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.remove();
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.Remove = function() { return this.go$val.Remove(); };
+	JQuery.Ptr.prototype.RemoveBySelector = function(selector) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.remove(go$externalize(selector, Go$String));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.RemoveBySelector = function(selector) { return this.go$val.RemoveBySelector(selector); };
 	JQuery.Ptr.prototype.AddBackBySelector = function(selector) {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
@@ -3339,6 +3463,13 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
 	JQuery.prototype.SetCss = function(name, value) { return this.go$val.SetCss(name, value); };
+	JQuery.Ptr.prototype.SetCssMap = function(propertiesMap) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.css(go$externalize(propertiesMap, (go$mapType(Go$String, go$emptyInterface))));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.SetCssMap = function(propertiesMap) { return this.go$val.SetCssMap(propertiesMap); };
 	JQuery.Ptr.prototype.Text = function() {
 		var _struct, j;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
@@ -3374,16 +3505,55 @@ go$packages["github.com/rusco/jquery"] = (function() {
 	JQuery.Ptr.prototype.SetProp = function(name, value) {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		j.o = j.o.prop(go$externalize(name, Go$String), go$externalize(value, Go$Bool));
+		j.o = j.o.prop(go$externalize(name, Go$String), go$externalize(value, go$emptyInterface));
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
 	JQuery.prototype.SetProp = function(name, value) { return this.go$val.SetProp(name, value); };
-	JQuery.Ptr.prototype.Attr = function(property) {
-		var _struct, j;
+	JQuery.Ptr.prototype.SetPropMap = function(propertiesMap) {
+		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		return go$internalize(j.o.attr(go$externalize(property, Go$String)), Go$String);
+		j.o = j.o.prop(go$externalize(propertiesMap, (go$mapType(Go$String, go$emptyInterface))));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.SetPropMap = function(propertiesMap) { return this.go$val.SetPropMap(propertiesMap); };
+	JQuery.Ptr.prototype.RemoveProp = function(property) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.removeProp(go$externalize(property, Go$String));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.RemoveProp = function(property) { return this.go$val.RemoveProp(property); };
+	JQuery.Ptr.prototype.Attr = function(property) {
+		var _struct, j, attr;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		attr = j.o.attr(go$externalize(property, Go$String));
+		if (attr === undefined) {
+			return "";
+		}
+		return go$internalize(attr, Go$String);
 	};
 	JQuery.prototype.Attr = function(property) { return this.go$val.Attr(property); };
+	JQuery.Ptr.prototype.SetAttr = function(property, value) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.attr(go$externalize(property, Go$String), go$externalize(value, Go$String));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.SetAttr = function(property, value) { return this.go$val.SetAttr(property, value); };
+	JQuery.Ptr.prototype.SetAttrMap = function(propertiesMap) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.attr(go$externalize(propertiesMap, (go$mapType(Go$String, go$emptyInterface))));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.SetAttrMap = function(propertiesMap) { return this.go$val.SetAttrMap(propertiesMap); };
+	JQuery.Ptr.prototype.RemoveAttr = function(property) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.removeAttr(go$externalize(property, Go$String));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.RemoveAttr = function(property) { return this.go$val.RemoveAttr(property); };
 	JQuery.Ptr.prototype.HasClass = function(class$1) {
 		var _struct, j;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
@@ -3493,20 +3663,62 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
 	JQuery.prototype.Off = function(event, handler) { return this.go$val.Off(event, handler); };
-	JQuery.Ptr.prototype.AppendTo = function(destination) {
+	JQuery.Ptr.prototype.After = function(sel) {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		j.o = j.o.appendTo(go$externalize(destination, Go$String));
+		j.o = j.o.after(go$externalize(sel, go$emptyInterface));
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
-	JQuery.prototype.AppendTo = function(destination) { return this.go$val.AppendTo(destination); };
-	JQuery.Ptr.prototype.AppendToJQuery = function(obj) {
+	JQuery.prototype.After = function(sel) { return this.go$val.After(sel); };
+	JQuery.Ptr.prototype.AfterContext = function(sel, ctx) {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		j.o = j.o.appendTo(obj.o);
+		j.o = j.o.after(go$externalize(sel, go$emptyInterface), go$externalize(ctx, go$emptyInterface));
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
-	JQuery.prototype.AppendToJQuery = function(obj) { return this.go$val.AppendToJQuery(obj); };
+	JQuery.prototype.AfterContext = function(sel, ctx) { return this.go$val.AfterContext(sel, ctx); };
+	JQuery.Ptr.prototype.Before = function(sel) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.before(go$externalize(sel, go$emptyInterface));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.Before = function(sel) { return this.go$val.Before(sel); };
+	JQuery.Ptr.prototype.BeforeContext = function(sel, ctx) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.before(go$externalize(sel, go$emptyInterface), go$externalize(ctx, go$emptyInterface));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.BeforeContext = function(sel, ctx) { return this.go$val.BeforeContext(sel, ctx); };
+	JQuery.Ptr.prototype.Prepend = function(sel) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.prepend(go$externalize(sel, go$emptyInterface));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.Prepend = function(sel) { return this.go$val.Prepend(sel); };
+	JQuery.Ptr.prototype.PrependContext = function(sel, ctx) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.prepend(go$externalize(sel, go$emptyInterface), go$externalize(ctx, go$emptyInterface));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.PrependContext = function(sel, ctx) { return this.go$val.PrependContext(sel, ctx); };
+	JQuery.Ptr.prototype.PrependTo = function(sel) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.prependTo(go$externalize(sel, go$emptyInterface));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.PrependTo = function(sel) { return this.go$val.PrependTo(sel); };
+	JQuery.Ptr.prototype.AppendTo = function(sel) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.appendTo(go$externalize(sel, go$emptyInterface));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.AppendTo = function(sel) { return this.go$val.AppendTo(sel); };
 	JQuery.Ptr.prototype.Toggle = function(showOrHide) {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
@@ -3528,6 +3740,13 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
 	JQuery.prototype.Hide = function() { return this.go$val.Hide(); };
+	JQuery.Ptr.prototype.Contents = function() {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.html();
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.Contents = function() { return this.go$val.Contents(); };
 	JQuery.Ptr.prototype.Html = function() {
 		var _struct, j;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
@@ -3562,7 +3781,7 @@ go$packages["github.com/rusco/jquery"] = (function() {
 	JQuery.Ptr.prototype.Closest = function(selector) {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		j.o = j.o.closest(go$externalize(selector, Go$String));
+		j.o = j.o.closest(go$externalize(selector, go$emptyInterface));
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
 	JQuery.prototype.Closest = function(selector) { return this.go$val.Closest(selector); };
@@ -3573,13 +3792,13 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
 	JQuery.prototype.End = function() { return this.go$val.End(); };
-	JQuery.Ptr.prototype.Add = function(selector) {
+	JQuery.Ptr.prototype.Add = function(sel) {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		j.o = j.o.add(go$externalize(selector, Go$String));
+		j.o = j.o.add(go$externalize(sel, go$emptyInterface));
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
-	JQuery.prototype.Add = function(selector) { return this.go$val.Add(selector); };
+	JQuery.prototype.Add = function(sel) { return this.go$val.Add(sel); };
 	JQuery.Ptr.prototype.AddByContext = function(selector, context) {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
@@ -3587,20 +3806,6 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
 	JQuery.prototype.AddByContext = function(selector, context) { return this.go$val.AddByContext(selector, context); };
-	JQuery.Ptr.prototype.AddHtml = function(html) {
-		var _struct, j, _struct$1;
-		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		j.o = j.o.add(go$externalize(html, Go$String));
-		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
-	};
-	JQuery.prototype.AddHtml = function(html) { return this.go$val.AddHtml(html); };
-	JQuery.Ptr.prototype.AddJQuery = function(obj) {
-		var _struct, j, _struct$1;
-		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		j.o = j.o.add(obj.o);
-		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
-	};
-	JQuery.prototype.AddJQuery = function(obj) { return this.go$val.AddJQuery(obj); };
 	JQuery.Ptr.prototype.Clone = function() {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
@@ -3635,6 +3840,85 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
 	JQuery.prototype.SetHeight = function(value) { return this.go$val.SetHeight(value); };
+	JQuery.Ptr.prototype.Width = function() {
+		var _struct, j;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		return go$parseInt(j.o.scrollTop()) >> 0;
+	};
+	JQuery.prototype.Width = function() { return this.go$val.Width(); };
+	JQuery.Ptr.prototype.SetWidth = function(value) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.scrollTop(go$externalize(value, Go$String));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.SetWidth = function(value) { return this.go$val.SetWidth(value); };
+	JQuery.Ptr.prototype.WidthByFunc = function(fn) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o.width(go$externalize((function(index, width) {
+			return fn(index, width);
+		}), (go$funcType([Go$Int, Go$String], [Go$String], false))));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.WidthByFunc = function(fn) { return this.go$val.WidthByFunc(fn); };
+	JQuery.Ptr.prototype.InnerHeight = function() {
+		var _struct, j;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		return go$parseInt(j.o.innerHeight()) >> 0;
+	};
+	JQuery.prototype.InnerHeight = function() { return this.go$val.InnerHeight(); };
+	JQuery.Ptr.prototype.InnerWidth = function() {
+		var _struct, j;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		return go$parseInt(j.o.innerWidth()) >> 0;
+	};
+	JQuery.prototype.InnerWidth = function() { return this.go$val.InnerWidth(); };
+	JQuery.Ptr.prototype.Offset = function() {
+		var _struct, j, obj;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		obj = j.o.offset();
+		return new JQueryCoordinates.Ptr(go$parseInt(obj.left) >> 0, go$parseInt(obj.top) >> 0);
+	};
+	JQuery.prototype.Offset = function() { return this.go$val.Offset(); };
+	JQuery.Ptr.prototype.SetOffset = function(jc) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.offset(go$externalize(jc, JQueryCoordinates));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.SetOffset = function(jc) { return this.go$val.SetOffset(jc); };
+	JQuery.Ptr.prototype.OuterHeight = function() {
+		var _struct, j;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		return go$parseInt(j.o.outerHeight()) >> 0;
+	};
+	JQuery.prototype.OuterHeight = function() { return this.go$val.OuterHeight(); };
+	JQuery.Ptr.prototype.OuterHeightWithMargin = function(includeMargin) {
+		var _struct, j;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		return go$parseInt(j.o.outerHeight(go$externalize(includeMargin, Go$Bool))) >> 0;
+	};
+	JQuery.prototype.OuterHeightWithMargin = function(includeMargin) { return this.go$val.OuterHeightWithMargin(includeMargin); };
+	JQuery.Ptr.prototype.OuterWidth = function() {
+		var _struct, j;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		return go$parseInt(j.o.outerWidth()) >> 0;
+	};
+	JQuery.prototype.OuterWidth = function() { return this.go$val.OuterWidth(); };
+	JQuery.Ptr.prototype.OuterWidthWithMargin = function(includeMargin) {
+		var _struct, j;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		return go$parseInt(j.o.outerWidth(go$externalize(includeMargin, Go$Bool))) >> 0;
+	};
+	JQuery.prototype.OuterWidthWithMargin = function(includeMargin) { return this.go$val.OuterWidthWithMargin(includeMargin); };
+	JQuery.Ptr.prototype.Position = function() {
+		var _struct, j, obj;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		obj = j.o.position();
+		return new JQueryCoordinates.Ptr(go$parseInt(obj.left) >> 0, go$parseInt(obj.top) >> 0);
+	};
+	JQuery.prototype.Position = function() { return this.go$val.Position(); };
 	JQuery.Ptr.prototype.ScrollLeft = function() {
 		var _struct, j;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
@@ -3661,28 +3945,6 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
 	JQuery.prototype.SetScrollTop = function(value) { return this.go$val.SetScrollTop(value); };
-	JQuery.Ptr.prototype.Width = function() {
-		var _struct, j;
-		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		return go$parseInt(j.o.scrollTop()) >> 0;
-	};
-	JQuery.prototype.Width = function() { return this.go$val.Width(); };
-	JQuery.Ptr.prototype.SetWidth = function(value) {
-		var _struct, j, _struct$1;
-		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		j.o = j.o.scrollTop(go$externalize(value, Go$String));
-		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
-	};
-	JQuery.prototype.SetWidth = function(value) { return this.go$val.SetWidth(value); };
-	JQuery.Ptr.prototype.WidthByFunc = function(fn) {
-		var _struct, j, _struct$1;
-		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		j.o.width(go$externalize((function(index, width) {
-			return fn(index, width);
-		}), (go$funcType([Go$Int, Go$String], [Go$String], false))));
-		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
-	};
-	JQuery.prototype.WidthByFunc = function(fn) { return this.go$val.WidthByFunc(fn); };
 	JQuery.Ptr.prototype.ClearQueue = function(queueName) {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
@@ -3752,34 +4014,27 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
 	JQuery.prototype.ParentsBySelector = function(selector) { return this.go$val.ParentsBySelector(selector); };
-	JQuery.Ptr.prototype.ParentsUntil = function(selector) {
+	JQuery.Ptr.prototype.ParentsUntil = function() {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		j.o = j.o.parentsUntil(go$externalize(selector, Go$String));
+		j.o = j.o.parentsUntil();
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
-	JQuery.prototype.ParentsUntil = function(selector) { return this.go$val.ParentsUntil(selector); };
-	JQuery.Ptr.prototype.ParentsUntilByFilter = function(selector, filter) {
+	JQuery.prototype.ParentsUntil = function() { return this.go$val.ParentsUntil(); };
+	JQuery.Ptr.prototype.ParentsUntilBySelector = function(sel) {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		j.o = j.o.parentsUntil(go$externalize(selector, Go$String), go$externalize(filter, Go$String));
+		j.o = j.o.parentsUntil(go$externalize(sel, go$emptyInterface));
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
-	JQuery.prototype.ParentsUntilByFilter = function(selector, filter) { return this.go$val.ParentsUntilByFilter(selector, filter); };
-	JQuery.Ptr.prototype.ParentsUntilByJQuery = function(obj) {
+	JQuery.prototype.ParentsUntilBySelector = function(sel) { return this.go$val.ParentsUntilBySelector(sel); };
+	JQuery.Ptr.prototype.ParentsUntilBySelectorAndFilter = function(selector, filter) {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		j.o = j.o.parentsUntil(obj.o);
+		j.o = j.o.parentsUntil(go$externalize(selector, go$emptyInterface), go$externalize(filter, go$emptyInterface));
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
-	JQuery.prototype.ParentsUntilByJQuery = function(obj) { return this.go$val.ParentsUntilByJQuery(obj); };
-	JQuery.Ptr.prototype.ParentsUntilByJQueryAndFilter = function(obj, filter) {
-		var _struct, j, _struct$1;
-		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		j.o = j.o.parentsUntil(obj.o, go$externalize(filter, Go$String));
-		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
-	};
-	JQuery.prototype.ParentsUntilByJQueryAndFilter = function(obj, filter) { return this.go$val.ParentsUntilByJQueryAndFilter(obj, filter); };
+	JQuery.prototype.ParentsUntilBySelectorAndFilter = function(selector, filter) { return this.go$val.ParentsUntilBySelectorAndFilter(selector, filter); };
 	JQuery.Ptr.prototype.Prev = function() {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
@@ -3864,6 +4119,41 @@ go$packages["github.com/rusco/jquery"] = (function() {
 		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 	};
 	JQuery.prototype.SliceByEnd = function(start, end) { return this.go$val.SliceByEnd(start, end); };
+	JQuery.Ptr.prototype.Children = function(selector) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.children(go$externalize(selector, go$emptyInterface));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.Children = function(selector) { return this.go$val.Children(selector); };
+	JQuery.Ptr.prototype.Unwrap = function() {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.unwrap();
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.Unwrap = function() { return this.go$val.Unwrap(); };
+	JQuery.Ptr.prototype.Wrap = function(obj) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.wrap(go$externalize(obj, go$emptyInterface));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.Wrap = function(obj) { return this.go$val.Wrap(obj); };
+	JQuery.Ptr.prototype.WrapAll = function(obj) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.wrapAll(go$externalize(obj, go$emptyInterface));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.WrapAll = function(obj) { return this.go$val.WrapAll(obj); };
+	JQuery.Ptr.prototype.WrapInner = function(obj) {
+		var _struct, j, _struct$1;
+		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		j.o = j.o.wrapInner(go$externalize(obj, go$emptyInterface));
+		return (_struct$1 = j, new JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
+	};
+	JQuery.prototype.WrapInner = function(obj) { return this.go$val.WrapInner(obj); };
 	JQuery.Ptr.prototype.Next = function() {
 		var _struct, j, _struct$1;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
@@ -3988,7 +4278,7 @@ go$packages["github.com/rusco/jquery"] = (function() {
 	JQuery.Ptr.prototype.Is = function(selector) {
 		var _struct, j;
 		j = (_struct = this, new JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
-		return !!(j.o.is(go$externalize(selector, Go$String)));
+		return !!(j.o.is(go$externalize(selector, go$emptyInterface)));
 	};
 	JQuery.prototype.Is = function(selector) { return this.go$val.Is(selector); };
 	JQuery.Ptr.prototype.IsByFunc = function(fn) {
@@ -8788,12 +9078,7 @@ go$packages["math"] = (function() {
 		}
 		return b;
 	};
-	var Ldexp = go$pkg.Ldexp = function(frac, exp) {
-			if (frac === 0) { return frac; }
-			if (exp >= 1024) { return frac * Math.pow(2, 1023) * Math.pow(2, exp - 1023); }
-			if (exp <= -1024) { return frac * Math.pow(2, -1023) * Math.pow(2, exp + 1023); }
-			return frac * Math.pow(2, exp);
-		};
+	var Ldexp = go$pkg.Ldexp = go$ldexp;
 	var ldexp = function(frac, exp$1) {
 		var _tuple, e, x, m, x$1;
 		if (frac === 0) {
@@ -9534,37 +9819,16 @@ go$packages["math"] = (function() {
 		return z;
 	};
 	var Float32bits = go$pkg.Float32bits = go$float32bits;
-	var Float32frombits = go$pkg.Float32frombits = function(b) {
-			var s, e, m;
-			s = 1;
-			if (!(((b & 2147483648) >>> 0) === 0)) {
-				s = -1;
-			}
-			e = (((((b >>> 23) >>> 0)) & 255) >>> 0);
-			m = ((b & 8388607) >>> 0);
-			if (e === 255) {
-				if (m === 0) {
-					return s / 0;
-				}
-				return 0/0;
-			}
-			if (!(e === 0)) {
-				m = (m + (8388608) >>> 0);
-			}
-			if (e === 0) {
-				e = 1;
-			}
-			return Ldexp(m, e - 127 - 23) * s;
-		};
+	var Float32frombits = go$pkg.Float32frombits = go$float32frombits;
 	var Float64bits = go$pkg.Float64bits = function(f) {
-			var s, e, x, y, x$1, y$1, x$2, y$2;
+			var s, e, x, x$1, x$2, x$3;
 			if (f === 0) {
 				if (f === 0 && 1 / f === 1 / -0) {
 					return new Go$Uint64(2147483648, 0);
 				}
 				return new Go$Uint64(0, 0);
 			}
-			if (!(f === f)) {
+			if (f !== f) {
 				return new Go$Uint64(2146959360, 1);
 			}
 			s = new Go$Uint64(0, 0);
@@ -9574,42 +9838,42 @@ go$packages["math"] = (function() {
 			}
 			e = 1075;
 			while (f >= 9.007199254740992e+15) {
-				f = f / (2);
+				f = f / 2;
 				if (e === 2047) {
 					break;
 				}
-				e = (e + (1) >>> 0);
+				e = e + 1 >>> 0;
 			}
 			while (f < 4.503599627370496e+15) {
-				e = (e - (1) >>> 0);
+				e = e - 1 >>> 0;
 				if (e === 0) {
 					break;
 				}
-				f = f * (2);
+				f = f * 2;
 			}
-			return (x$2 = (x = s, y = go$shiftLeft64(new Go$Uint64(0, e), 52), new Go$Uint64(x.high | y.high, (x.low | y.low) >>> 0)), y$2 = ((x$1 = new Go$Uint64(0, f), y$1 = new Go$Uint64(1048576, 0), new Go$Uint64(x$1.high &~ y$1.high, (x$1.low &~ y$1.low) >>> 0))), new Go$Uint64(x$2.high | y$2.high, (x$2.low | y$2.low) >>> 0));
+			return (x = (x$1 = go$shiftLeft64(new Go$Uint64(0, e), 52), new Go$Uint64(s.high | x$1.high, (s.low | x$1.low) >>> 0)), x$2 = (x$3 = new Go$Uint64(0, f), new Go$Uint64(x$3.high &~ 1048576, (x$3.low &~ 0) >>> 0)), new Go$Uint64(x.high | x$2.high, (x.low | x$2.low) >>> 0));
 		};
 	var Float64frombits = go$pkg.Float64frombits = function(b) {
-			var s, x, y, x$1, y$1, x$2, y$2, e, x$3, y$3, m, x$4, y$4, x$5, y$5, x$6, y$6, x$7, y$7, x$8, y$8;
+			var s, x, x$1, e, m;
 			s = 1;
-			if (!((x$1 = (x = b, y = new Go$Uint64(2147483648, 0), new Go$Uint64(x.high & y.high, (x.low & y.low) >>> 0)), y$1 = new Go$Uint64(0, 0), x$1.high === y$1.high && x$1.low === y$1.low))) {
+			if (!((x = new Go$Uint64(b.high & 2147483648, (b.low & 0) >>> 0), (x.high === 0 && x.low === 0)))) {
 				s = -1;
 			}
-			e = (x$2 = (go$shiftRightUint64(b, 52)), y$2 = new Go$Uint64(0, 2047), new Go$Uint64(x$2.high & y$2.high, (x$2.low & y$2.low) >>> 0));
-			m = (x$3 = b, y$3 = new Go$Uint64(1048575, 4294967295), new Go$Uint64(x$3.high & y$3.high, (x$3.low & y$3.low) >>> 0));
-			if ((x$4 = e, y$4 = new Go$Uint64(0, 2047), x$4.high === y$4.high && x$4.low === y$4.low)) {
-				if ((x$5 = m, y$5 = new Go$Uint64(0, 0), x$5.high === y$5.high && x$5.low === y$5.low)) {
+			e = (x$1 = go$shiftRightUint64(b, 52), new Go$Uint64(x$1.high & 0, (x$1.low & 2047) >>> 0));
+			m = new Go$Uint64(b.high & 1048575, (b.low & 4294967295) >>> 0);
+			if ((e.high === 0 && e.low === 2047)) {
+				if ((m.high === 0 && m.low === 0)) {
 					return s / 0;
 				}
 				return 0/0;
 			}
-			if (!((x$6 = e, y$6 = new Go$Uint64(0, 0), x$6.high === y$6.high && x$6.low === y$6.low))) {
-				m = (x$7 = m, y$7 = (new Go$Uint64(1048576, 0)), new Go$Uint64(x$7.high + y$7.high, x$7.low + y$7.low));
+			if (!((e.high === 0 && e.low === 0))) {
+				m = new Go$Uint64(m.high + 1048576, m.low + 0);
 			}
-			if ((x$8 = e, y$8 = new Go$Uint64(0, 0), x$8.high === y$8.high && x$8.low === y$8.low)) {
+			if ((e.high === 0 && e.low === 0)) {
 				e = new Go$Uint64(0, 1);
 			}
-			return Ldexp((m.high * 4294967296 + m.low), e.low - 1023 - 52) * s;
+			return go$ldexp(go$flatten64(m), ((e.low >> 0) - 1023 >> 0) - 52 >> 0) * s;
 		};
 	go$pkg.init = function() {
 		pow10tab = go$makeNativeArray("Float64", 70, function() { return 0; });
@@ -10236,7 +10500,7 @@ go$packages["strconv"] = (function() {
 		err = null;
 		if (bitSize === 32) {
 			_tuple = atof32(s), f1 = _tuple[0], err1 = _tuple[1];
-			_tuple$1 = [f1, err1], f = _tuple$1[0], err = _tuple$1[1];
+			_tuple$1 = [go$float32frombits(go$float32bits(f1)), err1], f = _tuple$1[0], err = _tuple$1[1];
 			return [f, err];
 		}
 		_tuple$2 = atof64(s), f1$1 = _tuple$2[0], err1$1 = _tuple$2[1];
@@ -25970,9 +26234,9 @@ go$packages["reflect"] = (function() {
 		_ref = k;
 		if (_ref === 13) {
 			if (!((((v.flag & 2) >>> 0) === 0))) {
-				return v.val.go$get();
+				return go$float32frombits(go$float32bits(v.val.go$get()));
 			}
-			return v.val;
+			return go$float32frombits(go$float32bits(v.val));
 		} else if (_ref === 14) {
 			if (!((((v.flag & 2) >>> 0) === 0))) {
 				return v.val.go$get();
@@ -27257,7 +27521,7 @@ go$packages["reflect"] = (function() {
 			if (entry === undefined) {
 				return [undefined, false];
 			}
-			return [entry.v, true];
+			return [makeIndir(t.Elem(), entry.v), true];
 		};
 	var mapassign = function(t, m, key, val, ok) {
 			if (!ok) {
@@ -27272,14 +27536,14 @@ go$packages["reflect"] = (function() {
 			m[key.go$key ? key.go$key() : key] = { k: key, v: val };
 		};
 	var mapiterinit = function(t, m) {
-			return [m, go$keys(m), 0];
+			return {t: t, m: m, keys: go$keys(m), i: 0};
 		};
 	var mapiterkey = function(it) {
-			var key = it[1][it[2]];
-			return [it[0][key].k, true];
+			var key = it.keys[it.i];
+			return [makeIndir(it.t.Key(), it.m[key].k), true];
 		};
 	var mapiternext = function(it) {
-			it[2]++;
+			it.i++;
 		};
 	var maplen = function(m) {
 			return go$keys(m).length;
@@ -27515,6 +27779,12 @@ go$packages["reflect"] = (function() {
 				default:
 					throw go$panic(new ValueError.Ptr("reflect.Zero", this.kind()));
 				}
+			};
+			var makeIndir = function(t, v) {
+				if (t.size > 4) {
+					return go$newDataPointer(v, t.ptrTo().jsType);
+				}
+				return v;
 			};
 			go$pkg.init = function() {
 		ptrMap = new (go$structType([["", "", sync.RWMutex, ""], ["m", "reflect", (go$mapType((go$ptrType(rtype)), (go$ptrType(ptrType)))), ""]])).Ptr(new sync.RWMutex.Ptr(), false);
@@ -28028,37 +28298,37 @@ go$packages["fmt"] = (function() {
 	fmt.Ptr.prototype.fmt_e32 = function(v) {
 		var f;
 		f = this;
-		f.formatFloat(v, 101, doPrec(f, 6), 32);
+		f.formatFloat(go$float32frombits(go$float32bits(v)), 101, doPrec(f, 6), 32);
 	};
 	fmt.prototype.fmt_e32 = function(v) { return this.go$val.fmt_e32(v); };
 	fmt.Ptr.prototype.fmt_E32 = function(v) {
 		var f;
 		f = this;
-		f.formatFloat(v, 69, doPrec(f, 6), 32);
+		f.formatFloat(go$float32frombits(go$float32bits(v)), 69, doPrec(f, 6), 32);
 	};
 	fmt.prototype.fmt_E32 = function(v) { return this.go$val.fmt_E32(v); };
 	fmt.Ptr.prototype.fmt_f32 = function(v) {
 		var f;
 		f = this;
-		f.formatFloat(v, 102, doPrec(f, 6), 32);
+		f.formatFloat(go$float32frombits(go$float32bits(v)), 102, doPrec(f, 6), 32);
 	};
 	fmt.prototype.fmt_f32 = function(v) { return this.go$val.fmt_f32(v); };
 	fmt.Ptr.prototype.fmt_g32 = function(v) {
 		var f;
 		f = this;
-		f.formatFloat(v, 103, doPrec(f, -1), 32);
+		f.formatFloat(go$float32frombits(go$float32bits(v)), 103, doPrec(f, -1), 32);
 	};
 	fmt.prototype.fmt_g32 = function(v) { return this.go$val.fmt_g32(v); };
 	fmt.Ptr.prototype.fmt_G32 = function(v) {
 		var f;
 		f = this;
-		f.formatFloat(v, 71, doPrec(f, -1), 32);
+		f.formatFloat(go$float32frombits(go$float32bits(v)), 71, doPrec(f, -1), 32);
 	};
 	fmt.prototype.fmt_G32 = function(v) { return this.go$val.fmt_G32(v); };
 	fmt.Ptr.prototype.fmt_fb32 = function(v) {
 		var f;
 		f = this;
-		f.formatFloat(v, 98, 0, 32);
+		f.formatFloat(go$float32frombits(go$float32bits(v)), 98, 0, 32);
 	};
 	fmt.prototype.fmt_fb32 = function(v) { return this.go$val.fmt_fb32(v); };
 	fmt.Ptr.prototype.fmt_c64 = function(v, verb) {
@@ -33805,7 +34075,7 @@ go$packages["math/rand"] = (function() {
 		while (true) {
 			j = r.Uint32();
 			i = (j & 255) >>> 0;
-			x = j * we[i];
+			x = j * go$float32frombits(go$float32bits(we[i]));
 			if (j < ke[i]) {
 				return x;
 			}
@@ -33830,7 +34100,7 @@ go$packages["math/rand"] = (function() {
 		while (true) {
 			j = (r.Uint32() >> 0);
 			i = j & 127;
-			x = j * wn[i];
+			x = j * go$float32frombits(go$float32bits(wn[i]));
 			if (absInt32(j) < kn[i]) {
 				return x;
 			}
@@ -34423,7 +34693,7 @@ go$packages["main"] = (function() {
 		strtodoHb = go$internalize(a.todoHb.Object(go$externalize(todos, (go$sliceType(ToDo)))), Go$String);
 		a.todoListJq.SetHtml(strtodoHb);
 		a.mainJq.Toggle(a.todos.length > 0);
-		a.toggleAllJq.SetProp("checked", !((a.getActiveTodos().length === 0)));
+		a.toggleAllJq.SetProp("checked", new Go$Bool(!((a.getActiveTodos().length === 0))));
 		a.renderfooter();
 		a.newTodoJq.Focus();
 		utils.Store("TodoMVC-GopherJS", a.todos);
@@ -34511,7 +34781,7 @@ go$packages["main"] = (function() {
 	App.Ptr.prototype.indexFromEl = function(e) {
 		var a, id, _ref, _i, _slice, _index, _struct, val, idx;
 		a = this;
-		id = jquery.NewJQuery(new (go$sliceType(go$emptyInterface))([e.Object.target])).Closest("li").Data("id");
+		id = jquery.NewJQuery(new (go$sliceType(go$emptyInterface))([e.Object.target])).Closest(new Go$String("li")).Data("id");
 		_ref = a.todos;
 		_i = 0;
 		while (_i < _ref.length) {
@@ -34549,7 +34819,7 @@ go$packages["main"] = (function() {
 	App.Ptr.prototype.edit = function(e) {
 		var a, _struct, input;
 		a = this;
-		input = (_struct = jquery.NewJQuery(new (go$sliceType(go$emptyInterface))([e.Object.target])).Closest("li").AddClass("editing").Find(".edit"), new jquery.JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
+		input = (_struct = jquery.NewJQuery(new (go$sliceType(go$emptyInterface))([e.Object.target])).Closest(new Go$String("li")).AddClass("editing").Find(".edit"), new jquery.JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
 		input.SetVal(input.Val()).Focus();
 	};
 	App.prototype.edit = function(e) { return this.go$val.edit(e); };
