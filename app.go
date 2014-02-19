@@ -60,14 +60,15 @@ func NewApp() *App {
 	return &App{somethingToDo, todoHb, footerHb, todoAppJq, headerJq, mainJq, footerJq, newTodoJq, toggleAllJq, todoListJq, countJq, clearBtnJq, filter}
 }
 func (a *App) bindEvents() {
+
 	a.newTodoJq.On(jQ.KEYUP, a.create)
 	a.toggleAllJq.On(jQ.CHANGE, a.toggleAll)
-	a.footerJq.OnSelector(jQ.CLICK, "#clear-completed", a.destroyCompleted)
-	a.todoListJq.OnSelector(jQ.CHANGE, ".toggle", a.toggle)
-	a.todoListJq.OnSelector(jQ.DBLCLICK, "label", a.edit)
-	a.todoListJq.OnSelector(jQ.KEYUP, ".edit", a.blurOnEnter)
-	a.todoListJq.OnSelector(jQ.FOCUSOUT, ".edit", a.update)
-	a.todoListJq.OnSelector(jQ.CLICK, ".destroy", a.destroy)
+	a.footerJq.On(jQ.CLICK, "#clear-completed", a.destroyCompleted)
+	a.todoListJq.On(jQ.CHANGE, ".toggle", a.toggle)
+	a.todoListJq.On(jQ.DBLCLICK, "label", a.edit)
+	a.todoListJq.On(jQ.KEYUP, ".edit", a.blurOnEnter)
+	a.todoListJq.On(jQ.FOCUSOUT, ".edit", a.update)
+	a.todoListJq.On(jQ.CLICK, ".destroy", a.destroy)
 }
 func (a *App) initRouter() {
 	router := utils.NewRouter()
