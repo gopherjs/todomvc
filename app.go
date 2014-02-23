@@ -105,7 +105,7 @@ func (a *App) renderfooter() {
 	a.footerJq.Toggle(len(a.todos) > 0).SetHtml(footerJqStr)
 }
 func (a *App) toggleAll(e jQ.Event) {
-	checked := !a.toggleAllJq.Prop("checked")
+	checked := !a.toggleAllJq.Prop("checked").(bool)
 	for idx := range a.todos {
 		a.todos[idx].Completed = checked
 	}
