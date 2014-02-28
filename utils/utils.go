@@ -11,10 +11,10 @@ import (
 func Store(key string, val interface{}) {
 	byteArr, _ := json.Marshal(val)
 	str := string(byteArr)
-	js.Global("localStorage").Call("setItem", key, str)
+	js.Global.Get("localStorage").Call("setItem", key, str)
 }
 func Retrieve(key string, val interface{}) {
-	item := js.Global("localStorage").Call("getItem", key)
+	item := js.Global.Get("localStorage").Call("getItem", key)
 	if item.IsNull() {
 		val = nil
 		return
@@ -32,7 +32,7 @@ func Pluralize(count int, word string) string {
 func UuidJS() string {
 	uuid := ""
 	for i := 0; i < 32; i++ {
-		rand := int(js.Global("Math").Call("random").Float()*16) | 0
+		rand := int(js.Global.Get("Math").Call("random").Float()*16) | 0
 		switch i {
 		case 8, 12, 16, 20:
 			uuid += "-"
@@ -41,9 +41,9 @@ func UuidJS() string {
 		case 12:
 			uuid += "4"
 		case 16:
-			uuid += js.Global("Number").New(rand&3|8).Call("toString", 16).String()
+			uuid += js.Global.Get("Number").New(rand&3|8).Call("toString", 16).String()
 		default:
-			uuid += js.Global("Number").New(rand).Call("toString", 16).String()
+			uuid += js.Global.Get("Number").New(rand).Call("toString", 16).String()
 		}
 	}
 	return uuid
@@ -74,7 +74,7 @@ type Handlebar struct {
 }
 
 func CompileHandlebar(template string) *Handlebar {
-	h := js.Global("Handlebars").Call("compile", template)
+	h := js.Global.Get("Handlebars").Call("compile", template)
 	return &Handlebar{h}
 }
 func RenderHandlebar(hb *Handlebar, i interface{}) string {
@@ -82,14 +82,13 @@ func RenderHandlebar(hb *Handlebar, i interface{}) string {
 }
 func RegisterHandlebarsHelper() {
 	fn := func(a, b, options js.Object) js.Object {
-		this := js.This()
 		if a.String() == b.String() {
-			return options.Call("fn", this)
+			return options.Call("fn", js.This)
 		} else {
-			return options.Call("inverse", this)
+			return options.Call("inverse", js.This)
 		}
 	}
-	js.Global("Handlebars").Call("registerHelper", "eq", fn)
+	js.Global.Get("Handlebars").Call("registerHelper", "eq", fn)
 }
 
 //router (Director.js)
@@ -98,7 +97,7 @@ type Router struct {
 }
 
 func NewRouter() Router {
-	return Router{Object: js.Global("Router").New()}
+	return Router{Object: js.Global.Get("Router").New()}
 }
 func (r Router) On(path string, handler func(string)) {
 	r.Call("on", path, handler)
