@@ -1,12 +1,14 @@
 package main
 
 import (
-	jQ "github.com/rusco/jquery"
 	"github.com/rusco/todomvc/utils"
+	"github.com/rusco/jquery"
 )
 
+var jQuery = jquery.NewJQuery //for convenience
+
 const (
-	KEY        = "TodoMVC-GopherJS"
+	KEY        = "TodoMVC4GopherJS"
 	ENTER_KEY  = 13
 	ESCAPE_KEY = 27
 )
@@ -25,50 +27,53 @@ type ToDo struct {
 	Completed bool
 }
 type App struct {
-	todos       []ToDo
-	todoHb      *utils.Handlebar
-	footerHb    *utils.Handlebar
-	todoAppJq   jQ.JQuery
-	headerJq    jQ.JQuery
-	mainJq      jQ.JQuery
-	footerJq    jQ.JQuery
-	newTodoJq   jQ.JQuery
-	toggleAllJq jQ.JQuery
-	todoListJq  jQ.JQuery
-	countJq     jQ.JQuery
-	clearBtnJq  jQ.JQuery
-	filter      string
+	todos           []ToDo
+	todoHb          *utils.Handlebar
+	footerHb        *utils.Handlebar
+	todoAppJQuery   jquery.JQuery
+	headerJQuery    jquery.JQuery
+	mainJQuery      jquery.JQuery
+	footerJQuery    jquery.JQuery
+	newTodoJQuery   jquery.JQuery
+	toggleAllJQuery jquery.JQuery
+	todoListJQuery  jquery.JQuery
+	countJQuery     jquery.JQuery
+	clearBtnJQuery  jquery.JQuery
+	filter          string
 }
 
 func NewApp() *App {
 	somethingToDo := make([]ToDo, 0)
 	utils.Retrieve(KEY, &somethingToDo)
-	todoTemplate := jQ.NewJQuery("#todo-template").Html()
+
+	todoTemplate := jQuery("#todo-template").Html()
 	todoHb := utils.CompileHandlebar(todoTemplate)
-	footerTemplate := jQ.NewJQuery("#footer-template").Html()
+	footerTemplate := jQuery("#footer-template").Html()
 	footerHb := utils.CompileHandlebar(footerTemplate)
-	todoAppJq := jQ.NewJQuery("#todoapp")
-	headerJq := todoAppJq.Find("#header")
-	mainJq := todoAppJq.Find("#main")
-	footerJq := todoAppJq.Find("#footer")
-	newTodoJq := headerJq.Find("#new-todo")
-	toggleAllJq := mainJq.Find("#toggle-all")
-	todoListJq := mainJq.Find("#todo-list")
-	countJq := footerJq.Find("#todo-count")
-	clearBtnJq := footerJq.Find("#clear-completed")
+	
+	todoAppJQuery := jQuery("#todoapp")
+	headerJQuery := todoAppJQuery.Find("#header")
+	mainJQuery := todoAppJQuery.Find("#main")
+	footerJQuery := todoAppJQuery.Find("#footer")
+	newTodoJQuery := headerJQuery.Find("#new-todo")
+	toggleAllJQuery := mainJQuery.Find("#toggle-all")
+	todoListJQuery := mainJQuery.Find("#todo-list")
+	countJQuery := footerJQuery.Find("#todo-count")
+	clearBtnJQuery := footerJQuery.Find("#clear-completed")
 	filter := "all"
-	return &App{somethingToDo, todoHb, footerHb, todoAppJq, headerJq, mainJq, footerJq, newTodoJq, toggleAllJq, todoListJq, countJq, clearBtnJq, filter}
+	
+	return &App{somethingToDo, todoHb, footerHb, todoAppJQuery, headerJQuery, mainJQuery, footerJQuery, newTodoJQuery, toggleAllJQuery, todoListJQuery, countJQuery, clearBtnJQuery, filter}
 }
 func (a *App) bindEvents() {
 
-	a.newTodoJq.On(jQ.KEYUP, a.create)
-	a.toggleAllJq.On(jQ.CHANGE, a.toggleAll)
-	a.footerJq.On(jQ.CLICK, "#clear-completed", a.destroyCompleted)
-	a.todoListJq.On(jQ.CHANGE, ".toggle", a.toggle)
-	a.todoListJq.On(jQ.DBLCLICK, "label", a.edit)
-	a.todoListJq.On(jQ.KEYUP, ".edit", a.blurOnEnter)
-	a.todoListJq.On(jQ.FOCUSOUT, ".edit", a.update)
-	a.todoListJq.On(jQ.CLICK, ".destroy", a.destroy)
+	a.newTodoJQuery.On(jquery.KEYUP, a.create)
+	a.toggleAllJQuery.On(jquery.CHANGE, a.toggleAll)
+	a.footerJQuery.On(jquery.CLICK, "#clear-completed", a.destroyCompleted)
+	a.todoListJQuery.On(jquery.CHANGE, ".toggle", a.toggle)
+	a.todoListJQuery.On(jquery.DBLCLICK, "label", a.edit)
+	a.todoListJQuery.On(jquery.KEYUP, ".edit", a.blurOnEnter)
+	a.todoListJQuery.On(jquery.FOCUSOUT, ".edit", a.update)
+	a.todoListJQuery.On(jquery.CLICK, ".destroy", a.destroy)
 }
 func (a *App) initRouter() {
 	router := utils.NewRouter()
@@ -81,11 +86,11 @@ func (a *App) initRouter() {
 func (a *App) render() {
 	todos := a.getFilteredTodos()
 	strtodoHb := a.todoHb.Invoke(todos).String()
-	a.todoListJq.SetHtml(strtodoHb)
-	a.mainJq.Toggle(len(a.todos) > 0)
-	a.toggleAllJq.SetProp("checked", len(a.getActiveTodos()) != 0)
+	a.todoListJQuery.SetHtml(strtodoHb)
+	a.mainJQuery.Toggle(len(a.todos) > 0)
+	a.toggleAllJQuery.SetProp("checked", len(a.getActiveTodos()) != 0)
 	a.renderfooter()
-	a.newTodoJq.Focus()
+	a.newTodoJQuery.Focus()
 	utils.Store(KEY, a.todos)
 }
 func (a *App) renderfooter() {
@@ -101,11 +106,11 @@ func (a *App) renderfooter() {
 	}{
 		activeTodoCount, activeTodoWord, completedTodos, filter,
 	}
-	footerJqStr := a.footerHb.Invoke(footerData).String()
-	a.footerJq.Toggle(len(a.todos) > 0).SetHtml(footerJqStr)
+	footerJQueryStr := a.footerHb.Invoke(footerData).String()
+	a.footerJQuery.Toggle(len(a.todos) > 0).SetHtml(footerJQueryStr)
 }
-func (a *App) toggleAll(e jQ.Event) {
-	checked := !a.toggleAllJq.Prop("checked").(bool)
+func (a *App) toggleAll(e jquery.Event) {
+	checked := !a.toggleAllJQuery.Prop("checked").(bool)
 	for idx := range a.todos {
 		a.todos[idx].Completed = checked
 	}
@@ -139,13 +144,13 @@ func (a *App) getFilteredTodos() []ToDo {
 		return a.todos
 	}
 }
-func (a *App) destroyCompleted(e jQ.Event) {
+func (a *App) destroyCompleted(e jquery.Event) {
 	a.todos = a.getActiveTodos()
 	a.filter = "all"
 	a.render()
 }
-func (a *App) indexFromEl(e jQ.Event) int {
-	id := jQ.NewJQuery(e.Target).Closest("li").Data("id")
+func (a *App) indexFromEl(e jquery.Event) int {
+	id := jQuery(e.Target).Closest("li").Data("id")
 	for idx, val := range a.todos {
 		if val.Id == id {
 			return idx
@@ -153,38 +158,39 @@ func (a *App) indexFromEl(e jQ.Event) int {
 	}
 	return -1
 }
-func (a *App) create(e jQ.Event) {
-	val := jQ.Trim(a.newTodoJq.Val())
+func (a *App) create(e jquery.Event) {
+	val := jquery.Trim(a.newTodoJQuery.Val())
 	if len(val) == 0 || e.KeyCode != ENTER_KEY {
 		return
 	}
 	newToDo := ToDo{Id: utils.Uuid(), Text: val, Completed: false}
 	a.todos = append(a.todos, newToDo)
-	a.newTodoJq.SetVal("")
+	a.newTodoJQuery.SetVal("")
 	a.render()
 }
-func (a *App) toggle(e jQ.Event) {
+func (a *App) toggle(e jquery.Event) {
 	idx := a.indexFromEl(e)
 	a.todos[idx].Completed = !a.todos[idx].Completed
 	a.render()
 }
-func (a *App) edit(e jQ.Event) {
-	input := jQ.NewJQuery(e.Target).Closest("li").AddClass("editing").Find(".edit")
+func (a *App) edit(e jquery.Event) {
+	input := jQuery(e.Target).Closest("li").AddClass("editing").Find(".edit")
 	input.SetVal(input.Val()).Focus()
 }
-func (a *App) blurOnEnter(e jQ.Event) {
+func (a *App) blurOnEnter(e jquery.Event) {
 	switch e.KeyCode {
 	case ENTER_KEY:
-		jQ.NewJQuery(e.Target).Blur()
+		jQuery(e.Target).Blur()
 	case ESCAPE_KEY:
-		jQ.NewJQuery(e.Target).SetData("abort", "true").Blur()
+		jQuery(e.Target).SetData("abort", "true").Blur()
 	}
 }
-func (a *App) update(e jQ.Event) {
-	thisJq := jQ.NewJQuery(e.Target)
-	val := jQ.Trim(thisJq.Val())
-	if thisJq.Data("abort") == "true" {
-		thisJq.SetData("abort", "false")
+func (a *App) update(e jquery.Event) {
+
+	thisJQuery := jQuery(e.Target)
+	val := jquery.Trim(thisJQuery.Val())
+	if thisJQuery.Data("abort") == "true" {
+		thisJQuery.SetData("abort", "false")
 		a.render()
 		return
 	}
@@ -196,7 +202,7 @@ func (a *App) update(e jQ.Event) {
 	}
 	a.render()
 }
-func (a *App) destroy(e jQ.Event) {
+func (a *App) destroy(e jquery.Event) {
 	idx := a.indexFromEl(e)
 	a.todos = append(a.todos[:idx], a.todos[idx+1:]...)
 	a.render()
