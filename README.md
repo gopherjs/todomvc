@@ -8,7 +8,7 @@ Testcase, Showcase, Learning Vehicle, Proof of Concept for GopherJS and the jQue
 
 ### Install 
 
-    $ go get github.com/rusco/todomvc 
+    $ go get github.com/gopherjs/todomvc 
 
 If you want to compile it yourself:
 

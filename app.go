@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/rusco/todomvc/utils"
-	"github.com/rusco/jquery"
+	"github.com/gopherjs/jquery"
+	"github.com/gopherjs/todomvc/utils"
 )
 
 var jQuery = jquery.NewJQuery //for convenience
@@ -50,7 +50,7 @@ func NewApp() *App {
 	todoHb := utils.CompileHandlebar(todoTemplate)
 	footerTemplate := jQuery("#footer-template").Html()
 	footerHb := utils.CompileHandlebar(footerTemplate)
-	
+
 	todoAppJQuery := jQuery("#todoapp")
 	headerJQuery := todoAppJQuery.Find("#header")
 	mainJQuery := todoAppJQuery.Find("#main")
@@ -61,7 +61,7 @@ func NewApp() *App {
 	countJQuery := footerJQuery.Find("#todo-count")
 	clearBtnJQuery := footerJQuery.Find("#clear-completed")
 	filter := "all"
-	
+
 	return &App{somethingToDo, todoHb, footerHb, todoAppJQuery, headerJQuery, mainJQuery, footerJQuery, newTodoJQuery, toggleAllJQuery, todoListJQuery, countJQuery, clearBtnJQuery, filter}
 }
 func (a *App) bindEvents() {
