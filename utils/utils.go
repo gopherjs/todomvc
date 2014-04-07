@@ -19,7 +19,7 @@ func Retrieve(key string, val interface{}) {
 		val = nil
 		return
 	}
-	str := item.String()
+	str := item.Str()
 	json.Unmarshal([]byte(str), &val)
 }
 func Pluralize(count int, word string) string {
@@ -41,9 +41,9 @@ func UuidJS() string {
 		case 12:
 			uuid += "4"
 		case 16:
-			uuid += js.Global.Get("Number").New(rand&3|8).Call("toString", 16).String()
+			uuid += js.Global.Get("Number").New(rand&3|8).Call("toString", 16).Str()
 		default:
-			uuid += js.Global.Get("Number").New(rand).Call("toString", 16).String()
+			uuid += js.Global.Get("Number").New(rand).Call("toString", 16).Str()
 		}
 	}
 	return uuid
@@ -78,11 +78,11 @@ func CompileHandlebar(template string) *Handlebar {
 	return &Handlebar{h}
 }
 func RenderHandlebar(hb *Handlebar, i interface{}) string {
-	return hb.Object.Invoke(i).String()
+	return hb.Object.Invoke(i).Str()
 }
 func RegisterHandlebarsHelper() {
 	fn := func(a, b, options js.Object) js.Object {
-		if a.String() == b.String() {
+		if a.Str() == b.Str() {
 			return options.Call("fn", js.This)
 		} else {
 			return options.Call("inverse", js.This)

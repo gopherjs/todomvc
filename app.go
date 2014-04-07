@@ -85,7 +85,7 @@ func (a *App) initRouter() {
 }
 func (a *App) render() {
 	todos := a.getFilteredTodos()
-	strtodoHb := a.todoHb.Invoke(todos).String()
+	strtodoHb := a.todoHb.Invoke(todos).Str()
 	a.todoListJQuery.SetHtml(strtodoHb)
 	a.mainJQuery.Toggle(len(a.todos) > 0)
 	a.toggleAllJQuery.SetProp("checked", len(a.getActiveTodos()) != 0)
@@ -106,7 +106,7 @@ func (a *App) renderfooter() {
 	}{
 		activeTodoCount, activeTodoWord, completedTodos, filter,
 	}
-	footerJQueryStr := a.footerHb.Invoke(footerData).String()
+	footerJQueryStr := a.footerHb.Invoke(footerData).Str()
 	a.footerJQuery.Toggle(len(a.todos) > 0).SetHtml(footerJQueryStr)
 }
 func (a *App) toggleAll(e jquery.Event) {
