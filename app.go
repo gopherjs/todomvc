@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"github.com/gopherjs/jquery"
 	"github.com/gopherjs/todomvc/utils"
+	"html/template"
 )
 
 var jQuery = jquery.NewJQuery //for convenience
@@ -14,7 +16,6 @@ const (
 )
 
 func main() {
-	utils.RegisterHandlebarsHelper()
 	app := NewApp()
 	app.bindEvents()
 	app.initRouter()
@@ -28,8 +29,8 @@ type ToDo struct {
 }
 type App struct {
 	todos           []ToDo
-	todoHb          *utils.Handlebar
-	footerHb        *utils.Handlebar
+	todoTmpl        *template.Template
+	footerTmpl      *template.Template
 	todoAppJQuery   jquery.JQuery
 	headerJQuery    jquery.JQuery
 	mainJQuery      jquery.JQuery
@@ -46,10 +47,11 @@ func NewApp() *App {
 	somethingToDo := make([]ToDo, 0)
 	utils.Retrieve(KEY, &somethingToDo)
 
-	todoTemplate := jQuery("#todo-template").Html()
-	todoHb := utils.CompileHandlebar(todoTemplate)
-	footerTemplate := jQuery("#footer-template").Html()
-	footerHb := utils.CompileHandlebar(footerTemplate)
+	todoHtml := jQuery("#todo-template").Html()
+	todoTmpl := template.Must(template.New("todo").Parse(todoHtml))
+
+	footerHtml := jQuery("#footer-template").Html()
+	footerTmpl := template.Must(template.New("footer").Parse(footerHtml))
 
 	todoAppJQuery := jQuery("#todoapp")
 	headerJQuery := todoAppJQuery.Find("#header")
@@ -62,7 +64,7 @@ func NewApp() *App {
 	clearBtnJQuery := footerJQuery.Find("#clear-completed")
 	filter := "all"
 
-	return &App{somethingToDo, todoHb, footerHb, todoAppJQuery, headerJQuery, mainJQuery, footerJQuery, newTodoJQuery, toggleAllJQuery, todoListJQuery, countJQuery, clearBtnJQuery, filter}
+	return &App{somethingToDo, todoTmpl, footerTmpl, todoAppJQuery, headerJQuery, mainJQuery, footerJQuery, newTodoJQuery, toggleAllJQuery, todoListJQuery, countJQuery, clearBtnJQuery, filter}
 }
 func (a *App) bindEvents() {
 
@@ -85,8 +87,12 @@ func (a *App) initRouter() {
 }
 func (a *App) render() {
 	todos := a.getFilteredTodos()
-	strtodoHb := a.todoHb.Invoke(todos).Str()
-	a.todoListJQuery.SetHtml(strtodoHb)
+
+	var b bytes.Buffer
+	a.todoTmpl.Execute(&b, todos)
+	strtodoTmpl := b.String()
+
+	a.todoListJQuery.SetHtml(strtodoTmpl)
 	a.mainJQuery.Toggle(len(a.todos) > 0)
 	a.toggleAllJQuery.SetProp("checked", len(a.getActiveTodos()) != 0)
 	a.renderfooter()
@@ -106,7 +112,10 @@ func (a *App) renderfooter() {
 	}{
 		activeTodoCount, activeTodoWord, completedTodos, filter,
 	}
-	footerJQueryStr := a.footerHb.Invoke(footerData).Str()
+	var b bytes.Buffer
+	a.footerTmpl.Execute(&b, footerData)
+	footerJQueryStr := b.String()
+
 	a.footerJQuery.Toggle(len(a.todos) > 0).SetHtml(footerJQueryStr)
 }
 func (a *App) toggleAll(e jquery.Event) {

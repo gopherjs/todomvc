@@ -29,36 +29,34 @@
 			<p>Part of <a href="http://todomvc.com">TodoMVC</a></p>
 			<p>Made with <a href="https://github.com/gopherjs/gopherjs">GopherJS</a></p>
 		</footer>
-
-		<script id="todo-template" type="text/x-handlebars-template">
-		{{#this}}
-		<li {{#if Completed}}class="completed"{{/if}} data-id="{{Id}}">
-			<div class="view">
-				<input class="toggle" type="checkbox" {{#if Completed}}checked{{/if}}>
-				<label>{{Text}}</label>
-				<button class="destroy"></button>
-			</div>
-			<input class="edit" value="{{Text}}">
-		</li>
-		{{/this}}
+		<script id="todo-template" type="text/x-gopherjs-template">
+		{{range $k, $v := .}}
+			<li {{if $v.Completed}}class="completed"{{end}} data-id="{{$v.Id}}">
+				<div class="view">
+					<input class="toggle" type="checkbox" {{if $v.Completed}}checked{{end}}>
+					<label>{{$v.Text}}</label>
+					<button class="destroy"></button>
+				</div>
+				<input class="edit" value="{{$v.Text}}">
+			</li>
+		{{end}}
 		</script>
-		<script id="footer-template" type="text/x-handlebars-template">
-			<span id="todo-count"><strong>{{ActiveTodoCount}}</strong> {{ActiveTodoWord}} left</span>
+		<script id="footer-template" type="text/x-gopherjs-template">
+		<span id="todo-count"><strong>{{.ActiveTodoCount}}</strong> {{.ActiveTodoWord}} left</span>
 			<ul id="filters">
 				<li>
-					<a {{#eq Filter 'all'}}class="selected"{{/eq}} href="#/all">All</a>
+					<a {{if eq .Filter "all"}}class="selected"{{end}} href="#/all">All</a>
 				</li>
 				<li>
-					<a {{#eq Filter 'active'}}class="selected"{{/eq}}href="#/active">Active</a>
+					<a {{if eq .Filter "active"}}class="selected"{{end}}href="#/active">Active</a>
 				</li>
 				<li>
-					<a {{#eq Filter 'completed'}}class="selected"{{/eq}}href="#/completed">Completed</a>
+					<a {{if eq .Filter "completed"}}class="selected"{{end}}href="#/completed">Completed</a>
 				</li>
 			</ul>
-			{{#if CompletedTodos}}<button id="clear-completed">Clear completed ({{CompletedTodos}})</button>{{/if}}
+		{{if gt .CompletedTodos 0}}<button id="clear-completed">Clear completed ({{.CompletedTodos}})</button>{{end}}
 		</script>
 		<script src="bower_components/jquery/jquery-2.1.0.min.js"></script>
-		<script src="bower_components/handlebars/handlebars.js"></script>
 		<script src="bower_components/director/build/director.js"></script>
 		<script src="app.js"></script>
 	</body>

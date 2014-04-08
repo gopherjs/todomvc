@@ -503,72 +503,13 @@ var go$newDataPointer = function(data, constructor) {
 	return new constructor(function() { return data; }, function(v) { data = v; });
 };
 
-var go$ldexp = function(frac, exp) {
-	if (frac === 0) { return frac; }
-	if (exp >= 1024) { return frac * Math.pow(2, 1023) * Math.pow(2, exp - 1023); }
-	if (exp <= -1024) { return frac * Math.pow(2, -1023) * Math.pow(2, exp + 1023); }
-	return frac * Math.pow(2, exp);
+var go$coerceFloat32 = function(f) {
+	var math = go$packages["math"];
+	if (math === undefined) {
+		return f;
+	}
+	return math.Float32frombits(math.Float32bits(f));
 };
-var go$float32bits = function(f) {
-	var s, e, r;
-	if (f === 0) {
-		if (f === 0 && 1 / f === 1 / -0) {
-			return 2147483648;
-		}
-		return 0;
-	}
-	if (f !== f) {
-		return 2143289344;
-	}
-	s = 0;
-	if (f < 0) {
-		s = 2147483648;
-		f = -f;
-	}
-	e = 150;
-	while (f >= 1.6777216e+07) {
-		f = f / 2;
-		if (e === 255) {
-			break;
-		}
-		e = e + 1 >>> 0;
-	}
-	while (f < 8.388608e+06) {
-		e = e - 1 >>> 0;
-		if (e === 0) {
-			break;
-		}
-		f = f * 2;
-	}
-	r = f % 2;
-	if ((r > 0.5 && r < 1) || r >= 1.5) {
-		f++;
-	}
-	return (((s | (e << 23 >>> 0)) >>> 0) | (((f >> 0) & ~8388608))) >>> 0;
-};
-var go$float32frombits = function(b) {
-	var s, e, m;
-	s = 1;
-	if (((b & 2147483648) >>> 0) !== 0) {
-		s = -1;
-	}
-	e = (((b >>> 23 >>> 0)) & 255) >>> 0;
-	m = (b & 8388607) >>> 0;
-	if (e === 255) {
-		if (m === 0) {
-			return s / 0;
-		}
-		return 0/0;
-	}
-	if (e !== 0) {
-		m = m + 8388608 >>> 0;
-	}
-	if (e === 0) {
-		e = 1;
-	}
-	return go$ldexp(m, e - 127 - 23) * s;
-};
-
 var go$flatten64 = function(x) {
 	return x.high * 4294967296 + x.low;
 };
@@ -1274,10 +1215,10 @@ var go$getStackDepth = function() {
 };
 
 var go$interfaceIsEqual = function(a, b) {
-	if (a === null || b === null) {
-		return a === null && b === null;
+	if (a === b) {
+		return true;
 	}
-	if (a.constructor !== b.constructor) {
+	if (a === null || b === null || a === undefined || b === undefined || a.constructor !== b.constructor) {
 		return false;
 	}
 	switch (a.constructor.kind) {
@@ -1294,7 +1235,7 @@ var go$interfaceIsEqual = function(a, b) {
 		return go$arrayIsEqual(a.go$val, b.go$val);
 	case "Ptr":
 		if (a.constructor.Struct) {
-			return a === b;
+			return false;
 		}
 		return go$pointerIsEqual(a, b);
 	case "Func":
@@ -1303,13 +1244,20 @@ var go$interfaceIsEqual = function(a, b) {
 	case "Struct":
 		go$throwRuntimeError("comparing uncomparable type " + a.constructor);
 	case undefined: // js.Object
-		return a === b;
+		return false;
 	default:
 		return a.go$val === b.go$val;
 	}
 };
 var go$float32IsEqual = function(a, b) {
-	return a === b || (a === a && b === b && go$float32bits(a) === go$float32bits(b));
+	if (a === b) {
+		return true;
+	}
+	if (a === 0 || b === 0 || a === 1/0 || b === 1/0 || a === -1/0 || b === -1/0 || a !== a || b !== b) {
+		return false;
+	}
+	var math = go$packages["math"];
+	return math !== undefined && math.Float32bits(a) === math.Float32bits(b);
 }
 var go$arrayIsEqual = function(a, b) {
 	if (a.length != b.length) {
@@ -1353,7 +1301,7 @@ var go$now = function() { var msec = (new Date()).getTime(); return [new Go$Int6
 
 var go$packages = {};
 go$packages["runtime"] = (function() {
-	var go$pkg = {}, Error, TypeAssertionError, errorString, SetFinalizer, sizeof_C_MStats;
+	var go$pkg = {}, js = go$packages["github.com/gopherjs/gopherjs/js"], Error, TypeAssertionError, errorString, SetFinalizer, sizeof_C_MStats;
 	Error = go$pkg.Error = go$newType(0, "Interface", "runtime.Error", "Error", "runtime", null);
 	TypeAssertionError = go$pkg.TypeAssertionError = go$newType(0, "Struct", "runtime.TypeAssertionError", "TypeAssertionError", "runtime", function(interfaceString_, concreteString_, assertedString_, missingMethod_) {
 		this.go$val = this;
@@ -1363,6 +1311,8 @@ go$packages["runtime"] = (function() {
 		this.missingMethod = missingMethod_ !== undefined ? missingMethod_ : "";
 	});
 	errorString = go$pkg.errorString = go$newType(0, "String", "runtime.errorString", "errorString", "runtime", null);
+	SetFinalizer = go$pkg.SetFinalizer = function(x, f) {
+	};
 	TypeAssertionError.Ptr.prototype.RuntimeError = function() {
 	};
 	TypeAssertionError.prototype.RuntimeError = function() { return this.go$val.RuntimeError(); };
@@ -1393,7 +1343,6 @@ go$packages["runtime"] = (function() {
 		return "runtime error: " + e;
 	};
 	go$ptrType(errorString).prototype.Error = function() { return new errorString(this.go$get()).Error(); };
-	SetFinalizer = go$pkg.SetFinalizer = function() {};
 
 			go$throwRuntimeError = function(msg) { throw go$panic(new errorString(msg)); };
 			go$pkg.init = function() {
@@ -1407,6 +1356,1465 @@ go$packages["runtime"] = (function() {
 			console.log(sizeof_C_MStats, 3712);
 			throw go$panic(new Go$String("MStats vs MemStatsType size mismatch"));
 		}
+	}
+	return go$pkg;
+})();
+go$packages["errors"] = (function() {
+	var go$pkg = {}, errorString, New;
+	errorString = go$pkg.errorString = go$newType(0, "Struct", "errors.errorString", "errorString", "errors", function(s_) {
+		this.go$val = this;
+		this.s = s_ !== undefined ? s_ : "";
+	});
+	New = go$pkg.New = function(text) {
+		return new errorString.Ptr(text);
+	};
+	errorString.Ptr.prototype.Error = function() {
+		var e;
+		e = this;
+		return e.s;
+	};
+	errorString.prototype.Error = function() { return this.go$val.Error(); };
+	go$pkg.init = function() {
+		(go$ptrType(errorString)).methods = [["Error", "", [], [Go$String], false, -1]];
+		errorString.init([["s", "s", "errors", Go$String, ""]]);
+	}
+	return go$pkg;
+})();
+go$packages["sync/atomic"] = (function() {
+	var go$pkg = {}, CompareAndSwapInt32, AddInt32, LoadInt32, LoadUint32, LoadPointer, StoreUint32, StorePointer;
+	CompareAndSwapInt32 = go$pkg.CompareAndSwapInt32 = function(addr, old, new$1) {
+		if (addr.go$get() === old) {
+			addr.go$set(new$1);
+			return true;
+		}
+		return false;
+	};
+	AddInt32 = go$pkg.AddInt32 = function(addr, delta) {
+		var new$1;
+		new$1 = addr.go$get() + delta >> 0;
+		addr.go$set(new$1);
+		return new$1;
+	};
+	LoadInt32 = go$pkg.LoadInt32 = function(addr) {
+		return addr.go$get();
+	};
+	LoadUint32 = go$pkg.LoadUint32 = function(addr) {
+		return addr.go$get();
+	};
+	LoadPointer = go$pkg.LoadPointer = function(addr) {
+		return addr.go$get();
+	};
+	StoreUint32 = go$pkg.StoreUint32 = function(addr, val) {
+		addr.go$set(val);
+	};
+	StorePointer = go$pkg.StorePointer = function(addr, val) {
+		addr.go$set(val);
+	};
+	go$pkg.init = function() {
+	}
+	return go$pkg;
+})();
+go$packages["sync"] = (function() {
+	var go$pkg = {}, atomic = go$packages["sync/atomic"], Mutex, Locker, Once, RWMutex, rlocker, WaitGroup, runtime_Syncsemcheck, runtime_Semacquire, runtime_Semrelease;
+	Mutex = go$pkg.Mutex = go$newType(0, "Struct", "sync.Mutex", "Mutex", "sync", function(state_, sema_) {
+		this.go$val = this;
+		this.state = state_ !== undefined ? state_ : 0;
+		this.sema = sema_ !== undefined ? sema_ : 0;
+	});
+	Locker = go$pkg.Locker = go$newType(0, "Interface", "sync.Locker", "Locker", "sync", null);
+	Once = go$pkg.Once = go$newType(0, "Struct", "sync.Once", "Once", "sync", function(m_, done_) {
+		this.go$val = this;
+		this.m = m_ !== undefined ? m_ : new Mutex.Ptr();
+		this.done = done_ !== undefined ? done_ : 0;
+	});
+	RWMutex = go$pkg.RWMutex = go$newType(0, "Struct", "sync.RWMutex", "RWMutex", "sync", function(w_, writerSem_, readerSem_, readerCount_, readerWait_) {
+		this.go$val = this;
+		this.w = w_ !== undefined ? w_ : new Mutex.Ptr();
+		this.writerSem = writerSem_ !== undefined ? writerSem_ : 0;
+		this.readerSem = readerSem_ !== undefined ? readerSem_ : 0;
+		this.readerCount = readerCount_ !== undefined ? readerCount_ : 0;
+		this.readerWait = readerWait_ !== undefined ? readerWait_ : 0;
+	});
+	rlocker = go$pkg.rlocker = go$newType(0, "Struct", "sync.rlocker", "rlocker", "sync", function(w_, writerSem_, readerSem_, readerCount_, readerWait_) {
+		this.go$val = this;
+		this.w = w_ !== undefined ? w_ : new Mutex.Ptr();
+		this.writerSem = writerSem_ !== undefined ? writerSem_ : 0;
+		this.readerSem = readerSem_ !== undefined ? readerSem_ : 0;
+		this.readerCount = readerCount_ !== undefined ? readerCount_ : 0;
+		this.readerWait = readerWait_ !== undefined ? readerWait_ : 0;
+	});
+	WaitGroup = go$pkg.WaitGroup = go$newType(0, "Struct", "sync.WaitGroup", "WaitGroup", "sync", function(m_, counter_, waiters_, sema_) {
+		this.go$val = this;
+		this.m = m_ !== undefined ? m_ : new Mutex.Ptr();
+		this.counter = counter_ !== undefined ? counter_ : 0;
+		this.waiters = waiters_ !== undefined ? waiters_ : 0;
+		this.sema = sema_ !== undefined ? sema_ : (go$ptrType(Go$Uint32)).nil;
+	});
+	runtime_Syncsemcheck = function(size) {
+	};
+	Mutex.Ptr.prototype.Lock = function() {
+		var m, v, awoke, old, new$1, v$1, v$2;
+		m = this;
+		if (atomic.CompareAndSwapInt32(new (go$ptrType(Go$Int32))(function() { return m.state; }, function(v) { m.state = v;; }), 0, 1)) {
+			return;
+		}
+		awoke = false;
+		while (true) {
+			old = m.state;
+			new$1 = old | 1;
+			if (!(((old & 1) === 0))) {
+				new$1 = old + 4 >> 0;
+			}
+			if (awoke) {
+				new$1 = new$1 & ~2;
+			}
+			if (atomic.CompareAndSwapInt32(new (go$ptrType(Go$Int32))(function() { return m.state; }, function(v$1) { m.state = v$1;; }), old, new$1)) {
+				if ((old & 1) === 0) {
+					break;
+				}
+				runtime_Semacquire(new (go$ptrType(Go$Uint32))(function() { return m.sema; }, function(v$2) { m.sema = v$2;; }));
+				awoke = true;
+			}
+		}
+	};
+	Mutex.prototype.Lock = function() { return this.go$val.Lock(); };
+	Mutex.Ptr.prototype.Unlock = function() {
+		var m, v, new$1, old, v$1, v$2;
+		m = this;
+		new$1 = atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return m.state; }, function(v) { m.state = v;; }), -1);
+		if ((((new$1 + 1 >> 0)) & 1) === 0) {
+			throw go$panic(new Go$String("sync: unlock of unlocked mutex"));
+		}
+		old = new$1;
+		while (true) {
+			if (((old >> 2 >> 0) === 0) || !(((old & 3) === 0))) {
+				return;
+			}
+			new$1 = ((old - 4 >> 0)) | 2;
+			if (atomic.CompareAndSwapInt32(new (go$ptrType(Go$Int32))(function() { return m.state; }, function(v$1) { m.state = v$1;; }), old, new$1)) {
+				runtime_Semrelease(new (go$ptrType(Go$Uint32))(function() { return m.sema; }, function(v$2) { m.sema = v$2;; }));
+				return;
+			}
+			old = m.state;
+		}
+	};
+	Mutex.prototype.Unlock = function() { return this.go$val.Unlock(); };
+	Once.Ptr.prototype.Do = function(f) {
+		var o, v, v$1;
+		var go$deferred = [];
+		try {
+			o = this;
+			if (atomic.LoadUint32(new (go$ptrType(Go$Uint32))(function() { return o.done; }, function(v) { o.done = v;; })) === 1) {
+				return;
+			}
+			o.m.Lock();
+			go$deferred.push({ recv: o.m, method: "Unlock", args: [] });
+			if (o.done === 0) {
+				f();
+				atomic.StoreUint32(new (go$ptrType(Go$Uint32))(function() { return o.done; }, function(v$1) { o.done = v$1;; }), 1);
+			}
+		} catch(go$err) {
+			go$pushErr(go$err);
+		} finally {
+			go$callDeferred(go$deferred);
+		}
+	};
+	Once.prototype.Do = function(f) { return this.go$val.Do(f); };
+	runtime_Semacquire = function() {
+		throw go$panic("Native function not implemented: runtime_Semacquire");
+	};
+	runtime_Semrelease = function() {
+		throw go$panic("Native function not implemented: runtime_Semrelease");
+	};
+	RWMutex.Ptr.prototype.RLock = function() {
+		var rw, v, v$1;
+		rw = this;
+		if (atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return rw.readerCount; }, function(v) { rw.readerCount = v;; }), 1) < 0) {
+			runtime_Semacquire(new (go$ptrType(Go$Uint32))(function() { return rw.readerSem; }, function(v$1) { rw.readerSem = v$1;; }));
+		}
+	};
+	RWMutex.prototype.RLock = function() { return this.go$val.RLock(); };
+	RWMutex.Ptr.prototype.RUnlock = function() {
+		var rw, v, v$1, v$2;
+		rw = this;
+		if (atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return rw.readerCount; }, function(v) { rw.readerCount = v;; }), -1) < 0) {
+			if (atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return rw.readerWait; }, function(v$1) { rw.readerWait = v$1;; }), -1) === 0) {
+				runtime_Semrelease(new (go$ptrType(Go$Uint32))(function() { return rw.writerSem; }, function(v$2) { rw.writerSem = v$2;; }));
+			}
+		}
+	};
+	RWMutex.prototype.RUnlock = function() { return this.go$val.RUnlock(); };
+	RWMutex.Ptr.prototype.Lock = function() {
+		var rw, v, r, v$1, v$2;
+		rw = this;
+		rw.w.Lock();
+		r = atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return rw.readerCount; }, function(v) { rw.readerCount = v;; }), -1073741824) + 1073741824 >> 0;
+		if (!((r === 0)) && !((atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return rw.readerWait; }, function(v$1) { rw.readerWait = v$1;; }), r) === 0))) {
+			runtime_Semacquire(new (go$ptrType(Go$Uint32))(function() { return rw.writerSem; }, function(v$2) { rw.writerSem = v$2;; }));
+		}
+	};
+	RWMutex.prototype.Lock = function() { return this.go$val.Lock(); };
+	RWMutex.Ptr.prototype.Unlock = function() {
+		var rw, v, r, i, v$1;
+		rw = this;
+		r = atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return rw.readerCount; }, function(v) { rw.readerCount = v;; }), 1073741824);
+		i = 0;
+		while (i < (r >> 0)) {
+			runtime_Semrelease(new (go$ptrType(Go$Uint32))(function() { return rw.readerSem; }, function(v$1) { rw.readerSem = v$1;; }));
+			i = i + 1 >> 0;
+		}
+		rw.w.Unlock();
+	};
+	RWMutex.prototype.Unlock = function() { return this.go$val.Unlock(); };
+	RWMutex.Ptr.prototype.RLocker = function() {
+		var rw, _struct, _struct$1;
+		rw = this;
+		return (_struct = rw, new rlocker.Ptr((_struct$1 = _struct.w, new Mutex.Ptr(_struct$1.state, _struct$1.sema)), _struct.writerSem, _struct.readerSem, _struct.readerCount, _struct.readerWait));
+	};
+	RWMutex.prototype.RLocker = function() { return this.go$val.RLocker(); };
+	rlocker.Ptr.prototype.Lock = function() {
+		var r, _struct, _struct$1;
+		r = this;
+		(_struct = r, new RWMutex.Ptr((_struct$1 = _struct.w, new Mutex.Ptr(_struct$1.state, _struct$1.sema)), _struct.writerSem, _struct.readerSem, _struct.readerCount, _struct.readerWait)).RLock();
+	};
+	rlocker.prototype.Lock = function() { return this.go$val.Lock(); };
+	rlocker.Ptr.prototype.Unlock = function() {
+		var r, _struct, _struct$1;
+		r = this;
+		(_struct = r, new RWMutex.Ptr((_struct$1 = _struct.w, new Mutex.Ptr(_struct$1.state, _struct$1.sema)), _struct.writerSem, _struct.readerSem, _struct.readerCount, _struct.readerWait)).RUnlock();
+	};
+	rlocker.prototype.Unlock = function() { return this.go$val.Unlock(); };
+	WaitGroup.Ptr.prototype.Add = function(delta) {
+		var wg, v, v$1, v$2, i;
+		var go$deferred = [];
+		try {
+			wg = this;
+			v$1 = atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return wg.counter; }, function(v) { wg.counter = v;; }), (delta >> 0));
+			if (v$1 < 0) {
+				throw go$panic(new Go$String("sync: negative WaitGroup counter"));
+			}
+			if (v$1 > 0 || (atomic.LoadInt32(new (go$ptrType(Go$Int32))(function() { return wg.waiters; }, function(v$2) { wg.waiters = v$2;; })) === 0)) {
+				return;
+			}
+			wg.m.Lock();
+			i = 0;
+			while (i < wg.waiters) {
+				runtime_Semrelease(wg.sema);
+				i = i + 1 >> 0;
+			}
+			wg.waiters = 0;
+			wg.sema = (go$ptrType(Go$Uint32)).nil;
+			wg.m.Unlock();
+		} catch(go$err) {
+			go$pushErr(go$err);
+		} finally {
+			go$callDeferred(go$deferred);
+		}
+	};
+	WaitGroup.prototype.Add = function(delta) { return this.go$val.Add(delta); };
+	WaitGroup.Ptr.prototype.Done = function() {
+		var wg;
+		wg = this;
+		wg.Add(-1);
+	};
+	WaitGroup.prototype.Done = function() { return this.go$val.Done(); };
+	WaitGroup.Ptr.prototype.Wait = function() {
+		var wg, v, v$1, w, v$2, v$3, s;
+		wg = this;
+		if (atomic.LoadInt32(new (go$ptrType(Go$Int32))(function() { return wg.counter; }, function(v) { wg.counter = v;; })) === 0) {
+			return;
+		}
+		wg.m.Lock();
+		w = atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return wg.waiters; }, function(v$1) { wg.waiters = v$1;; }), 1);
+		if (atomic.LoadInt32(new (go$ptrType(Go$Int32))(function() { return wg.counter; }, function(v$2) { wg.counter = v$2;; })) === 0) {
+			atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return wg.waiters; }, function(v$3) { wg.waiters = v$3;; }), -1);
+			wg.m.Unlock();
+			return;
+		}
+		if (go$pointerIsEqual(wg.sema, (go$ptrType(Go$Uint32)).nil)) {
+			wg.sema = go$newDataPointer(0, (go$ptrType(Go$Uint32)));
+		}
+		s = wg.sema;
+		wg.m.Unlock();
+		runtime_Semacquire(s);
+	};
+	WaitGroup.prototype.Wait = function() { return this.go$val.Wait(); };
+	go$pkg.init = function() {
+		(go$ptrType(Mutex)).methods = [["Lock", "", [], [], false, -1], ["Unlock", "", [], [], false, -1]];
+		Mutex.init([["state", "state", "sync", Go$Int32, ""], ["sema", "sema", "sync", Go$Uint32, ""]]);
+		Locker.init([["Lock", "", (go$funcType([], [], false))], ["Unlock", "", (go$funcType([], [], false))]]);
+		(go$ptrType(Once)).methods = [["Do", "", [(go$funcType([], [], false))], [], false, -1]];
+		Once.init([["m", "m", "sync", Mutex, ""], ["done", "done", "sync", Go$Uint32, ""]]);
+		(go$ptrType(RWMutex)).methods = [["Lock", "", [], [], false, -1], ["RLock", "", [], [], false, -1], ["RLocker", "", [], [Locker], false, -1], ["RUnlock", "", [], [], false, -1], ["Unlock", "", [], [], false, -1]];
+		RWMutex.init([["w", "w", "sync", Mutex, ""], ["writerSem", "writerSem", "sync", Go$Uint32, ""], ["readerSem", "readerSem", "sync", Go$Uint32, ""], ["readerCount", "readerCount", "sync", Go$Int32, ""], ["readerWait", "readerWait", "sync", Go$Int32, ""]]);
+		(go$ptrType(rlocker)).methods = [["Lock", "", [], [], false, -1], ["Unlock", "", [], [], false, -1]];
+		rlocker.init([["w", "w", "sync", Mutex, ""], ["writerSem", "writerSem", "sync", Go$Uint32, ""], ["readerSem", "readerSem", "sync", Go$Uint32, ""], ["readerCount", "readerCount", "sync", Go$Int32, ""], ["readerWait", "readerWait", "sync", Go$Int32, ""]]);
+		(go$ptrType(WaitGroup)).methods = [["Add", "", [Go$Int], [], false, -1], ["Done", "", [], [], false, -1], ["Wait", "", [], [], false, -1]];
+		WaitGroup.init([["m", "m", "sync", Mutex, ""], ["counter", "counter", "sync", Go$Int32, ""], ["waiters", "waiters", "sync", Go$Int32, ""], ["sema", "sema", "sync", (go$ptrType(Go$Uint32)), ""]]);
+		var s;
+		s = go$makeNativeArray("Uintptr", 3, function() { return 0; });
+		runtime_Syncsemcheck(12);
+	}
+	return go$pkg;
+})();
+go$packages["io"] = (function() {
+	var go$pkg = {}, errors = go$packages["errors"], sync = go$packages["sync"], Reader, Writer, RuneReader, ReadAtLeast, ReadFull, errWhence, errOffset;
+	Reader = go$pkg.Reader = go$newType(0, "Interface", "io.Reader", "Reader", "io", null);
+	Writer = go$pkg.Writer = go$newType(0, "Interface", "io.Writer", "Writer", "io", null);
+	RuneReader = go$pkg.RuneReader = go$newType(0, "Interface", "io.RuneReader", "RuneReader", "io", null);
+	ReadAtLeast = go$pkg.ReadAtLeast = function(r, buf, min) {
+		var n, err, _tuple, nn, _tuple$1;
+		n = 0;
+		err = null;
+		if (buf.length < min) {
+			_tuple = [0, go$pkg.ErrShortBuffer]; n = _tuple[0]; err = _tuple[1];
+			return [n, err];
+		}
+		while (n < min && go$interfaceIsEqual(err, null)) {
+			nn = 0;
+			_tuple$1 = r.Read(go$subslice(buf, n)); nn = _tuple$1[0]; err = _tuple$1[1];
+			n = n + (nn) >> 0;
+		}
+		if (n >= min) {
+			err = null;
+		} else if (n > 0 && go$interfaceIsEqual(err, go$pkg.EOF)) {
+			err = go$pkg.ErrUnexpectedEOF;
+		}
+		return [n, err];
+	};
+	ReadFull = go$pkg.ReadFull = function(r, buf) {
+		var n, err, _tuple;
+		n = 0;
+		err = null;
+		_tuple = ReadAtLeast(r, buf, buf.length); n = _tuple[0]; err = _tuple[1];
+		return [n, err];
+	};
+	go$pkg.init = function() {
+		Reader.init([["Read", "", (go$funcType([(go$sliceType(Go$Uint8))], [Go$Int, go$error], false))]]);
+		Writer.init([["Write", "", (go$funcType([(go$sliceType(Go$Uint8))], [Go$Int, go$error], false))]]);
+		RuneReader.init([["ReadRune", "", (go$funcType([], [Go$Int32, Go$Int, go$error], false))]]);
+		go$pkg.ErrShortWrite = errors.New("short write");
+		go$pkg.ErrShortBuffer = errors.New("short buffer");
+		go$pkg.EOF = errors.New("EOF");
+		go$pkg.ErrUnexpectedEOF = errors.New("unexpected EOF");
+		go$pkg.ErrNoProgress = errors.New("multiple Read calls return no data or error");
+		errWhence = errors.New("Seek: invalid whence");
+		errOffset = errors.New("Seek: invalid offset");
+		go$pkg.ErrClosedPipe = errors.New("io: read/write on closed pipe");
+	}
+	return go$pkg;
+})();
+go$packages["unicode"] = (function() {
+	var go$pkg = {}, RangeTable, Range16, Range32, CaseRange, d, foldPair, IsDigit, IsPrint, In, IsLetter, IsSpace, is16, is32, Is, isExcludingLatin, to, To, ToUpper, ToLower, SimpleFold, _L, _M, _N, _Nd, _P, _S, _White_Space, _CaseRanges, properties, caseOrbit;
+	RangeTable = go$pkg.RangeTable = go$newType(0, "Struct", "unicode.RangeTable", "RangeTable", "unicode", function(R16_, R32_, LatinOffset_) {
+		this.go$val = this;
+		this.R16 = R16_ !== undefined ? R16_ : (go$sliceType(Range16)).nil;
+		this.R32 = R32_ !== undefined ? R32_ : (go$sliceType(Range32)).nil;
+		this.LatinOffset = LatinOffset_ !== undefined ? LatinOffset_ : 0;
+	});
+	Range16 = go$pkg.Range16 = go$newType(0, "Struct", "unicode.Range16", "Range16", "unicode", function(Lo_, Hi_, Stride_) {
+		this.go$val = this;
+		this.Lo = Lo_ !== undefined ? Lo_ : 0;
+		this.Hi = Hi_ !== undefined ? Hi_ : 0;
+		this.Stride = Stride_ !== undefined ? Stride_ : 0;
+	});
+	Range32 = go$pkg.Range32 = go$newType(0, "Struct", "unicode.Range32", "Range32", "unicode", function(Lo_, Hi_, Stride_) {
+		this.go$val = this;
+		this.Lo = Lo_ !== undefined ? Lo_ : 0;
+		this.Hi = Hi_ !== undefined ? Hi_ : 0;
+		this.Stride = Stride_ !== undefined ? Stride_ : 0;
+	});
+	CaseRange = go$pkg.CaseRange = go$newType(0, "Struct", "unicode.CaseRange", "CaseRange", "unicode", function(Lo_, Hi_, Delta_) {
+		this.go$val = this;
+		this.Lo = Lo_ !== undefined ? Lo_ : 0;
+		this.Hi = Hi_ !== undefined ? Hi_ : 0;
+		this.Delta = Delta_ !== undefined ? Delta_ : go$makeNativeArray("Int32", 3, function() { return 0; });
+	});
+	d = go$pkg.d = go$newType(0, "Array", "unicode.d", "d", "unicode", null);
+	foldPair = go$pkg.foldPair = go$newType(0, "Struct", "unicode.foldPair", "foldPair", "unicode", function(From_, To_) {
+		this.go$val = this;
+		this.From = From_ !== undefined ? From_ : 0;
+		this.To = To_ !== undefined ? To_ : 0;
+	});
+	IsDigit = go$pkg.IsDigit = function(r) {
+		if (r <= 255) {
+			return 48 <= r && r <= 57;
+		}
+		return isExcludingLatin(go$pkg.Digit, r);
+	};
+	IsPrint = go$pkg.IsPrint = function(r) {
+		if ((r >>> 0) <= 255) {
+			return !((((properties[(r << 24 >>> 24)] & 128) >>> 0) === 0));
+		}
+		return In(r, go$pkg.PrintRanges);
+	};
+	In = go$pkg.In = function(r, ranges) {
+		var _ref, _i, _slice, _index, inside;
+		_ref = ranges;
+		_i = 0;
+		while (_i < _ref.length) {
+			inside = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			if (Is(inside, r)) {
+				return true;
+			}
+			_i++;
+		}
+		return false;
+	};
+	IsLetter = go$pkg.IsLetter = function(r) {
+		if ((r >>> 0) <= 255) {
+			return !((((properties[(r << 24 >>> 24)] & 96) >>> 0) === 0));
+		}
+		return isExcludingLatin(go$pkg.Letter, r);
+	};
+	IsSpace = go$pkg.IsSpace = function(r) {
+		var _ref;
+		if ((r >>> 0) <= 255) {
+			_ref = r;
+			if (_ref === 9 || _ref === 10 || _ref === 11 || _ref === 12 || _ref === 13 || _ref === 32 || _ref === 133 || _ref === 160) {
+				return true;
+			}
+			return false;
+		}
+		return isExcludingLatin(go$pkg.White_Space, r);
+	};
+	is16 = function(ranges, r) {
+		var _ref, _i, i, _slice, _index, range_, _r, lo, hi, _q, m, _slice$1, _index$1, range_$1, _r$1;
+		if (ranges.length <= 18 || r <= 255) {
+			_ref = ranges;
+			_i = 0;
+			while (_i < _ref.length) {
+				i = _i;
+				range_ = (_slice = ranges, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+				if (r < range_.Lo) {
+					return false;
+				}
+				if (r <= range_.Hi) {
+					return (_r = ((r - range_.Lo << 16 >>> 16)) % range_.Stride, _r === _r ? _r : go$throwRuntimeError("integer divide by zero")) === 0;
+				}
+				_i++;
+			}
+			return false;
+		}
+		lo = 0;
+		hi = ranges.length;
+		while (lo < hi) {
+			m = lo + (_q = ((hi - lo >> 0)) / 2, (_q === _q && _q !== 1/0 && _q !== -1/0) ? _q >> 0 : go$throwRuntimeError("integer divide by zero")) >> 0;
+			range_$1 = (_slice$1 = ranges, _index$1 = m, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
+			if (range_$1.Lo <= r && r <= range_$1.Hi) {
+				return (_r$1 = ((r - range_$1.Lo << 16 >>> 16)) % range_$1.Stride, _r$1 === _r$1 ? _r$1 : go$throwRuntimeError("integer divide by zero")) === 0;
+			}
+			if (r < range_$1.Lo) {
+				hi = m;
+			} else {
+				lo = m + 1 >> 0;
+			}
+		}
+		return false;
+	};
+	is32 = function(ranges, r) {
+		var _ref, _i, i, _slice, _index, range_, _r, lo, hi, _q, m, _slice$1, _index$1, _struct, range_$1, _r$1;
+		if (ranges.length <= 18) {
+			_ref = ranges;
+			_i = 0;
+			while (_i < _ref.length) {
+				i = _i;
+				range_ = (_slice = ranges, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+				if (r < range_.Lo) {
+					return false;
+				}
+				if (r <= range_.Hi) {
+					return (_r = ((r - range_.Lo >>> 0)) % range_.Stride, _r === _r ? _r : go$throwRuntimeError("integer divide by zero")) === 0;
+				}
+				_i++;
+			}
+			return false;
+		}
+		lo = 0;
+		hi = ranges.length;
+		while (lo < hi) {
+			m = lo + (_q = ((hi - lo >> 0)) / 2, (_q === _q && _q !== 1/0 && _q !== -1/0) ? _q >> 0 : go$throwRuntimeError("integer divide by zero")) >> 0;
+			range_$1 = (_struct = (_slice$1 = ranges, _index$1 = m, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")), new Range32.Ptr(_struct.Lo, _struct.Hi, _struct.Stride));
+			if (range_$1.Lo <= r && r <= range_$1.Hi) {
+				return (_r$1 = ((r - range_$1.Lo >>> 0)) % range_$1.Stride, _r$1 === _r$1 ? _r$1 : go$throwRuntimeError("integer divide by zero")) === 0;
+			}
+			if (r < range_$1.Lo) {
+				hi = m;
+			} else {
+				lo = m + 1 >> 0;
+			}
+		}
+		return false;
+	};
+	Is = go$pkg.Is = function(rangeTab, r) {
+		var r16, _slice, _index, r32, _slice$1, _index$1;
+		r16 = rangeTab.R16;
+		if (r16.length > 0 && r <= ((_slice = r16, _index = (r16.length - 1 >> 0), (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).Hi >> 0)) {
+			return is16(r16, (r << 16 >>> 16));
+		}
+		r32 = rangeTab.R32;
+		if (r32.length > 0 && r >= ((_slice$1 = r32, _index$1 = 0, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).Lo >> 0)) {
+			return is32(r32, (r >>> 0));
+		}
+		return false;
+	};
+	isExcludingLatin = function(rangeTab, r) {
+		var r16, off, _slice, _index, r32, _slice$1, _index$1;
+		r16 = rangeTab.R16;
+		off = rangeTab.LatinOffset;
+		if (r16.length > off && r <= ((_slice = r16, _index = (r16.length - 1 >> 0), (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).Hi >> 0)) {
+			return is16(go$subslice(r16, off), (r << 16 >>> 16));
+		}
+		r32 = rangeTab.R32;
+		if (r32.length > 0 && r >= ((_slice$1 = r32, _index$1 = 0, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).Lo >> 0)) {
+			return is32(r32, (r >>> 0));
+		}
+		return false;
+	};
+	to = function(_case, r, caseRange) {
+		var lo, hi, _q, m, _slice, _index, _struct, cr, delta;
+		if (_case < 0 || 3 <= _case) {
+			return 65533;
+		}
+		lo = 0;
+		hi = caseRange.length;
+		while (lo < hi) {
+			m = lo + (_q = ((hi - lo >> 0)) / 2, (_q === _q && _q !== 1/0 && _q !== -1/0) ? _q >> 0 : go$throwRuntimeError("integer divide by zero")) >> 0;
+			cr = (_struct = (_slice = caseRange, _index = m, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), new CaseRange.Ptr(_struct.Lo, _struct.Hi, go$mapArray(_struct.Delta, function(entry) { return entry; })));
+			if ((cr.Lo >> 0) <= r && r <= (cr.Hi >> 0)) {
+				delta = cr.Delta[_case];
+				if (delta > 1114111) {
+					return (cr.Lo >> 0) + (((((r - (cr.Lo >> 0) >> 0)) & ~1) | ((_case & 1) >> 0))) >> 0;
+				}
+				return r + delta >> 0;
+			}
+			if (r < (cr.Lo >> 0)) {
+				hi = m;
+			} else {
+				lo = m + 1 >> 0;
+			}
+		}
+		return r;
+	};
+	To = go$pkg.To = function(_case, r) {
+		return to(_case, r, go$pkg.CaseRanges);
+	};
+	ToUpper = go$pkg.ToUpper = function(r) {
+		if (r <= 127) {
+			if (97 <= r && r <= 122) {
+				r = r - 32 >> 0;
+			}
+			return r;
+		}
+		return To(0, r);
+	};
+	ToLower = go$pkg.ToLower = function(r) {
+		if (r <= 127) {
+			if (65 <= r && r <= 90) {
+				r = r + 32 >> 0;
+			}
+			return r;
+		}
+		return To(1, r);
+	};
+	SimpleFold = go$pkg.SimpleFold = function(r) {
+		var lo, hi, _q, m, _slice, _index, _slice$1, _index$1, _slice$2, _index$2, l;
+		lo = 0;
+		hi = caseOrbit.length;
+		while (lo < hi) {
+			m = lo + (_q = ((hi - lo >> 0)) / 2, (_q === _q && _q !== 1/0 && _q !== -1/0) ? _q >> 0 : go$throwRuntimeError("integer divide by zero")) >> 0;
+			if (((_slice = caseOrbit, _index = m, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).From >> 0) < r) {
+				lo = m + 1 >> 0;
+			} else {
+				hi = m;
+			}
+		}
+		if (lo < caseOrbit.length && (((_slice$1 = caseOrbit, _index$1 = lo, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).From >> 0) === r)) {
+			return ((_slice$2 = caseOrbit, _index$2 = lo, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range")).To >> 0);
+		}
+		l = ToLower(r);
+		if (!((l === r))) {
+			return l;
+		}
+		return ToUpper(r);
+	};
+	go$pkg.init = function() {
+		RangeTable.init([["R16", "R16", "", (go$sliceType(Range16)), ""], ["R32", "R32", "", (go$sliceType(Range32)), ""], ["LatinOffset", "LatinOffset", "", Go$Int, ""]]);
+		Range16.init([["Lo", "Lo", "", Go$Uint16, ""], ["Hi", "Hi", "", Go$Uint16, ""], ["Stride", "Stride", "", Go$Uint16, ""]]);
+		Range32.init([["Lo", "Lo", "", Go$Uint32, ""], ["Hi", "Hi", "", Go$Uint32, ""], ["Stride", "Stride", "", Go$Uint32, ""]]);
+		CaseRange.init([["Lo", "Lo", "", Go$Uint32, ""], ["Hi", "Hi", "", Go$Uint32, ""], ["Delta", "Delta", "", d, ""]]);
+		d.init(Go$Int32, 3);
+		foldPair.init([["From", "From", "", Go$Uint16, ""], ["To", "To", "", Go$Uint16, ""]]);
+		_L = new RangeTable.Ptr(new (go$sliceType(Range16))([new Range16.Ptr(65, 90, 1), new Range16.Ptr(97, 122, 1), new Range16.Ptr(170, 181, 11), new Range16.Ptr(186, 192, 6), new Range16.Ptr(193, 214, 1), new Range16.Ptr(216, 246, 1), new Range16.Ptr(248, 705, 1), new Range16.Ptr(710, 721, 1), new Range16.Ptr(736, 740, 1), new Range16.Ptr(748, 750, 2), new Range16.Ptr(880, 884, 1), new Range16.Ptr(886, 887, 1), new Range16.Ptr(890, 893, 1), new Range16.Ptr(902, 904, 2), new Range16.Ptr(905, 906, 1), new Range16.Ptr(908, 910, 2), new Range16.Ptr(911, 929, 1), new Range16.Ptr(931, 1013, 1), new Range16.Ptr(1015, 1153, 1), new Range16.Ptr(1162, 1319, 1), new Range16.Ptr(1329, 1366, 1), new Range16.Ptr(1369, 1377, 8), new Range16.Ptr(1378, 1415, 1), new Range16.Ptr(1488, 1514, 1), new Range16.Ptr(1520, 1522, 1), new Range16.Ptr(1568, 1610, 1), new Range16.Ptr(1646, 1647, 1), new Range16.Ptr(1649, 1747, 1), new Range16.Ptr(1749, 1765, 16), new Range16.Ptr(1766, 1774, 8), new Range16.Ptr(1775, 1786, 11), new Range16.Ptr(1787, 1788, 1), new Range16.Ptr(1791, 1808, 17), new Range16.Ptr(1810, 1839, 1), new Range16.Ptr(1869, 1957, 1), new Range16.Ptr(1969, 1994, 25), new Range16.Ptr(1995, 2026, 1), new Range16.Ptr(2036, 2037, 1), new Range16.Ptr(2042, 2048, 6), new Range16.Ptr(2049, 2069, 1), new Range16.Ptr(2074, 2084, 10), new Range16.Ptr(2088, 2112, 24), new Range16.Ptr(2113, 2136, 1), new Range16.Ptr(2208, 2210, 2), new Range16.Ptr(2211, 2220, 1), new Range16.Ptr(2308, 2361, 1), new Range16.Ptr(2365, 2384, 19), new Range16.Ptr(2392, 2401, 1), new Range16.Ptr(2417, 2423, 1), new Range16.Ptr(2425, 2431, 1), new Range16.Ptr(2437, 2444, 1), new Range16.Ptr(2447, 2448, 1), new Range16.Ptr(2451, 2472, 1), new Range16.Ptr(2474, 2480, 1), new Range16.Ptr(2482, 2486, 4), new Range16.Ptr(2487, 2489, 1), new Range16.Ptr(2493, 2510, 17), new Range16.Ptr(2524, 2525, 1), new Range16.Ptr(2527, 2529, 1), new Range16.Ptr(2544, 2545, 1), new Range16.Ptr(2565, 2570, 1), new Range16.Ptr(2575, 2576, 1), new Range16.Ptr(2579, 2600, 1), new Range16.Ptr(2602, 2608, 1), new Range16.Ptr(2610, 2611, 1), new Range16.Ptr(2613, 2614, 1), new Range16.Ptr(2616, 2617, 1), new Range16.Ptr(2649, 2652, 1), new Range16.Ptr(2654, 2674, 20), new Range16.Ptr(2675, 2676, 1), new Range16.Ptr(2693, 2701, 1), new Range16.Ptr(2703, 2705, 1), new Range16.Ptr(2707, 2728, 1), new Range16.Ptr(2730, 2736, 1), new Range16.Ptr(2738, 2739, 1), new Range16.Ptr(2741, 2745, 1), new Range16.Ptr(2749, 2768, 19), new Range16.Ptr(2784, 2785, 1), new Range16.Ptr(2821, 2828, 1), new Range16.Ptr(2831, 2832, 1), new Range16.Ptr(2835, 2856, 1), new Range16.Ptr(2858, 2864, 1), new Range16.Ptr(2866, 2867, 1), new Range16.Ptr(2869, 2873, 1), new Range16.Ptr(2877, 2908, 31), new Range16.Ptr(2909, 2911, 2), new Range16.Ptr(2912, 2913, 1), new Range16.Ptr(2929, 2947, 18), new Range16.Ptr(2949, 2954, 1), new Range16.Ptr(2958, 2960, 1), new Range16.Ptr(2962, 2965, 1), new Range16.Ptr(2969, 2970, 1), new Range16.Ptr(2972, 2974, 2), new Range16.Ptr(2975, 2979, 4), new Range16.Ptr(2980, 2984, 4), new Range16.Ptr(2985, 2986, 1), new Range16.Ptr(2990, 3001, 1), new Range16.Ptr(3024, 3077, 53), new Range16.Ptr(3078, 3084, 1), new Range16.Ptr(3086, 3088, 1), new Range16.Ptr(3090, 3112, 1), new Range16.Ptr(3114, 3123, 1), new Range16.Ptr(3125, 3129, 1), new Range16.Ptr(3133, 3160, 27), new Range16.Ptr(3161, 3168, 7), new Range16.Ptr(3169, 3205, 36), new Range16.Ptr(3206, 3212, 1), new Range16.Ptr(3214, 3216, 1), new Range16.Ptr(3218, 3240, 1), new Range16.Ptr(3242, 3251, 1), new Range16.Ptr(3253, 3257, 1), new Range16.Ptr(3261, 3294, 33), new Range16.Ptr(3296, 3297, 1), new Range16.Ptr(3313, 3314, 1), new Range16.Ptr(3333, 3340, 1), new Range16.Ptr(3342, 3344, 1), new Range16.Ptr(3346, 3386, 1), new Range16.Ptr(3389, 3406, 17), new Range16.Ptr(3424, 3425, 1), new Range16.Ptr(3450, 3455, 1), new Range16.Ptr(3461, 3478, 1), new Range16.Ptr(3482, 3505, 1), new Range16.Ptr(3507, 3515, 1), new Range16.Ptr(3517, 3520, 3), new Range16.Ptr(3521, 3526, 1), new Range16.Ptr(3585, 3632, 1), new Range16.Ptr(3634, 3635, 1), new Range16.Ptr(3648, 3654, 1), new Range16.Ptr(3713, 3714, 1), new Range16.Ptr(3716, 3719, 3), new Range16.Ptr(3720, 3722, 2), new Range16.Ptr(3725, 3732, 7), new Range16.Ptr(3733, 3735, 1), new Range16.Ptr(3737, 3743, 1), new Range16.Ptr(3745, 3747, 1), new Range16.Ptr(3749, 3751, 2), new Range16.Ptr(3754, 3755, 1), new Range16.Ptr(3757, 3760, 1), new Range16.Ptr(3762, 3763, 1), new Range16.Ptr(3773, 3776, 3), new Range16.Ptr(3777, 3780, 1), new Range16.Ptr(3782, 3804, 22), new Range16.Ptr(3805, 3807, 1), new Range16.Ptr(3840, 3904, 64), new Range16.Ptr(3905, 3911, 1), new Range16.Ptr(3913, 3948, 1), new Range16.Ptr(3976, 3980, 1), new Range16.Ptr(4096, 4138, 1), new Range16.Ptr(4159, 4176, 17), new Range16.Ptr(4177, 4181, 1), new Range16.Ptr(4186, 4189, 1), new Range16.Ptr(4193, 4197, 4), new Range16.Ptr(4198, 4206, 8), new Range16.Ptr(4207, 4208, 1), new Range16.Ptr(4213, 4225, 1), new Range16.Ptr(4238, 4256, 18), new Range16.Ptr(4257, 4293, 1), new Range16.Ptr(4295, 4301, 6), new Range16.Ptr(4304, 4346, 1), new Range16.Ptr(4348, 4680, 1), new Range16.Ptr(4682, 4685, 1), new Range16.Ptr(4688, 4694, 1), new Range16.Ptr(4696, 4698, 2), new Range16.Ptr(4699, 4701, 1), new Range16.Ptr(4704, 4744, 1), new Range16.Ptr(4746, 4749, 1), new Range16.Ptr(4752, 4784, 1), new Range16.Ptr(4786, 4789, 1), new Range16.Ptr(4792, 4798, 1), new Range16.Ptr(4800, 4802, 2), new Range16.Ptr(4803, 4805, 1), new Range16.Ptr(4808, 4822, 1), new Range16.Ptr(4824, 4880, 1), new Range16.Ptr(4882, 4885, 1), new Range16.Ptr(4888, 4954, 1), new Range16.Ptr(4992, 5007, 1), new Range16.Ptr(5024, 5108, 1), new Range16.Ptr(5121, 5740, 1), new Range16.Ptr(5743, 5759, 1), new Range16.Ptr(5761, 5786, 1), new Range16.Ptr(5792, 5866, 1), new Range16.Ptr(5888, 5900, 1), new Range16.Ptr(5902, 5905, 1), new Range16.Ptr(5920, 5937, 1), new Range16.Ptr(5952, 5969, 1), new Range16.Ptr(5984, 5996, 1), new Range16.Ptr(5998, 6000, 1), new Range16.Ptr(6016, 6067, 1), new Range16.Ptr(6103, 6108, 5), new Range16.Ptr(6176, 6263, 1), new Range16.Ptr(6272, 6312, 1), new Range16.Ptr(6314, 6320, 6), new Range16.Ptr(6321, 6389, 1), new Range16.Ptr(6400, 6428, 1), new Range16.Ptr(6480, 6509, 1), new Range16.Ptr(6512, 6516, 1), new Range16.Ptr(6528, 6571, 1), new Range16.Ptr(6593, 6599, 1), new Range16.Ptr(6656, 6678, 1), new Range16.Ptr(6688, 6740, 1), new Range16.Ptr(6823, 6917, 94), new Range16.Ptr(6918, 6963, 1), new Range16.Ptr(6981, 6987, 1), new Range16.Ptr(7043, 7072, 1), new Range16.Ptr(7086, 7087, 1), new Range16.Ptr(7098, 7141, 1), new Range16.Ptr(7168, 7203, 1), new Range16.Ptr(7245, 7247, 1), new Range16.Ptr(7258, 7293, 1), new Range16.Ptr(7401, 7404, 1), new Range16.Ptr(7406, 7409, 1), new Range16.Ptr(7413, 7414, 1), new Range16.Ptr(7424, 7615, 1), new Range16.Ptr(7680, 7957, 1), new Range16.Ptr(7960, 7965, 1), new Range16.Ptr(7968, 8005, 1), new Range16.Ptr(8008, 8013, 1), new Range16.Ptr(8016, 8023, 1), new Range16.Ptr(8025, 8031, 2), new Range16.Ptr(8032, 8061, 1), new Range16.Ptr(8064, 8116, 1), new Range16.Ptr(8118, 8124, 1), new Range16.Ptr(8126, 8130, 4), new Range16.Ptr(8131, 8132, 1), new Range16.Ptr(8134, 8140, 1), new Range16.Ptr(8144, 8147, 1), new Range16.Ptr(8150, 8155, 1), new Range16.Ptr(8160, 8172, 1), new Range16.Ptr(8178, 8180, 1), new Range16.Ptr(8182, 8188, 1), new Range16.Ptr(8305, 8319, 14), new Range16.Ptr(8336, 8348, 1), new Range16.Ptr(8450, 8455, 5), new Range16.Ptr(8458, 8467, 1), new Range16.Ptr(8469, 8473, 4), new Range16.Ptr(8474, 8477, 1), new Range16.Ptr(8484, 8490, 2), new Range16.Ptr(8491, 8493, 1), new Range16.Ptr(8495, 8505, 1), new Range16.Ptr(8508, 8511, 1), new Range16.Ptr(8517, 8521, 1), new Range16.Ptr(8526, 8579, 53), new Range16.Ptr(8580, 11264, 2684), new Range16.Ptr(11265, 11310, 1), new Range16.Ptr(11312, 11358, 1), new Range16.Ptr(11360, 11492, 1), new Range16.Ptr(11499, 11502, 1), new Range16.Ptr(11506, 11507, 1), new Range16.Ptr(11520, 11557, 1), new Range16.Ptr(11559, 11565, 6), new Range16.Ptr(11568, 11623, 1), new Range16.Ptr(11631, 11648, 17), new Range16.Ptr(11649, 11670, 1), new Range16.Ptr(11680, 11686, 1), new Range16.Ptr(11688, 11694, 1), new Range16.Ptr(11696, 11702, 1), new Range16.Ptr(11704, 11710, 1), new Range16.Ptr(11712, 11718, 1), new Range16.Ptr(11720, 11726, 1), new Range16.Ptr(11728, 11734, 1), new Range16.Ptr(11736, 11742, 1), new Range16.Ptr(11823, 12293, 470), new Range16.Ptr(12294, 12337, 43), new Range16.Ptr(12338, 12341, 1), new Range16.Ptr(12347, 12348, 1), new Range16.Ptr(12353, 12438, 1), new Range16.Ptr(12445, 12447, 1), new Range16.Ptr(12449, 12538, 1), new Range16.Ptr(12540, 12543, 1), new Range16.Ptr(12549, 12589, 1), new Range16.Ptr(12593, 12686, 1), new Range16.Ptr(12704, 12730, 1), new Range16.Ptr(12784, 12799, 1), new Range16.Ptr(13312, 19893, 1), new Range16.Ptr(19968, 40908, 1), new Range16.Ptr(40960, 42124, 1), new Range16.Ptr(42192, 42237, 1), new Range16.Ptr(42240, 42508, 1), new Range16.Ptr(42512, 42527, 1), new Range16.Ptr(42538, 42539, 1), new Range16.Ptr(42560, 42606, 1), new Range16.Ptr(42623, 42647, 1), new Range16.Ptr(42656, 42725, 1), new Range16.Ptr(42775, 42783, 1), new Range16.Ptr(42786, 42888, 1), new Range16.Ptr(42891, 42894, 1), new Range16.Ptr(42896, 42899, 1), new Range16.Ptr(42912, 42922, 1), new Range16.Ptr(43000, 43009, 1), new Range16.Ptr(43011, 43013, 1), new Range16.Ptr(43015, 43018, 1), new Range16.Ptr(43020, 43042, 1), new Range16.Ptr(43072, 43123, 1), new Range16.Ptr(43138, 43187, 1), new Range16.Ptr(43250, 43255, 1), new Range16.Ptr(43259, 43274, 15), new Range16.Ptr(43275, 43301, 1), new Range16.Ptr(43312, 43334, 1), new Range16.Ptr(43360, 43388, 1), new Range16.Ptr(43396, 43442, 1), new Range16.Ptr(43471, 43520, 49), new Range16.Ptr(43521, 43560, 1), new Range16.Ptr(43584, 43586, 1), new Range16.Ptr(43588, 43595, 1), new Range16.Ptr(43616, 43638, 1), new Range16.Ptr(43642, 43648, 6), new Range16.Ptr(43649, 43695, 1), new Range16.Ptr(43697, 43701, 4), new Range16.Ptr(43702, 43705, 3), new Range16.Ptr(43706, 43709, 1), new Range16.Ptr(43712, 43714, 2), new Range16.Ptr(43739, 43741, 1), new Range16.Ptr(43744, 43754, 1), new Range16.Ptr(43762, 43764, 1), new Range16.Ptr(43777, 43782, 1), new Range16.Ptr(43785, 43790, 1), new Range16.Ptr(43793, 43798, 1), new Range16.Ptr(43808, 43814, 1), new Range16.Ptr(43816, 43822, 1), new Range16.Ptr(43968, 44002, 1), new Range16.Ptr(44032, 55203, 1), new Range16.Ptr(55216, 55238, 1), new Range16.Ptr(55243, 55291, 1), new Range16.Ptr(63744, 64109, 1), new Range16.Ptr(64112, 64217, 1), new Range16.Ptr(64256, 64262, 1), new Range16.Ptr(64275, 64279, 1), new Range16.Ptr(64285, 64287, 2), new Range16.Ptr(64288, 64296, 1), new Range16.Ptr(64298, 64310, 1), new Range16.Ptr(64312, 64316, 1), new Range16.Ptr(64318, 64320, 2), new Range16.Ptr(64321, 64323, 2), new Range16.Ptr(64324, 64326, 2), new Range16.Ptr(64327, 64433, 1), new Range16.Ptr(64467, 64829, 1), new Range16.Ptr(64848, 64911, 1), new Range16.Ptr(64914, 64967, 1), new Range16.Ptr(65008, 65019, 1), new Range16.Ptr(65136, 65140, 1), new Range16.Ptr(65142, 65276, 1), new Range16.Ptr(65313, 65338, 1), new Range16.Ptr(65345, 65370, 1), new Range16.Ptr(65382, 65470, 1), new Range16.Ptr(65474, 65479, 1), new Range16.Ptr(65482, 65487, 1), new Range16.Ptr(65490, 65495, 1), new Range16.Ptr(65498, 65500, 1)]), new (go$sliceType(Range32))([new Range32.Ptr(65536, 65547, 1), new Range32.Ptr(65549, 65574, 1), new Range32.Ptr(65576, 65594, 1), new Range32.Ptr(65596, 65597, 1), new Range32.Ptr(65599, 65613, 1), new Range32.Ptr(65616, 65629, 1), new Range32.Ptr(65664, 65786, 1), new Range32.Ptr(66176, 66204, 1), new Range32.Ptr(66208, 66256, 1), new Range32.Ptr(66304, 66334, 1), new Range32.Ptr(66352, 66368, 1), new Range32.Ptr(66370, 66377, 1), new Range32.Ptr(66432, 66461, 1), new Range32.Ptr(66464, 66499, 1), new Range32.Ptr(66504, 66511, 1), new Range32.Ptr(66560, 66717, 1), new Range32.Ptr(67584, 67589, 1), new Range32.Ptr(67592, 67594, 2), new Range32.Ptr(67595, 67637, 1), new Range32.Ptr(67639, 67640, 1), new Range32.Ptr(67644, 67647, 3), new Range32.Ptr(67648, 67669, 1), new Range32.Ptr(67840, 67861, 1), new Range32.Ptr(67872, 67897, 1), new Range32.Ptr(67968, 68023, 1), new Range32.Ptr(68030, 68031, 1), new Range32.Ptr(68096, 68112, 16), new Range32.Ptr(68113, 68115, 1), new Range32.Ptr(68117, 68119, 1), new Range32.Ptr(68121, 68147, 1), new Range32.Ptr(68192, 68220, 1), new Range32.Ptr(68352, 68405, 1), new Range32.Ptr(68416, 68437, 1), new Range32.Ptr(68448, 68466, 1), new Range32.Ptr(68608, 68680, 1), new Range32.Ptr(69635, 69687, 1), new Range32.Ptr(69763, 69807, 1), new Range32.Ptr(69840, 69864, 1), new Range32.Ptr(69891, 69926, 1), new Range32.Ptr(70019, 70066, 1), new Range32.Ptr(70081, 70084, 1), new Range32.Ptr(71296, 71338, 1), new Range32.Ptr(73728, 74606, 1), new Range32.Ptr(77824, 78894, 1), new Range32.Ptr(92160, 92728, 1), new Range32.Ptr(93952, 94020, 1), new Range32.Ptr(94032, 94099, 67), new Range32.Ptr(94100, 94111, 1), new Range32.Ptr(110592, 110593, 1), new Range32.Ptr(119808, 119892, 1), new Range32.Ptr(119894, 119964, 1), new Range32.Ptr(119966, 119967, 1), new Range32.Ptr(119970, 119973, 3), new Range32.Ptr(119974, 119977, 3), new Range32.Ptr(119978, 119980, 1), new Range32.Ptr(119982, 119993, 1), new Range32.Ptr(119995, 119997, 2), new Range32.Ptr(119998, 120003, 1), new Range32.Ptr(120005, 120069, 1), new Range32.Ptr(120071, 120074, 1), new Range32.Ptr(120077, 120084, 1), new Range32.Ptr(120086, 120092, 1), new Range32.Ptr(120094, 120121, 1), new Range32.Ptr(120123, 120126, 1), new Range32.Ptr(120128, 120132, 1), new Range32.Ptr(120134, 120138, 4), new Range32.Ptr(120139, 120144, 1), new Range32.Ptr(120146, 120485, 1), new Range32.Ptr(120488, 120512, 1), new Range32.Ptr(120514, 120538, 1), new Range32.Ptr(120540, 120570, 1), new Range32.Ptr(120572, 120596, 1), new Range32.Ptr(120598, 120628, 1), new Range32.Ptr(120630, 120654, 1), new Range32.Ptr(120656, 120686, 1), new Range32.Ptr(120688, 120712, 1), new Range32.Ptr(120714, 120744, 1), new Range32.Ptr(120746, 120770, 1), new Range32.Ptr(120772, 120779, 1), new Range32.Ptr(126464, 126467, 1), new Range32.Ptr(126469, 126495, 1), new Range32.Ptr(126497, 126498, 1), new Range32.Ptr(126500, 126503, 3), new Range32.Ptr(126505, 126514, 1), new Range32.Ptr(126516, 126519, 1), new Range32.Ptr(126521, 126523, 2), new Range32.Ptr(126530, 126535, 5), new Range32.Ptr(126537, 126541, 2), new Range32.Ptr(126542, 126543, 1), new Range32.Ptr(126545, 126546, 1), new Range32.Ptr(126548, 126551, 3), new Range32.Ptr(126553, 126561, 2), new Range32.Ptr(126562, 126564, 2), new Range32.Ptr(126567, 126570, 1), new Range32.Ptr(126572, 126578, 1), new Range32.Ptr(126580, 126583, 1), new Range32.Ptr(126585, 126588, 1), new Range32.Ptr(126590, 126592, 2), new Range32.Ptr(126593, 126601, 1), new Range32.Ptr(126603, 126619, 1), new Range32.Ptr(126625, 126627, 1), new Range32.Ptr(126629, 126633, 1), new Range32.Ptr(126635, 126651, 1), new Range32.Ptr(131072, 173782, 1), new Range32.Ptr(173824, 177972, 1), new Range32.Ptr(177984, 178205, 1), new Range32.Ptr(194560, 195101, 1)]), 6);
+		go$pkg.L = _L;
+		_M = new RangeTable.Ptr(new (go$sliceType(Range16))([new Range16.Ptr(768, 879, 1), new Range16.Ptr(1155, 1161, 1), new Range16.Ptr(1425, 1469, 1), new Range16.Ptr(1471, 1473, 2), new Range16.Ptr(1474, 1476, 2), new Range16.Ptr(1477, 1479, 2), new Range16.Ptr(1552, 1562, 1), new Range16.Ptr(1611, 1631, 1), new Range16.Ptr(1648, 1750, 102), new Range16.Ptr(1751, 1756, 1), new Range16.Ptr(1759, 1764, 1), new Range16.Ptr(1767, 1768, 1), new Range16.Ptr(1770, 1773, 1), new Range16.Ptr(1809, 1840, 31), new Range16.Ptr(1841, 1866, 1), new Range16.Ptr(1958, 1968, 1), new Range16.Ptr(2027, 2035, 1), new Range16.Ptr(2070, 2073, 1), new Range16.Ptr(2075, 2083, 1), new Range16.Ptr(2085, 2087, 1), new Range16.Ptr(2089, 2093, 1), new Range16.Ptr(2137, 2139, 1), new Range16.Ptr(2276, 2302, 1), new Range16.Ptr(2304, 2307, 1), new Range16.Ptr(2362, 2364, 1), new Range16.Ptr(2366, 2383, 1), new Range16.Ptr(2385, 2391, 1), new Range16.Ptr(2402, 2403, 1), new Range16.Ptr(2433, 2435, 1), new Range16.Ptr(2492, 2494, 2), new Range16.Ptr(2495, 2500, 1), new Range16.Ptr(2503, 2504, 1), new Range16.Ptr(2507, 2509, 1), new Range16.Ptr(2519, 2530, 11), new Range16.Ptr(2531, 2561, 30), new Range16.Ptr(2562, 2563, 1), new Range16.Ptr(2620, 2622, 2), new Range16.Ptr(2623, 2626, 1), new Range16.Ptr(2631, 2632, 1), new Range16.Ptr(2635, 2637, 1), new Range16.Ptr(2641, 2672, 31), new Range16.Ptr(2673, 2677, 4), new Range16.Ptr(2689, 2691, 1), new Range16.Ptr(2748, 2750, 2), new Range16.Ptr(2751, 2757, 1), new Range16.Ptr(2759, 2761, 1), new Range16.Ptr(2763, 2765, 1), new Range16.Ptr(2786, 2787, 1), new Range16.Ptr(2817, 2819, 1), new Range16.Ptr(2876, 2878, 2), new Range16.Ptr(2879, 2884, 1), new Range16.Ptr(2887, 2888, 1), new Range16.Ptr(2891, 2893, 1), new Range16.Ptr(2902, 2903, 1), new Range16.Ptr(2914, 2915, 1), new Range16.Ptr(2946, 3006, 60), new Range16.Ptr(3007, 3010, 1), new Range16.Ptr(3014, 3016, 1), new Range16.Ptr(3018, 3021, 1), new Range16.Ptr(3031, 3073, 42), new Range16.Ptr(3074, 3075, 1), new Range16.Ptr(3134, 3140, 1), new Range16.Ptr(3142, 3144, 1), new Range16.Ptr(3146, 3149, 1), new Range16.Ptr(3157, 3158, 1), new Range16.Ptr(3170, 3171, 1), new Range16.Ptr(3202, 3203, 1), new Range16.Ptr(3260, 3262, 2), new Range16.Ptr(3263, 3268, 1), new Range16.Ptr(3270, 3272, 1), new Range16.Ptr(3274, 3277, 1), new Range16.Ptr(3285, 3286, 1), new Range16.Ptr(3298, 3299, 1), new Range16.Ptr(3330, 3331, 1), new Range16.Ptr(3390, 3396, 1), new Range16.Ptr(3398, 3400, 1), new Range16.Ptr(3402, 3405, 1), new Range16.Ptr(3415, 3426, 11), new Range16.Ptr(3427, 3458, 31), new Range16.Ptr(3459, 3530, 71), new Range16.Ptr(3535, 3540, 1), new Range16.Ptr(3542, 3544, 2), new Range16.Ptr(3545, 3551, 1), new Range16.Ptr(3570, 3571, 1), new Range16.Ptr(3633, 3636, 3), new Range16.Ptr(3637, 3642, 1), new Range16.Ptr(3655, 3662, 1), new Range16.Ptr(3761, 3764, 3), new Range16.Ptr(3765, 3769, 1), new Range16.Ptr(3771, 3772, 1), new Range16.Ptr(3784, 3789, 1), new Range16.Ptr(3864, 3865, 1), new Range16.Ptr(3893, 3897, 2), new Range16.Ptr(3902, 3903, 1), new Range16.Ptr(3953, 3972, 1), new Range16.Ptr(3974, 3975, 1), new Range16.Ptr(3981, 3991, 1), new Range16.Ptr(3993, 4028, 1), new Range16.Ptr(4038, 4139, 101), new Range16.Ptr(4140, 4158, 1), new Range16.Ptr(4182, 4185, 1), new Range16.Ptr(4190, 4192, 1), new Range16.Ptr(4194, 4196, 1), new Range16.Ptr(4199, 4205, 1), new Range16.Ptr(4209, 4212, 1), new Range16.Ptr(4226, 4237, 1), new Range16.Ptr(4239, 4250, 11), new Range16.Ptr(4251, 4253, 1), new Range16.Ptr(4957, 4959, 1), new Range16.Ptr(5906, 5908, 1), new Range16.Ptr(5938, 5940, 1), new Range16.Ptr(5970, 5971, 1), new Range16.Ptr(6002, 6003, 1), new Range16.Ptr(6068, 6099, 1), new Range16.Ptr(6109, 6155, 46), new Range16.Ptr(6156, 6157, 1), new Range16.Ptr(6313, 6432, 119), new Range16.Ptr(6433, 6443, 1), new Range16.Ptr(6448, 6459, 1), new Range16.Ptr(6576, 6592, 1), new Range16.Ptr(6600, 6601, 1), new Range16.Ptr(6679, 6683, 1), new Range16.Ptr(6741, 6750, 1), new Range16.Ptr(6752, 6780, 1), new Range16.Ptr(6783, 6912, 129), new Range16.Ptr(6913, 6916, 1), new Range16.Ptr(6964, 6980, 1), new Range16.Ptr(7019, 7027, 1), new Range16.Ptr(7040, 7042, 1), new Range16.Ptr(7073, 7085, 1), new Range16.Ptr(7142, 7155, 1), new Range16.Ptr(7204, 7223, 1), new Range16.Ptr(7376, 7378, 1), new Range16.Ptr(7380, 7400, 1), new Range16.Ptr(7405, 7410, 5), new Range16.Ptr(7411, 7412, 1), new Range16.Ptr(7616, 7654, 1), new Range16.Ptr(7676, 7679, 1), new Range16.Ptr(8400, 8432, 1), new Range16.Ptr(11503, 11505, 1), new Range16.Ptr(11647, 11744, 97), new Range16.Ptr(11745, 11775, 1), new Range16.Ptr(12330, 12335, 1), new Range16.Ptr(12441, 12442, 1), new Range16.Ptr(42607, 42610, 1), new Range16.Ptr(42612, 42621, 1), new Range16.Ptr(42655, 42736, 81), new Range16.Ptr(42737, 43010, 273), new Range16.Ptr(43014, 43019, 5), new Range16.Ptr(43043, 43047, 1), new Range16.Ptr(43136, 43137, 1), new Range16.Ptr(43188, 43204, 1), new Range16.Ptr(43232, 43249, 1), new Range16.Ptr(43302, 43309, 1), new Range16.Ptr(43335, 43347, 1), new Range16.Ptr(43392, 43395, 1), new Range16.Ptr(43443, 43456, 1), new Range16.Ptr(43561, 43574, 1), new Range16.Ptr(43587, 43596, 9), new Range16.Ptr(43597, 43643, 46), new Range16.Ptr(43696, 43698, 2), new Range16.Ptr(43699, 43700, 1), new Range16.Ptr(43703, 43704, 1), new Range16.Ptr(43710, 43711, 1), new Range16.Ptr(43713, 43755, 42), new Range16.Ptr(43756, 43759, 1), new Range16.Ptr(43765, 43766, 1), new Range16.Ptr(44003, 44010, 1), new Range16.Ptr(44012, 44013, 1), new Range16.Ptr(64286, 65024, 738), new Range16.Ptr(65025, 65039, 1), new Range16.Ptr(65056, 65062, 1)]), new (go$sliceType(Range32))([new Range32.Ptr(66045, 68097, 2052), new Range32.Ptr(68098, 68099, 1), new Range32.Ptr(68101, 68102, 1), new Range32.Ptr(68108, 68111, 1), new Range32.Ptr(68152, 68154, 1), new Range32.Ptr(68159, 69632, 1473), new Range32.Ptr(69633, 69634, 1), new Range32.Ptr(69688, 69702, 1), new Range32.Ptr(69760, 69762, 1), new Range32.Ptr(69808, 69818, 1), new Range32.Ptr(69888, 69890, 1), new Range32.Ptr(69927, 69940, 1), new Range32.Ptr(70016, 70018, 1), new Range32.Ptr(70067, 70080, 1), new Range32.Ptr(71339, 71351, 1), new Range32.Ptr(94033, 94078, 1), new Range32.Ptr(94095, 94098, 1), new Range32.Ptr(119141, 119145, 1), new Range32.Ptr(119149, 119154, 1), new Range32.Ptr(119163, 119170, 1), new Range32.Ptr(119173, 119179, 1), new Range32.Ptr(119210, 119213, 1), new Range32.Ptr(119362, 119364, 1), new Range32.Ptr(917760, 917999, 1)]), 0);
+		go$pkg.M = _M;
+		_N = new RangeTable.Ptr(new (go$sliceType(Range16))([new Range16.Ptr(48, 57, 1), new Range16.Ptr(178, 179, 1), new Range16.Ptr(185, 188, 3), new Range16.Ptr(189, 190, 1), new Range16.Ptr(1632, 1641, 1), new Range16.Ptr(1776, 1785, 1), new Range16.Ptr(1984, 1993, 1), new Range16.Ptr(2406, 2415, 1), new Range16.Ptr(2534, 2543, 1), new Range16.Ptr(2548, 2553, 1), new Range16.Ptr(2662, 2671, 1), new Range16.Ptr(2790, 2799, 1), new Range16.Ptr(2918, 2927, 1), new Range16.Ptr(2930, 2935, 1), new Range16.Ptr(3046, 3058, 1), new Range16.Ptr(3174, 3183, 1), new Range16.Ptr(3192, 3198, 1), new Range16.Ptr(3302, 3311, 1), new Range16.Ptr(3430, 3445, 1), new Range16.Ptr(3664, 3673, 1), new Range16.Ptr(3792, 3801, 1), new Range16.Ptr(3872, 3891, 1), new Range16.Ptr(4160, 4169, 1), new Range16.Ptr(4240, 4249, 1), new Range16.Ptr(4969, 4988, 1), new Range16.Ptr(5870, 5872, 1), new Range16.Ptr(6112, 6121, 1), new Range16.Ptr(6128, 6137, 1), new Range16.Ptr(6160, 6169, 1), new Range16.Ptr(6470, 6479, 1), new Range16.Ptr(6608, 6618, 1), new Range16.Ptr(6784, 6793, 1), new Range16.Ptr(6800, 6809, 1), new Range16.Ptr(6992, 7001, 1), new Range16.Ptr(7088, 7097, 1), new Range16.Ptr(7232, 7241, 1), new Range16.Ptr(7248, 7257, 1), new Range16.Ptr(8304, 8308, 4), new Range16.Ptr(8309, 8313, 1), new Range16.Ptr(8320, 8329, 1), new Range16.Ptr(8528, 8578, 1), new Range16.Ptr(8581, 8585, 1), new Range16.Ptr(9312, 9371, 1), new Range16.Ptr(9450, 9471, 1), new Range16.Ptr(10102, 10131, 1), new Range16.Ptr(11517, 12295, 778), new Range16.Ptr(12321, 12329, 1), new Range16.Ptr(12344, 12346, 1), new Range16.Ptr(12690, 12693, 1), new Range16.Ptr(12832, 12841, 1), new Range16.Ptr(12872, 12879, 1), new Range16.Ptr(12881, 12895, 1), new Range16.Ptr(12928, 12937, 1), new Range16.Ptr(12977, 12991, 1), new Range16.Ptr(42528, 42537, 1), new Range16.Ptr(42726, 42735, 1), new Range16.Ptr(43056, 43061, 1), new Range16.Ptr(43216, 43225, 1), new Range16.Ptr(43264, 43273, 1), new Range16.Ptr(43472, 43481, 1), new Range16.Ptr(43600, 43609, 1), new Range16.Ptr(44016, 44025, 1), new Range16.Ptr(65296, 65305, 1)]), new (go$sliceType(Range32))([new Range32.Ptr(65799, 65843, 1), new Range32.Ptr(65856, 65912, 1), new Range32.Ptr(65930, 66336, 406), new Range32.Ptr(66337, 66339, 1), new Range32.Ptr(66369, 66378, 9), new Range32.Ptr(66513, 66517, 1), new Range32.Ptr(66720, 66729, 1), new Range32.Ptr(67672, 67679, 1), new Range32.Ptr(67862, 67867, 1), new Range32.Ptr(68160, 68167, 1), new Range32.Ptr(68221, 68222, 1), new Range32.Ptr(68440, 68447, 1), new Range32.Ptr(68472, 68479, 1), new Range32.Ptr(69216, 69246, 1), new Range32.Ptr(69714, 69743, 1), new Range32.Ptr(69872, 69881, 1), new Range32.Ptr(69942, 69951, 1), new Range32.Ptr(70096, 70105, 1), new Range32.Ptr(71360, 71369, 1), new Range32.Ptr(74752, 74850, 1), new Range32.Ptr(119648, 119665, 1), new Range32.Ptr(120782, 120831, 1), new Range32.Ptr(127232, 127242, 1)]), 4);
+		go$pkg.N = _N;
+		_P = new RangeTable.Ptr(new (go$sliceType(Range16))([new Range16.Ptr(33, 35, 1), new Range16.Ptr(37, 42, 1), new Range16.Ptr(44, 47, 1), new Range16.Ptr(58, 59, 1), new Range16.Ptr(63, 64, 1), new Range16.Ptr(91, 93, 1), new Range16.Ptr(95, 123, 28), new Range16.Ptr(125, 161, 36), new Range16.Ptr(167, 171, 4), new Range16.Ptr(182, 183, 1), new Range16.Ptr(187, 191, 4), new Range16.Ptr(894, 903, 9), new Range16.Ptr(1370, 1375, 1), new Range16.Ptr(1417, 1418, 1), new Range16.Ptr(1470, 1472, 2), new Range16.Ptr(1475, 1478, 3), new Range16.Ptr(1523, 1524, 1), new Range16.Ptr(1545, 1546, 1), new Range16.Ptr(1548, 1549, 1), new Range16.Ptr(1563, 1566, 3), new Range16.Ptr(1567, 1642, 75), new Range16.Ptr(1643, 1645, 1), new Range16.Ptr(1748, 1792, 44), new Range16.Ptr(1793, 1805, 1), new Range16.Ptr(2039, 2041, 1), new Range16.Ptr(2096, 2110, 1), new Range16.Ptr(2142, 2404, 262), new Range16.Ptr(2405, 2416, 11), new Range16.Ptr(2800, 3572, 772), new Range16.Ptr(3663, 3674, 11), new Range16.Ptr(3675, 3844, 169), new Range16.Ptr(3845, 3858, 1), new Range16.Ptr(3860, 3898, 38), new Range16.Ptr(3899, 3901, 1), new Range16.Ptr(3973, 4048, 75), new Range16.Ptr(4049, 4052, 1), new Range16.Ptr(4057, 4058, 1), new Range16.Ptr(4170, 4175, 1), new Range16.Ptr(4347, 4960, 613), new Range16.Ptr(4961, 4968, 1), new Range16.Ptr(5120, 5741, 621), new Range16.Ptr(5742, 5787, 45), new Range16.Ptr(5788, 5867, 79), new Range16.Ptr(5868, 5869, 1), new Range16.Ptr(5941, 5942, 1), new Range16.Ptr(6100, 6102, 1), new Range16.Ptr(6104, 6106, 1), new Range16.Ptr(6144, 6154, 1), new Range16.Ptr(6468, 6469, 1), new Range16.Ptr(6686, 6687, 1), new Range16.Ptr(6816, 6822, 1), new Range16.Ptr(6824, 6829, 1), new Range16.Ptr(7002, 7008, 1), new Range16.Ptr(7164, 7167, 1), new Range16.Ptr(7227, 7231, 1), new Range16.Ptr(7294, 7295, 1), new Range16.Ptr(7360, 7367, 1), new Range16.Ptr(7379, 8208, 829), new Range16.Ptr(8209, 8231, 1), new Range16.Ptr(8240, 8259, 1), new Range16.Ptr(8261, 8273, 1), new Range16.Ptr(8275, 8286, 1), new Range16.Ptr(8317, 8318, 1), new Range16.Ptr(8333, 8334, 1), new Range16.Ptr(9001, 9002, 1), new Range16.Ptr(10088, 10101, 1), new Range16.Ptr(10181, 10182, 1), new Range16.Ptr(10214, 10223, 1), new Range16.Ptr(10627, 10648, 1), new Range16.Ptr(10712, 10715, 1), new Range16.Ptr(10748, 10749, 1), new Range16.Ptr(11513, 11516, 1), new Range16.Ptr(11518, 11519, 1), new Range16.Ptr(11632, 11776, 144), new Range16.Ptr(11777, 11822, 1), new Range16.Ptr(11824, 11835, 1), new Range16.Ptr(12289, 12291, 1), new Range16.Ptr(12296, 12305, 1), new Range16.Ptr(12308, 12319, 1), new Range16.Ptr(12336, 12349, 13), new Range16.Ptr(12448, 12539, 91), new Range16.Ptr(42238, 42239, 1), new Range16.Ptr(42509, 42511, 1), new Range16.Ptr(42611, 42622, 11), new Range16.Ptr(42738, 42743, 1), new Range16.Ptr(43124, 43127, 1), new Range16.Ptr(43214, 43215, 1), new Range16.Ptr(43256, 43258, 1), new Range16.Ptr(43310, 43311, 1), new Range16.Ptr(43359, 43457, 98), new Range16.Ptr(43458, 43469, 1), new Range16.Ptr(43486, 43487, 1), new Range16.Ptr(43612, 43615, 1), new Range16.Ptr(43742, 43743, 1), new Range16.Ptr(43760, 43761, 1), new Range16.Ptr(44011, 64830, 20819), new Range16.Ptr(64831, 65040, 209), new Range16.Ptr(65041, 65049, 1), new Range16.Ptr(65072, 65106, 1), new Range16.Ptr(65108, 65121, 1), new Range16.Ptr(65123, 65128, 5), new Range16.Ptr(65130, 65131, 1), new Range16.Ptr(65281, 65283, 1), new Range16.Ptr(65285, 65290, 1), new Range16.Ptr(65292, 65295, 1), new Range16.Ptr(65306, 65307, 1), new Range16.Ptr(65311, 65312, 1), new Range16.Ptr(65339, 65341, 1), new Range16.Ptr(65343, 65371, 28), new Range16.Ptr(65373, 65375, 2), new Range16.Ptr(65376, 65381, 1)]), new (go$sliceType(Range32))([new Range32.Ptr(65792, 65794, 1), new Range32.Ptr(66463, 66512, 49), new Range32.Ptr(67671, 67871, 200), new Range32.Ptr(67903, 68176, 273), new Range32.Ptr(68177, 68184, 1), new Range32.Ptr(68223, 68409, 186), new Range32.Ptr(68410, 68415, 1), new Range32.Ptr(69703, 69709, 1), new Range32.Ptr(69819, 69820, 1), new Range32.Ptr(69822, 69825, 1), new Range32.Ptr(69952, 69955, 1), new Range32.Ptr(70085, 70088, 1), new Range32.Ptr(74864, 74867, 1)]), 11);
+		go$pkg.P = _P;
+		_S = new RangeTable.Ptr(new (go$sliceType(Range16))([new Range16.Ptr(36, 43, 7), new Range16.Ptr(60, 62, 1), new Range16.Ptr(94, 96, 2), new Range16.Ptr(124, 126, 2), new Range16.Ptr(162, 166, 1), new Range16.Ptr(168, 169, 1), new Range16.Ptr(172, 174, 2), new Range16.Ptr(175, 177, 1), new Range16.Ptr(180, 184, 4), new Range16.Ptr(215, 247, 32), new Range16.Ptr(706, 709, 1), new Range16.Ptr(722, 735, 1), new Range16.Ptr(741, 747, 1), new Range16.Ptr(749, 751, 2), new Range16.Ptr(752, 767, 1), new Range16.Ptr(885, 900, 15), new Range16.Ptr(901, 1014, 113), new Range16.Ptr(1154, 1423, 269), new Range16.Ptr(1542, 1544, 1), new Range16.Ptr(1547, 1550, 3), new Range16.Ptr(1551, 1758, 207), new Range16.Ptr(1769, 1789, 20), new Range16.Ptr(1790, 2038, 248), new Range16.Ptr(2546, 2547, 1), new Range16.Ptr(2554, 2555, 1), new Range16.Ptr(2801, 2928, 127), new Range16.Ptr(3059, 3066, 1), new Range16.Ptr(3199, 3449, 250), new Range16.Ptr(3647, 3841, 194), new Range16.Ptr(3842, 3843, 1), new Range16.Ptr(3859, 3861, 2), new Range16.Ptr(3862, 3863, 1), new Range16.Ptr(3866, 3871, 1), new Range16.Ptr(3892, 3896, 2), new Range16.Ptr(4030, 4037, 1), new Range16.Ptr(4039, 4044, 1), new Range16.Ptr(4046, 4047, 1), new Range16.Ptr(4053, 4056, 1), new Range16.Ptr(4254, 4255, 1), new Range16.Ptr(5008, 5017, 1), new Range16.Ptr(6107, 6464, 357), new Range16.Ptr(6622, 6655, 1), new Range16.Ptr(7009, 7018, 1), new Range16.Ptr(7028, 7036, 1), new Range16.Ptr(8125, 8127, 2), new Range16.Ptr(8128, 8129, 1), new Range16.Ptr(8141, 8143, 1), new Range16.Ptr(8157, 8159, 1), new Range16.Ptr(8173, 8175, 1), new Range16.Ptr(8189, 8190, 1), new Range16.Ptr(8260, 8274, 14), new Range16.Ptr(8314, 8316, 1), new Range16.Ptr(8330, 8332, 1), new Range16.Ptr(8352, 8378, 1), new Range16.Ptr(8448, 8449, 1), new Range16.Ptr(8451, 8454, 1), new Range16.Ptr(8456, 8457, 1), new Range16.Ptr(8468, 8470, 2), new Range16.Ptr(8471, 8472, 1), new Range16.Ptr(8478, 8483, 1), new Range16.Ptr(8485, 8489, 2), new Range16.Ptr(8494, 8506, 12), new Range16.Ptr(8507, 8512, 5), new Range16.Ptr(8513, 8516, 1), new Range16.Ptr(8522, 8525, 1), new Range16.Ptr(8527, 8592, 65), new Range16.Ptr(8593, 9000, 1), new Range16.Ptr(9003, 9203, 1), new Range16.Ptr(9216, 9254, 1), new Range16.Ptr(9280, 9290, 1), new Range16.Ptr(9372, 9449, 1), new Range16.Ptr(9472, 9983, 1), new Range16.Ptr(9985, 10087, 1), new Range16.Ptr(10132, 10180, 1), new Range16.Ptr(10183, 10213, 1), new Range16.Ptr(10224, 10626, 1), new Range16.Ptr(10649, 10711, 1), new Range16.Ptr(10716, 10747, 1), new Range16.Ptr(10750, 11084, 1), new Range16.Ptr(11088, 11097, 1), new Range16.Ptr(11493, 11498, 1), new Range16.Ptr(11904, 11929, 1), new Range16.Ptr(11931, 12019, 1), new Range16.Ptr(12032, 12245, 1), new Range16.Ptr(12272, 12283, 1), new Range16.Ptr(12292, 12306, 14), new Range16.Ptr(12307, 12320, 13), new Range16.Ptr(12342, 12343, 1), new Range16.Ptr(12350, 12351, 1), new Range16.Ptr(12443, 12444, 1), new Range16.Ptr(12688, 12689, 1), new Range16.Ptr(12694, 12703, 1), new Range16.Ptr(12736, 12771, 1), new Range16.Ptr(12800, 12830, 1), new Range16.Ptr(12842, 12871, 1), new Range16.Ptr(12880, 12896, 16), new Range16.Ptr(12897, 12927, 1), new Range16.Ptr(12938, 12976, 1), new Range16.Ptr(12992, 13054, 1), new Range16.Ptr(13056, 13311, 1), new Range16.Ptr(19904, 19967, 1), new Range16.Ptr(42128, 42182, 1), new Range16.Ptr(42752, 42774, 1), new Range16.Ptr(42784, 42785, 1), new Range16.Ptr(42889, 42890, 1), new Range16.Ptr(43048, 43051, 1), new Range16.Ptr(43062, 43065, 1), new Range16.Ptr(43639, 43641, 1), new Range16.Ptr(64297, 64434, 137), new Range16.Ptr(64435, 64449, 1), new Range16.Ptr(65020, 65021, 1), new Range16.Ptr(65122, 65124, 2), new Range16.Ptr(65125, 65126, 1), new Range16.Ptr(65129, 65284, 155), new Range16.Ptr(65291, 65308, 17), new Range16.Ptr(65309, 65310, 1), new Range16.Ptr(65342, 65344, 2), new Range16.Ptr(65372, 65374, 2), new Range16.Ptr(65504, 65510, 1), new Range16.Ptr(65512, 65518, 1), new Range16.Ptr(65532, 65533, 1)]), new (go$sliceType(Range32))([new Range32.Ptr(65847, 65855, 1), new Range32.Ptr(65913, 65929, 1), new Range32.Ptr(65936, 65947, 1), new Range32.Ptr(66000, 66044, 1), new Range32.Ptr(118784, 119029, 1), new Range32.Ptr(119040, 119078, 1), new Range32.Ptr(119081, 119140, 1), new Range32.Ptr(119146, 119148, 1), new Range32.Ptr(119171, 119172, 1), new Range32.Ptr(119180, 119209, 1), new Range32.Ptr(119214, 119261, 1), new Range32.Ptr(119296, 119361, 1), new Range32.Ptr(119365, 119552, 187), new Range32.Ptr(119553, 119638, 1), new Range32.Ptr(120513, 120539, 26), new Range32.Ptr(120571, 120597, 26), new Range32.Ptr(120629, 120655, 26), new Range32.Ptr(120687, 120713, 26), new Range32.Ptr(120745, 120771, 26), new Range32.Ptr(126704, 126705, 1), new Range32.Ptr(126976, 127019, 1), new Range32.Ptr(127024, 127123, 1), new Range32.Ptr(127136, 127150, 1), new Range32.Ptr(127153, 127166, 1), new Range32.Ptr(127169, 127183, 1), new Range32.Ptr(127185, 127199, 1), new Range32.Ptr(127248, 127278, 1), new Range32.Ptr(127280, 127339, 1), new Range32.Ptr(127344, 127386, 1), new Range32.Ptr(127462, 127490, 1), new Range32.Ptr(127504, 127546, 1), new Range32.Ptr(127552, 127560, 1), new Range32.Ptr(127568, 127569, 1), new Range32.Ptr(127744, 127776, 1), new Range32.Ptr(127792, 127797, 1), new Range32.Ptr(127799, 127868, 1), new Range32.Ptr(127872, 127891, 1), new Range32.Ptr(127904, 127940, 1), new Range32.Ptr(127942, 127946, 1), new Range32.Ptr(127968, 127984, 1), new Range32.Ptr(128000, 128062, 1), new Range32.Ptr(128064, 128066, 2), new Range32.Ptr(128067, 128247, 1), new Range32.Ptr(128249, 128252, 1), new Range32.Ptr(128256, 128317, 1), new Range32.Ptr(128320, 128323, 1), new Range32.Ptr(128336, 128359, 1), new Range32.Ptr(128507, 128576, 1), new Range32.Ptr(128581, 128591, 1), new Range32.Ptr(128640, 128709, 1), new Range32.Ptr(128768, 128883, 1)]), 10);
+		go$pkg.S = _S;
+		go$pkg.PrintRanges = new (go$sliceType((go$ptrType(RangeTable))))([go$pkg.L, go$pkg.M, go$pkg.N, go$pkg.P, go$pkg.S]);
+		_Nd = new RangeTable.Ptr(new (go$sliceType(Range16))([new Range16.Ptr(48, 57, 1), new Range16.Ptr(1632, 1641, 1), new Range16.Ptr(1776, 1785, 1), new Range16.Ptr(1984, 1993, 1), new Range16.Ptr(2406, 2415, 1), new Range16.Ptr(2534, 2543, 1), new Range16.Ptr(2662, 2671, 1), new Range16.Ptr(2790, 2799, 1), new Range16.Ptr(2918, 2927, 1), new Range16.Ptr(3046, 3055, 1), new Range16.Ptr(3174, 3183, 1), new Range16.Ptr(3302, 3311, 1), new Range16.Ptr(3430, 3439, 1), new Range16.Ptr(3664, 3673, 1), new Range16.Ptr(3792, 3801, 1), new Range16.Ptr(3872, 3881, 1), new Range16.Ptr(4160, 4169, 1), new Range16.Ptr(4240, 4249, 1), new Range16.Ptr(6112, 6121, 1), new Range16.Ptr(6160, 6169, 1), new Range16.Ptr(6470, 6479, 1), new Range16.Ptr(6608, 6617, 1), new Range16.Ptr(6784, 6793, 1), new Range16.Ptr(6800, 6809, 1), new Range16.Ptr(6992, 7001, 1), new Range16.Ptr(7088, 7097, 1), new Range16.Ptr(7232, 7241, 1), new Range16.Ptr(7248, 7257, 1), new Range16.Ptr(42528, 42537, 1), new Range16.Ptr(43216, 43225, 1), new Range16.Ptr(43264, 43273, 1), new Range16.Ptr(43472, 43481, 1), new Range16.Ptr(43600, 43609, 1), new Range16.Ptr(44016, 44025, 1), new Range16.Ptr(65296, 65305, 1)]), new (go$sliceType(Range32))([new Range32.Ptr(66720, 66729, 1), new Range32.Ptr(69734, 69743, 1), new Range32.Ptr(69872, 69881, 1), new Range32.Ptr(69942, 69951, 1), new Range32.Ptr(70096, 70105, 1), new Range32.Ptr(71360, 71369, 1), new Range32.Ptr(120782, 120831, 1)]), 1);
+		go$pkg.Digit = _Nd;
+		go$pkg.Letter = _L;
+		_White_Space = new RangeTable.Ptr(new (go$sliceType(Range16))([new Range16.Ptr(9, 13, 1), new Range16.Ptr(32, 32, 1), new Range16.Ptr(133, 133, 1), new Range16.Ptr(160, 160, 1), new Range16.Ptr(5760, 5760, 1), new Range16.Ptr(6158, 6158, 1), new Range16.Ptr(8192, 8202, 1), new Range16.Ptr(8232, 8233, 1), new Range16.Ptr(8239, 8239, 1), new Range16.Ptr(8287, 8287, 1), new Range16.Ptr(12288, 12288, 1)]), (go$sliceType(Range32)).nil, 4);
+		go$pkg.White_Space = _White_Space;
+		_CaseRanges = new (go$sliceType(CaseRange))([new CaseRange.Ptr(65, 90, go$toNativeArray("Int32", [0, 32, 0])), new CaseRange.Ptr(97, 122, go$toNativeArray("Int32", [-32, 0, -32])), new CaseRange.Ptr(181, 181, go$toNativeArray("Int32", [743, 0, 743])), new CaseRange.Ptr(192, 214, go$toNativeArray("Int32", [0, 32, 0])), new CaseRange.Ptr(216, 222, go$toNativeArray("Int32", [0, 32, 0])), new CaseRange.Ptr(224, 246, go$toNativeArray("Int32", [-32, 0, -32])), new CaseRange.Ptr(248, 254, go$toNativeArray("Int32", [-32, 0, -32])), new CaseRange.Ptr(255, 255, go$toNativeArray("Int32", [121, 0, 121])), new CaseRange.Ptr(256, 303, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(304, 304, go$toNativeArray("Int32", [0, -199, 0])), new CaseRange.Ptr(305, 305, go$toNativeArray("Int32", [-232, 0, -232])), new CaseRange.Ptr(306, 311, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(313, 328, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(330, 375, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(376, 376, go$toNativeArray("Int32", [0, -121, 0])), new CaseRange.Ptr(377, 382, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(383, 383, go$toNativeArray("Int32", [-300, 0, -300])), new CaseRange.Ptr(384, 384, go$toNativeArray("Int32", [195, 0, 195])), new CaseRange.Ptr(385, 385, go$toNativeArray("Int32", [0, 210, 0])), new CaseRange.Ptr(386, 389, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(390, 390, go$toNativeArray("Int32", [0, 206, 0])), new CaseRange.Ptr(391, 392, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(393, 394, go$toNativeArray("Int32", [0, 205, 0])), new CaseRange.Ptr(395, 396, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(398, 398, go$toNativeArray("Int32", [0, 79, 0])), new CaseRange.Ptr(399, 399, go$toNativeArray("Int32", [0, 202, 0])), new CaseRange.Ptr(400, 400, go$toNativeArray("Int32", [0, 203, 0])), new CaseRange.Ptr(401, 402, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(403, 403, go$toNativeArray("Int32", [0, 205, 0])), new CaseRange.Ptr(404, 404, go$toNativeArray("Int32", [0, 207, 0])), new CaseRange.Ptr(405, 405, go$toNativeArray("Int32", [97, 0, 97])), new CaseRange.Ptr(406, 406, go$toNativeArray("Int32", [0, 211, 0])), new CaseRange.Ptr(407, 407, go$toNativeArray("Int32", [0, 209, 0])), new CaseRange.Ptr(408, 409, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(410, 410, go$toNativeArray("Int32", [163, 0, 163])), new CaseRange.Ptr(412, 412, go$toNativeArray("Int32", [0, 211, 0])), new CaseRange.Ptr(413, 413, go$toNativeArray("Int32", [0, 213, 0])), new CaseRange.Ptr(414, 414, go$toNativeArray("Int32", [130, 0, 130])), new CaseRange.Ptr(415, 415, go$toNativeArray("Int32", [0, 214, 0])), new CaseRange.Ptr(416, 421, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(422, 422, go$toNativeArray("Int32", [0, 218, 0])), new CaseRange.Ptr(423, 424, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(425, 425, go$toNativeArray("Int32", [0, 218, 0])), new CaseRange.Ptr(428, 429, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(430, 430, go$toNativeArray("Int32", [0, 218, 0])), new CaseRange.Ptr(431, 432, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(433, 434, go$toNativeArray("Int32", [0, 217, 0])), new CaseRange.Ptr(435, 438, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(439, 439, go$toNativeArray("Int32", [0, 219, 0])), new CaseRange.Ptr(440, 441, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(444, 445, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(447, 447, go$toNativeArray("Int32", [56, 0, 56])), new CaseRange.Ptr(452, 452, go$toNativeArray("Int32", [0, 2, 1])), new CaseRange.Ptr(453, 453, go$toNativeArray("Int32", [-1, 1, 0])), new CaseRange.Ptr(454, 454, go$toNativeArray("Int32", [-2, 0, -1])), new CaseRange.Ptr(455, 455, go$toNativeArray("Int32", [0, 2, 1])), new CaseRange.Ptr(456, 456, go$toNativeArray("Int32", [-1, 1, 0])), new CaseRange.Ptr(457, 457, go$toNativeArray("Int32", [-2, 0, -1])), new CaseRange.Ptr(458, 458, go$toNativeArray("Int32", [0, 2, 1])), new CaseRange.Ptr(459, 459, go$toNativeArray("Int32", [-1, 1, 0])), new CaseRange.Ptr(460, 460, go$toNativeArray("Int32", [-2, 0, -1])), new CaseRange.Ptr(461, 476, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(477, 477, go$toNativeArray("Int32", [-79, 0, -79])), new CaseRange.Ptr(478, 495, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(497, 497, go$toNativeArray("Int32", [0, 2, 1])), new CaseRange.Ptr(498, 498, go$toNativeArray("Int32", [-1, 1, 0])), new CaseRange.Ptr(499, 499, go$toNativeArray("Int32", [-2, 0, -1])), new CaseRange.Ptr(500, 501, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(502, 502, go$toNativeArray("Int32", [0, -97, 0])), new CaseRange.Ptr(503, 503, go$toNativeArray("Int32", [0, -56, 0])), new CaseRange.Ptr(504, 543, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(544, 544, go$toNativeArray("Int32", [0, -130, 0])), new CaseRange.Ptr(546, 563, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(570, 570, go$toNativeArray("Int32", [0, 10795, 0])), new CaseRange.Ptr(571, 572, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(573, 573, go$toNativeArray("Int32", [0, -163, 0])), new CaseRange.Ptr(574, 574, go$toNativeArray("Int32", [0, 10792, 0])), new CaseRange.Ptr(575, 576, go$toNativeArray("Int32", [10815, 0, 10815])), new CaseRange.Ptr(577, 578, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(579, 579, go$toNativeArray("Int32", [0, -195, 0])), new CaseRange.Ptr(580, 580, go$toNativeArray("Int32", [0, 69, 0])), new CaseRange.Ptr(581, 581, go$toNativeArray("Int32", [0, 71, 0])), new CaseRange.Ptr(582, 591, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(592, 592, go$toNativeArray("Int32", [10783, 0, 10783])), new CaseRange.Ptr(593, 593, go$toNativeArray("Int32", [10780, 0, 10780])), new CaseRange.Ptr(594, 594, go$toNativeArray("Int32", [10782, 0, 10782])), new CaseRange.Ptr(595, 595, go$toNativeArray("Int32", [-210, 0, -210])), new CaseRange.Ptr(596, 596, go$toNativeArray("Int32", [-206, 0, -206])), new CaseRange.Ptr(598, 599, go$toNativeArray("Int32", [-205, 0, -205])), new CaseRange.Ptr(601, 601, go$toNativeArray("Int32", [-202, 0, -202])), new CaseRange.Ptr(603, 603, go$toNativeArray("Int32", [-203, 0, -203])), new CaseRange.Ptr(608, 608, go$toNativeArray("Int32", [-205, 0, -205])), new CaseRange.Ptr(611, 611, go$toNativeArray("Int32", [-207, 0, -207])), new CaseRange.Ptr(613, 613, go$toNativeArray("Int32", [42280, 0, 42280])), new CaseRange.Ptr(614, 614, go$toNativeArray("Int32", [42308, 0, 42308])), new CaseRange.Ptr(616, 616, go$toNativeArray("Int32", [-209, 0, -209])), new CaseRange.Ptr(617, 617, go$toNativeArray("Int32", [-211, 0, -211])), new CaseRange.Ptr(619, 619, go$toNativeArray("Int32", [10743, 0, 10743])), new CaseRange.Ptr(623, 623, go$toNativeArray("Int32", [-211, 0, -211])), new CaseRange.Ptr(625, 625, go$toNativeArray("Int32", [10749, 0, 10749])), new CaseRange.Ptr(626, 626, go$toNativeArray("Int32", [-213, 0, -213])), new CaseRange.Ptr(629, 629, go$toNativeArray("Int32", [-214, 0, -214])), new CaseRange.Ptr(637, 637, go$toNativeArray("Int32", [10727, 0, 10727])), new CaseRange.Ptr(640, 640, go$toNativeArray("Int32", [-218, 0, -218])), new CaseRange.Ptr(643, 643, go$toNativeArray("Int32", [-218, 0, -218])), new CaseRange.Ptr(648, 648, go$toNativeArray("Int32", [-218, 0, -218])), new CaseRange.Ptr(649, 649, go$toNativeArray("Int32", [-69, 0, -69])), new CaseRange.Ptr(650, 651, go$toNativeArray("Int32", [-217, 0, -217])), new CaseRange.Ptr(652, 652, go$toNativeArray("Int32", [-71, 0, -71])), new CaseRange.Ptr(658, 658, go$toNativeArray("Int32", [-219, 0, -219])), new CaseRange.Ptr(837, 837, go$toNativeArray("Int32", [84, 0, 84])), new CaseRange.Ptr(880, 883, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(886, 887, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(891, 893, go$toNativeArray("Int32", [130, 0, 130])), new CaseRange.Ptr(902, 902, go$toNativeArray("Int32", [0, 38, 0])), new CaseRange.Ptr(904, 906, go$toNativeArray("Int32", [0, 37, 0])), new CaseRange.Ptr(908, 908, go$toNativeArray("Int32", [0, 64, 0])), new CaseRange.Ptr(910, 911, go$toNativeArray("Int32", [0, 63, 0])), new CaseRange.Ptr(913, 929, go$toNativeArray("Int32", [0, 32, 0])), new CaseRange.Ptr(931, 939, go$toNativeArray("Int32", [0, 32, 0])), new CaseRange.Ptr(940, 940, go$toNativeArray("Int32", [-38, 0, -38])), new CaseRange.Ptr(941, 943, go$toNativeArray("Int32", [-37, 0, -37])), new CaseRange.Ptr(945, 961, go$toNativeArray("Int32", [-32, 0, -32])), new CaseRange.Ptr(962, 962, go$toNativeArray("Int32", [-31, 0, -31])), new CaseRange.Ptr(963, 971, go$toNativeArray("Int32", [-32, 0, -32])), new CaseRange.Ptr(972, 972, go$toNativeArray("Int32", [-64, 0, -64])), new CaseRange.Ptr(973, 974, go$toNativeArray("Int32", [-63, 0, -63])), new CaseRange.Ptr(975, 975, go$toNativeArray("Int32", [0, 8, 0])), new CaseRange.Ptr(976, 976, go$toNativeArray("Int32", [-62, 0, -62])), new CaseRange.Ptr(977, 977, go$toNativeArray("Int32", [-57, 0, -57])), new CaseRange.Ptr(981, 981, go$toNativeArray("Int32", [-47, 0, -47])), new CaseRange.Ptr(982, 982, go$toNativeArray("Int32", [-54, 0, -54])), new CaseRange.Ptr(983, 983, go$toNativeArray("Int32", [-8, 0, -8])), new CaseRange.Ptr(984, 1007, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(1008, 1008, go$toNativeArray("Int32", [-86, 0, -86])), new CaseRange.Ptr(1009, 1009, go$toNativeArray("Int32", [-80, 0, -80])), new CaseRange.Ptr(1010, 1010, go$toNativeArray("Int32", [7, 0, 7])), new CaseRange.Ptr(1012, 1012, go$toNativeArray("Int32", [0, -60, 0])), new CaseRange.Ptr(1013, 1013, go$toNativeArray("Int32", [-96, 0, -96])), new CaseRange.Ptr(1015, 1016, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(1017, 1017, go$toNativeArray("Int32", [0, -7, 0])), new CaseRange.Ptr(1018, 1019, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(1021, 1023, go$toNativeArray("Int32", [0, -130, 0])), new CaseRange.Ptr(1024, 1039, go$toNativeArray("Int32", [0, 80, 0])), new CaseRange.Ptr(1040, 1071, go$toNativeArray("Int32", [0, 32, 0])), new CaseRange.Ptr(1072, 1103, go$toNativeArray("Int32", [-32, 0, -32])), new CaseRange.Ptr(1104, 1119, go$toNativeArray("Int32", [-80, 0, -80])), new CaseRange.Ptr(1120, 1153, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(1162, 1215, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(1216, 1216, go$toNativeArray("Int32", [0, 15, 0])), new CaseRange.Ptr(1217, 1230, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(1231, 1231, go$toNativeArray("Int32", [-15, 0, -15])), new CaseRange.Ptr(1232, 1319, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(1329, 1366, go$toNativeArray("Int32", [0, 48, 0])), new CaseRange.Ptr(1377, 1414, go$toNativeArray("Int32", [-48, 0, -48])), new CaseRange.Ptr(4256, 4293, go$toNativeArray("Int32", [0, 7264, 0])), new CaseRange.Ptr(4295, 4295, go$toNativeArray("Int32", [0, 7264, 0])), new CaseRange.Ptr(4301, 4301, go$toNativeArray("Int32", [0, 7264, 0])), new CaseRange.Ptr(7545, 7545, go$toNativeArray("Int32", [35332, 0, 35332])), new CaseRange.Ptr(7549, 7549, go$toNativeArray("Int32", [3814, 0, 3814])), new CaseRange.Ptr(7680, 7829, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(7835, 7835, go$toNativeArray("Int32", [-59, 0, -59])), new CaseRange.Ptr(7838, 7838, go$toNativeArray("Int32", [0, -7615, 0])), new CaseRange.Ptr(7840, 7935, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(7936, 7943, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(7944, 7951, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(7952, 7957, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(7960, 7965, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(7968, 7975, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(7976, 7983, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(7984, 7991, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(7992, 7999, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8000, 8005, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8008, 8013, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8017, 8017, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8019, 8019, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8021, 8021, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8023, 8023, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8025, 8025, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8027, 8027, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8029, 8029, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8031, 8031, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8032, 8039, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8040, 8047, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8048, 8049, go$toNativeArray("Int32", [74, 0, 74])), new CaseRange.Ptr(8050, 8053, go$toNativeArray("Int32", [86, 0, 86])), new CaseRange.Ptr(8054, 8055, go$toNativeArray("Int32", [100, 0, 100])), new CaseRange.Ptr(8056, 8057, go$toNativeArray("Int32", [128, 0, 128])), new CaseRange.Ptr(8058, 8059, go$toNativeArray("Int32", [112, 0, 112])), new CaseRange.Ptr(8060, 8061, go$toNativeArray("Int32", [126, 0, 126])), new CaseRange.Ptr(8064, 8071, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8072, 8079, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8080, 8087, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8088, 8095, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8096, 8103, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8104, 8111, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8112, 8113, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8115, 8115, go$toNativeArray("Int32", [9, 0, 9])), new CaseRange.Ptr(8120, 8121, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8122, 8123, go$toNativeArray("Int32", [0, -74, 0])), new CaseRange.Ptr(8124, 8124, go$toNativeArray("Int32", [0, -9, 0])), new CaseRange.Ptr(8126, 8126, go$toNativeArray("Int32", [-7205, 0, -7205])), new CaseRange.Ptr(8131, 8131, go$toNativeArray("Int32", [9, 0, 9])), new CaseRange.Ptr(8136, 8139, go$toNativeArray("Int32", [0, -86, 0])), new CaseRange.Ptr(8140, 8140, go$toNativeArray("Int32", [0, -9, 0])), new CaseRange.Ptr(8144, 8145, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8152, 8153, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8154, 8155, go$toNativeArray("Int32", [0, -100, 0])), new CaseRange.Ptr(8160, 8161, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8165, 8165, go$toNativeArray("Int32", [7, 0, 7])), new CaseRange.Ptr(8168, 8169, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8170, 8171, go$toNativeArray("Int32", [0, -112, 0])), new CaseRange.Ptr(8172, 8172, go$toNativeArray("Int32", [0, -7, 0])), new CaseRange.Ptr(8179, 8179, go$toNativeArray("Int32", [9, 0, 9])), new CaseRange.Ptr(8184, 8185, go$toNativeArray("Int32", [0, -128, 0])), new CaseRange.Ptr(8186, 8187, go$toNativeArray("Int32", [0, -126, 0])), new CaseRange.Ptr(8188, 8188, go$toNativeArray("Int32", [0, -9, 0])), new CaseRange.Ptr(8486, 8486, go$toNativeArray("Int32", [0, -7517, 0])), new CaseRange.Ptr(8490, 8490, go$toNativeArray("Int32", [0, -8383, 0])), new CaseRange.Ptr(8491, 8491, go$toNativeArray("Int32", [0, -8262, 0])), new CaseRange.Ptr(8498, 8498, go$toNativeArray("Int32", [0, 28, 0])), new CaseRange.Ptr(8526, 8526, go$toNativeArray("Int32", [-28, 0, -28])), new CaseRange.Ptr(8544, 8559, go$toNativeArray("Int32", [0, 16, 0])), new CaseRange.Ptr(8560, 8575, go$toNativeArray("Int32", [-16, 0, -16])), new CaseRange.Ptr(8579, 8580, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(9398, 9423, go$toNativeArray("Int32", [0, 26, 0])), new CaseRange.Ptr(9424, 9449, go$toNativeArray("Int32", [-26, 0, -26])), new CaseRange.Ptr(11264, 11310, go$toNativeArray("Int32", [0, 48, 0])), new CaseRange.Ptr(11312, 11358, go$toNativeArray("Int32", [-48, 0, -48])), new CaseRange.Ptr(11360, 11361, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(11362, 11362, go$toNativeArray("Int32", [0, -10743, 0])), new CaseRange.Ptr(11363, 11363, go$toNativeArray("Int32", [0, -3814, 0])), new CaseRange.Ptr(11364, 11364, go$toNativeArray("Int32", [0, -10727, 0])), new CaseRange.Ptr(11365, 11365, go$toNativeArray("Int32", [-10795, 0, -10795])), new CaseRange.Ptr(11366, 11366, go$toNativeArray("Int32", [-10792, 0, -10792])), new CaseRange.Ptr(11367, 11372, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(11373, 11373, go$toNativeArray("Int32", [0, -10780, 0])), new CaseRange.Ptr(11374, 11374, go$toNativeArray("Int32", [0, -10749, 0])), new CaseRange.Ptr(11375, 11375, go$toNativeArray("Int32", [0, -10783, 0])), new CaseRange.Ptr(11376, 11376, go$toNativeArray("Int32", [0, -10782, 0])), new CaseRange.Ptr(11378, 11379, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(11381, 11382, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(11390, 11391, go$toNativeArray("Int32", [0, -10815, 0])), new CaseRange.Ptr(11392, 11491, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(11499, 11502, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(11506, 11507, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(11520, 11557, go$toNativeArray("Int32", [-7264, 0, -7264])), new CaseRange.Ptr(11559, 11559, go$toNativeArray("Int32", [-7264, 0, -7264])), new CaseRange.Ptr(11565, 11565, go$toNativeArray("Int32", [-7264, 0, -7264])), new CaseRange.Ptr(42560, 42605, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42624, 42647, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42786, 42799, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42802, 42863, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42873, 42876, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42877, 42877, go$toNativeArray("Int32", [0, -35332, 0])), new CaseRange.Ptr(42878, 42887, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42891, 42892, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42893, 42893, go$toNativeArray("Int32", [0, -42280, 0])), new CaseRange.Ptr(42896, 42899, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42912, 42921, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42922, 42922, go$toNativeArray("Int32", [0, -42308, 0])), new CaseRange.Ptr(65313, 65338, go$toNativeArray("Int32", [0, 32, 0])), new CaseRange.Ptr(65345, 65370, go$toNativeArray("Int32", [-32, 0, -32])), new CaseRange.Ptr(66560, 66599, go$toNativeArray("Int32", [0, 40, 0])), new CaseRange.Ptr(66600, 66639, go$toNativeArray("Int32", [-40, 0, -40]))]);
+		go$pkg.CaseRanges = _CaseRanges;
+		properties = go$toNativeArray("Uint8", [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 144, 130, 130, 130, 136, 130, 130, 130, 130, 130, 130, 136, 130, 130, 130, 130, 132, 132, 132, 132, 132, 132, 132, 132, 132, 132, 130, 130, 136, 136, 136, 130, 130, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 130, 130, 130, 136, 130, 136, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 130, 136, 130, 136, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 16, 130, 136, 136, 136, 136, 136, 130, 136, 136, 224, 130, 136, 0, 136, 136, 136, 136, 132, 132, 136, 192, 130, 130, 136, 132, 224, 130, 132, 132, 132, 130, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 136, 160, 160, 160, 160, 160, 160, 160, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 136, 192, 192, 192, 192, 192, 192, 192, 192]);
+		caseOrbit = new (go$sliceType(foldPair))([new foldPair.Ptr(75, 107), new foldPair.Ptr(83, 115), new foldPair.Ptr(107, 8490), new foldPair.Ptr(115, 383), new foldPair.Ptr(181, 924), new foldPair.Ptr(197, 229), new foldPair.Ptr(223, 7838), new foldPair.Ptr(229, 8491), new foldPair.Ptr(304, 304), new foldPair.Ptr(305, 305), new foldPair.Ptr(383, 83), new foldPair.Ptr(452, 453), new foldPair.Ptr(453, 454), new foldPair.Ptr(454, 452), new foldPair.Ptr(455, 456), new foldPair.Ptr(456, 457), new foldPair.Ptr(457, 455), new foldPair.Ptr(458, 459), new foldPair.Ptr(459, 460), new foldPair.Ptr(460, 458), new foldPair.Ptr(497, 498), new foldPair.Ptr(498, 499), new foldPair.Ptr(499, 497), new foldPair.Ptr(837, 921), new foldPair.Ptr(914, 946), new foldPair.Ptr(917, 949), new foldPair.Ptr(920, 952), new foldPair.Ptr(921, 953), new foldPair.Ptr(922, 954), new foldPair.Ptr(924, 956), new foldPair.Ptr(928, 960), new foldPair.Ptr(929, 961), new foldPair.Ptr(931, 962), new foldPair.Ptr(934, 966), new foldPair.Ptr(937, 969), new foldPair.Ptr(946, 976), new foldPair.Ptr(949, 1013), new foldPair.Ptr(952, 977), new foldPair.Ptr(953, 8126), new foldPair.Ptr(954, 1008), new foldPair.Ptr(956, 181), new foldPair.Ptr(960, 982), new foldPair.Ptr(961, 1009), new foldPair.Ptr(962, 963), new foldPair.Ptr(963, 931), new foldPair.Ptr(966, 981), new foldPair.Ptr(969, 8486), new foldPair.Ptr(976, 914), new foldPair.Ptr(977, 1012), new foldPair.Ptr(981, 934), new foldPair.Ptr(982, 928), new foldPair.Ptr(1008, 922), new foldPair.Ptr(1009, 929), new foldPair.Ptr(1012, 920), new foldPair.Ptr(1013, 917), new foldPair.Ptr(7776, 7777), new foldPair.Ptr(7777, 7835), new foldPair.Ptr(7835, 7776), new foldPair.Ptr(7838, 223), new foldPair.Ptr(8126, 837), new foldPair.Ptr(8486, 937), new foldPair.Ptr(8490, 75), new foldPair.Ptr(8491, 197)]);
+	}
+	return go$pkg;
+})();
+go$packages["unicode/utf8"] = (function() {
+	var go$pkg = {}, decodeRuneInternal, decodeRuneInStringInternal, FullRune, DecodeRune, DecodeRuneInString, DecodeLastRune, RuneLen, EncodeRune, RuneCountInString, RuneStart;
+	decodeRuneInternal = function(p) {
+		var r, size, short$1, n, _tuple, _slice, _index, c0, _tuple$1, _tuple$2, _tuple$3, _slice$1, _index$1, c1, _tuple$4, _tuple$5, _tuple$6, _tuple$7, _slice$2, _index$2, c2, _tuple$8, _tuple$9, _tuple$10, _tuple$11, _tuple$12, _slice$3, _index$3, c3, _tuple$13, _tuple$14, _tuple$15, _tuple$16;
+		r = 0;
+		size = 0;
+		short$1 = false;
+		n = p.length;
+		if (n < 1) {
+			_tuple = [65533, 0, true]; r = _tuple[0]; size = _tuple[1]; short$1 = _tuple[2];
+			return [r, size, short$1];
+		}
+		c0 = (_slice = p, _index = 0, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+		if (c0 < 128) {
+			_tuple$1 = [(c0 >> 0), 1, false]; r = _tuple$1[0]; size = _tuple$1[1]; short$1 = _tuple$1[2];
+			return [r, size, short$1];
+		}
+		if (c0 < 192) {
+			_tuple$2 = [65533, 1, false]; r = _tuple$2[0]; size = _tuple$2[1]; short$1 = _tuple$2[2];
+			return [r, size, short$1];
+		}
+		if (n < 2) {
+			_tuple$3 = [65533, 1, true]; r = _tuple$3[0]; size = _tuple$3[1]; short$1 = _tuple$3[2];
+			return [r, size, short$1];
+		}
+		c1 = (_slice$1 = p, _index$1 = 1, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
+		if (c1 < 128 || 192 <= c1) {
+			_tuple$4 = [65533, 1, false]; r = _tuple$4[0]; size = _tuple$4[1]; short$1 = _tuple$4[2];
+			return [r, size, short$1];
+		}
+		if (c0 < 224) {
+			r = ((((c0 & 31) >>> 0) >> 0) << 6 >> 0) | (((c1 & 63) >>> 0) >> 0);
+			if (r <= 127) {
+				_tuple$5 = [65533, 1, false]; r = _tuple$5[0]; size = _tuple$5[1]; short$1 = _tuple$5[2];
+				return [r, size, short$1];
+			}
+			_tuple$6 = [r, 2, false]; r = _tuple$6[0]; size = _tuple$6[1]; short$1 = _tuple$6[2];
+			return [r, size, short$1];
+		}
+		if (n < 3) {
+			_tuple$7 = [65533, 1, true]; r = _tuple$7[0]; size = _tuple$7[1]; short$1 = _tuple$7[2];
+			return [r, size, short$1];
+		}
+		c2 = (_slice$2 = p, _index$2 = 2, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range"));
+		if (c2 < 128 || 192 <= c2) {
+			_tuple$8 = [65533, 1, false]; r = _tuple$8[0]; size = _tuple$8[1]; short$1 = _tuple$8[2];
+			return [r, size, short$1];
+		}
+		if (c0 < 240) {
+			r = (((((c0 & 15) >>> 0) >> 0) << 12 >> 0) | ((((c1 & 63) >>> 0) >> 0) << 6 >> 0)) | (((c2 & 63) >>> 0) >> 0);
+			if (r <= 2047) {
+				_tuple$9 = [65533, 1, false]; r = _tuple$9[0]; size = _tuple$9[1]; short$1 = _tuple$9[2];
+				return [r, size, short$1];
+			}
+			if (55296 <= r && r <= 57343) {
+				_tuple$10 = [65533, 1, false]; r = _tuple$10[0]; size = _tuple$10[1]; short$1 = _tuple$10[2];
+				return [r, size, short$1];
+			}
+			_tuple$11 = [r, 3, false]; r = _tuple$11[0]; size = _tuple$11[1]; short$1 = _tuple$11[2];
+			return [r, size, short$1];
+		}
+		if (n < 4) {
+			_tuple$12 = [65533, 1, true]; r = _tuple$12[0]; size = _tuple$12[1]; short$1 = _tuple$12[2];
+			return [r, size, short$1];
+		}
+		c3 = (_slice$3 = p, _index$3 = 3, (_index$3 >= 0 && _index$3 < _slice$3.length) ? _slice$3.array[_slice$3.offset + _index$3] : go$throwRuntimeError("index out of range"));
+		if (c3 < 128 || 192 <= c3) {
+			_tuple$13 = [65533, 1, false]; r = _tuple$13[0]; size = _tuple$13[1]; short$1 = _tuple$13[2];
+			return [r, size, short$1];
+		}
+		if (c0 < 248) {
+			r = ((((((c0 & 7) >>> 0) >> 0) << 18 >> 0) | ((((c1 & 63) >>> 0) >> 0) << 12 >> 0)) | ((((c2 & 63) >>> 0) >> 0) << 6 >> 0)) | (((c3 & 63) >>> 0) >> 0);
+			if (r <= 65535 || 1114111 < r) {
+				_tuple$14 = [65533, 1, false]; r = _tuple$14[0]; size = _tuple$14[1]; short$1 = _tuple$14[2];
+				return [r, size, short$1];
+			}
+			_tuple$15 = [r, 4, false]; r = _tuple$15[0]; size = _tuple$15[1]; short$1 = _tuple$15[2];
+			return [r, size, short$1];
+		}
+		_tuple$16 = [65533, 1, false]; r = _tuple$16[0]; size = _tuple$16[1]; short$1 = _tuple$16[2];
+		return [r, size, short$1];
+	};
+	decodeRuneInStringInternal = function(s) {
+		var r, size, short$1, n, _tuple, c0, _tuple$1, _tuple$2, _tuple$3, c1, _tuple$4, _tuple$5, _tuple$6, _tuple$7, c2, _tuple$8, _tuple$9, _tuple$10, _tuple$11, _tuple$12, c3, _tuple$13, _tuple$14, _tuple$15, _tuple$16;
+		r = 0;
+		size = 0;
+		short$1 = false;
+		n = s.length;
+		if (n < 1) {
+			_tuple = [65533, 0, true]; r = _tuple[0]; size = _tuple[1]; short$1 = _tuple[2];
+			return [r, size, short$1];
+		}
+		c0 = s.charCodeAt(0);
+		if (c0 < 128) {
+			_tuple$1 = [(c0 >> 0), 1, false]; r = _tuple$1[0]; size = _tuple$1[1]; short$1 = _tuple$1[2];
+			return [r, size, short$1];
+		}
+		if (c0 < 192) {
+			_tuple$2 = [65533, 1, false]; r = _tuple$2[0]; size = _tuple$2[1]; short$1 = _tuple$2[2];
+			return [r, size, short$1];
+		}
+		if (n < 2) {
+			_tuple$3 = [65533, 1, true]; r = _tuple$3[0]; size = _tuple$3[1]; short$1 = _tuple$3[2];
+			return [r, size, short$1];
+		}
+		c1 = s.charCodeAt(1);
+		if (c1 < 128 || 192 <= c1) {
+			_tuple$4 = [65533, 1, false]; r = _tuple$4[0]; size = _tuple$4[1]; short$1 = _tuple$4[2];
+			return [r, size, short$1];
+		}
+		if (c0 < 224) {
+			r = ((((c0 & 31) >>> 0) >> 0) << 6 >> 0) | (((c1 & 63) >>> 0) >> 0);
+			if (r <= 127) {
+				_tuple$5 = [65533, 1, false]; r = _tuple$5[0]; size = _tuple$5[1]; short$1 = _tuple$5[2];
+				return [r, size, short$1];
+			}
+			_tuple$6 = [r, 2, false]; r = _tuple$6[0]; size = _tuple$6[1]; short$1 = _tuple$6[2];
+			return [r, size, short$1];
+		}
+		if (n < 3) {
+			_tuple$7 = [65533, 1, true]; r = _tuple$7[0]; size = _tuple$7[1]; short$1 = _tuple$7[2];
+			return [r, size, short$1];
+		}
+		c2 = s.charCodeAt(2);
+		if (c2 < 128 || 192 <= c2) {
+			_tuple$8 = [65533, 1, false]; r = _tuple$8[0]; size = _tuple$8[1]; short$1 = _tuple$8[2];
+			return [r, size, short$1];
+		}
+		if (c0 < 240) {
+			r = (((((c0 & 15) >>> 0) >> 0) << 12 >> 0) | ((((c1 & 63) >>> 0) >> 0) << 6 >> 0)) | (((c2 & 63) >>> 0) >> 0);
+			if (r <= 2047) {
+				_tuple$9 = [65533, 1, false]; r = _tuple$9[0]; size = _tuple$9[1]; short$1 = _tuple$9[2];
+				return [r, size, short$1];
+			}
+			if (55296 <= r && r <= 57343) {
+				_tuple$10 = [65533, 1, false]; r = _tuple$10[0]; size = _tuple$10[1]; short$1 = _tuple$10[2];
+				return [r, size, short$1];
+			}
+			_tuple$11 = [r, 3, false]; r = _tuple$11[0]; size = _tuple$11[1]; short$1 = _tuple$11[2];
+			return [r, size, short$1];
+		}
+		if (n < 4) {
+			_tuple$12 = [65533, 1, true]; r = _tuple$12[0]; size = _tuple$12[1]; short$1 = _tuple$12[2];
+			return [r, size, short$1];
+		}
+		c3 = s.charCodeAt(3);
+		if (c3 < 128 || 192 <= c3) {
+			_tuple$13 = [65533, 1, false]; r = _tuple$13[0]; size = _tuple$13[1]; short$1 = _tuple$13[2];
+			return [r, size, short$1];
+		}
+		if (c0 < 248) {
+			r = ((((((c0 & 7) >>> 0) >> 0) << 18 >> 0) | ((((c1 & 63) >>> 0) >> 0) << 12 >> 0)) | ((((c2 & 63) >>> 0) >> 0) << 6 >> 0)) | (((c3 & 63) >>> 0) >> 0);
+			if (r <= 65535 || 1114111 < r) {
+				_tuple$14 = [65533, 1, false]; r = _tuple$14[0]; size = _tuple$14[1]; short$1 = _tuple$14[2];
+				return [r, size, short$1];
+			}
+			_tuple$15 = [r, 4, false]; r = _tuple$15[0]; size = _tuple$15[1]; short$1 = _tuple$15[2];
+			return [r, size, short$1];
+		}
+		_tuple$16 = [65533, 1, false]; r = _tuple$16[0]; size = _tuple$16[1]; short$1 = _tuple$16[2];
+		return [r, size, short$1];
+	};
+	FullRune = go$pkg.FullRune = function(p) {
+		var _tuple, short$1;
+		_tuple = decodeRuneInternal(p); short$1 = _tuple[2];
+		return !short$1;
+	};
+	DecodeRune = go$pkg.DecodeRune = function(p) {
+		var r, size, _tuple;
+		r = 0;
+		size = 0;
+		_tuple = decodeRuneInternal(p); r = _tuple[0]; size = _tuple[1];
+		return [r, size];
+	};
+	DecodeRuneInString = go$pkg.DecodeRuneInString = function(s) {
+		var r, size, _tuple;
+		r = 0;
+		size = 0;
+		_tuple = decodeRuneInStringInternal(s); r = _tuple[0]; size = _tuple[1];
+		return [r, size];
+	};
+	DecodeLastRune = go$pkg.DecodeLastRune = function(p) {
+		var r, size, end, _tuple, start, _slice, _index, _tuple$1, lim, _slice$1, _index$1, _tuple$2, _tuple$3, _tuple$4;
+		r = 0;
+		size = 0;
+		end = p.length;
+		if (end === 0) {
+			_tuple = [65533, 0]; r = _tuple[0]; size = _tuple[1];
+			return [r, size];
+		}
+		start = end - 1 >> 0;
+		r = ((_slice = p, _index = start, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) >> 0);
+		if (r < 128) {
+			_tuple$1 = [r, 1]; r = _tuple$1[0]; size = _tuple$1[1];
+			return [r, size];
+		}
+		lim = end - 4 >> 0;
+		if (lim < 0) {
+			lim = 0;
+		}
+		start = start - 1 >> 0;
+		while (start >= lim) {
+			if (RuneStart((_slice$1 = p, _index$1 = start, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")))) {
+				break;
+			}
+			start = start - 1 >> 0;
+		}
+		if (start < 0) {
+			start = 0;
+		}
+		_tuple$2 = DecodeRune(go$subslice(p, start, end)); r = _tuple$2[0]; size = _tuple$2[1];
+		if (!(((start + size >> 0) === end))) {
+			_tuple$3 = [65533, 1]; r = _tuple$3[0]; size = _tuple$3[1];
+			return [r, size];
+		}
+		_tuple$4 = [r, size]; r = _tuple$4[0]; size = _tuple$4[1];
+		return [r, size];
+	};
+	RuneLen = go$pkg.RuneLen = function(r) {
+		if (r < 0) {
+			return -1;
+		} else if (r <= 127) {
+			return 1;
+		} else if (r <= 2047) {
+			return 2;
+		} else if (55296 <= r && r <= 57343) {
+			return -1;
+		} else if (r <= 65535) {
+			return 3;
+		} else if (r <= 1114111) {
+			return 4;
+		}
+		return -1;
+	};
+	EncodeRune = go$pkg.EncodeRune = function(p, r) {
+		var _slice, _index, _slice$1, _index$1, _slice$2, _index$2, _slice$3, _index$3, _slice$4, _index$4, _slice$5, _index$5, _slice$6, _index$6, _slice$7, _index$7, _slice$8, _index$8, _slice$9, _index$9;
+		if ((r >>> 0) <= 127) {
+			_slice = p; _index = 0;(_index >= 0 && _index < _slice.length) ? (_slice.array[_slice.offset + _index] = (r << 24 >>> 24)) : go$throwRuntimeError("index out of range");
+			return 1;
+		}
+		if ((r >>> 0) <= 2047) {
+			_slice$1 = p; _index$1 = 0;(_index$1 >= 0 && _index$1 < _slice$1.length) ? (_slice$1.array[_slice$1.offset + _index$1] = (192 | ((r >> 6 >> 0) << 24 >>> 24)) >>> 0) : go$throwRuntimeError("index out of range");
+			_slice$2 = p; _index$2 = 1;(_index$2 >= 0 && _index$2 < _slice$2.length) ? (_slice$2.array[_slice$2.offset + _index$2] = (128 | (((r << 24 >>> 24) & 63) >>> 0)) >>> 0) : go$throwRuntimeError("index out of range");
+			return 2;
+		}
+		if ((r >>> 0) > 1114111) {
+			r = 65533;
+		}
+		if (55296 <= r && r <= 57343) {
+			r = 65533;
+		}
+		if ((r >>> 0) <= 65535) {
+			_slice$3 = p; _index$3 = 0;(_index$3 >= 0 && _index$3 < _slice$3.length) ? (_slice$3.array[_slice$3.offset + _index$3] = (224 | ((r >> 12 >> 0) << 24 >>> 24)) >>> 0) : go$throwRuntimeError("index out of range");
+			_slice$4 = p; _index$4 = 1;(_index$4 >= 0 && _index$4 < _slice$4.length) ? (_slice$4.array[_slice$4.offset + _index$4] = (128 | ((((r >> 6 >> 0) << 24 >>> 24) & 63) >>> 0)) >>> 0) : go$throwRuntimeError("index out of range");
+			_slice$5 = p; _index$5 = 2;(_index$5 >= 0 && _index$5 < _slice$5.length) ? (_slice$5.array[_slice$5.offset + _index$5] = (128 | (((r << 24 >>> 24) & 63) >>> 0)) >>> 0) : go$throwRuntimeError("index out of range");
+			return 3;
+		}
+		_slice$6 = p; _index$6 = 0;(_index$6 >= 0 && _index$6 < _slice$6.length) ? (_slice$6.array[_slice$6.offset + _index$6] = (240 | ((r >> 18 >> 0) << 24 >>> 24)) >>> 0) : go$throwRuntimeError("index out of range");
+		_slice$7 = p; _index$7 = 1;(_index$7 >= 0 && _index$7 < _slice$7.length) ? (_slice$7.array[_slice$7.offset + _index$7] = (128 | ((((r >> 12 >> 0) << 24 >>> 24) & 63) >>> 0)) >>> 0) : go$throwRuntimeError("index out of range");
+		_slice$8 = p; _index$8 = 2;(_index$8 >= 0 && _index$8 < _slice$8.length) ? (_slice$8.array[_slice$8.offset + _index$8] = (128 | ((((r >> 6 >> 0) << 24 >>> 24) & 63) >>> 0)) >>> 0) : go$throwRuntimeError("index out of range");
+		_slice$9 = p; _index$9 = 3;(_index$9 >= 0 && _index$9 < _slice$9.length) ? (_slice$9.array[_slice$9.offset + _index$9] = (128 | (((r << 24 >>> 24) & 63) >>> 0)) >>> 0) : go$throwRuntimeError("index out of range");
+		return 4;
+	};
+	RuneCountInString = go$pkg.RuneCountInString = function(s) {
+		var n, _ref, _i, _rune;
+		n = 0;
+		_ref = s;
+		_i = 0;
+		while (_i < _ref.length) {
+			_rune = go$decodeRune(_ref, _i);
+			n = n + 1 >> 0;
+			_i += _rune[1];
+		}
+		return n;
+	};
+	RuneStart = go$pkg.RuneStart = function(b) {
+		return !((((b & 192) >>> 0) === 128));
+	};
+	go$pkg.init = function() {
+	}
+	return go$pkg;
+})();
+go$packages["bytes"] = (function() {
+	var go$pkg = {}, errors = go$packages["errors"], io = go$packages["io"], utf8 = go$packages["unicode/utf8"], unicode = go$packages["unicode"], Buffer, readOp, IndexByte, Equal, makeSlice, NewBuffer, Index, IndexAny, HasPrefix, Map, ToUpper, ToLower, TrimLeftFunc, TrimRightFunc, TrimFunc, indexFunc, lastIndexFunc, makeCutsetFunc, TrimLeft, TrimRight, TrimSpace;
+	Buffer = go$pkg.Buffer = go$newType(0, "Struct", "bytes.Buffer", "Buffer", "bytes", function(buf_, off_, runeBytes_, bootstrap_, lastRead_) {
+		this.go$val = this;
+		this.buf = buf_ !== undefined ? buf_ : (go$sliceType(Go$Uint8)).nil;
+		this.off = off_ !== undefined ? off_ : 0;
+		this.runeBytes = runeBytes_ !== undefined ? runeBytes_ : go$makeNativeArray("Uint8", 4, function() { return 0; });
+		this.bootstrap = bootstrap_ !== undefined ? bootstrap_ : go$makeNativeArray("Uint8", 64, function() { return 0; });
+		this.lastRead = lastRead_ !== undefined ? lastRead_ : 0;
+	});
+	readOp = go$pkg.readOp = go$newType(4, "Int", "bytes.readOp", "readOp", "bytes", null);
+	IndexByte = go$pkg.IndexByte = function(s, c) {
+		var _ref, _i, _slice, _index, b, i;
+		_ref = s;
+		_i = 0;
+		while (_i < _ref.length) {
+			b = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			i = _i;
+			if (b === c) {
+				return i;
+			}
+			_i++;
+		}
+		return -1;
+	};
+	Equal = go$pkg.Equal = function(a, b) {
+		var _ref, _i, _slice, _index, c, i, _slice$1, _index$1;
+		if (!((a.length === b.length))) {
+			return false;
+		}
+		_ref = a;
+		_i = 0;
+		while (_i < _ref.length) {
+			c = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			i = _i;
+			if (!((c === (_slice$1 = b, _index$1 = i, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"))))) {
+				return false;
+			}
+			_i++;
+		}
+		return true;
+	};
+	Buffer.Ptr.prototype.Bytes = function() {
+		var b;
+		b = this;
+		return go$subslice(b.buf, b.off);
+	};
+	Buffer.prototype.Bytes = function() { return this.go$val.Bytes(); };
+	Buffer.Ptr.prototype.String = function() {
+		var b;
+		b = this;
+		if (b === (go$ptrType(Buffer)).nil) {
+			return "<nil>";
+		}
+		return go$bytesToString(go$subslice(b.buf, b.off));
+	};
+	Buffer.prototype.String = function() { return this.go$val.String(); };
+	Buffer.Ptr.prototype.Len = function() {
+		var b;
+		b = this;
+		return b.buf.length - b.off >> 0;
+	};
+	Buffer.prototype.Len = function() { return this.go$val.Len(); };
+	Buffer.Ptr.prototype.Truncate = function(n) {
+		var b;
+		b = this;
+		b.lastRead = 0;
+		if (n < 0 || n > b.Len()) {
+			throw go$panic(new Go$String("bytes.Buffer: truncation out of range"));
+		} else if (n === 0) {
+			b.off = 0;
+		}
+		b.buf = go$subslice(b.buf, 0, (b.off + n >> 0));
+	};
+	Buffer.prototype.Truncate = function(n) { return this.go$val.Truncate(n); };
+	Buffer.Ptr.prototype.Reset = function() {
+		var b;
+		b = this;
+		b.Truncate(0);
+	};
+	Buffer.prototype.Reset = function() { return this.go$val.Reset(); };
+	Buffer.Ptr.prototype.grow = function(n) {
+		var b, m, buf, _q, x;
+		b = this;
+		m = b.Len();
+		if ((m === 0) && !((b.off === 0))) {
+			b.Truncate(0);
+		}
+		if ((b.buf.length + n >> 0) > b.buf.capacity) {
+			buf = (go$sliceType(Go$Uint8)).nil;
+			if (b.buf === (go$sliceType(Go$Uint8)).nil && n <= 64) {
+				buf = go$subslice(new (go$sliceType(Go$Uint8))(b.bootstrap), 0);
+			} else if ((m + n >> 0) <= (_q = b.buf.capacity / 2, (_q === _q && _q !== 1/0 && _q !== -1/0) ? _q >> 0 : go$throwRuntimeError("integer divide by zero"))) {
+				go$copySlice(b.buf, go$subslice(b.buf, b.off));
+				buf = go$subslice(b.buf, 0, m);
+			} else {
+				buf = makeSlice((x = b.buf.capacity, (((2 >>> 16 << 16) * x >> 0) + (2 << 16 >>> 16) * x) >> 0) + n >> 0);
+				go$copySlice(buf, go$subslice(b.buf, b.off));
+			}
+			b.buf = buf;
+			b.off = 0;
+		}
+		b.buf = go$subslice(b.buf, 0, ((b.off + m >> 0) + n >> 0));
+		return b.off + m >> 0;
+	};
+	Buffer.prototype.grow = function(n) { return this.go$val.grow(n); };
+	Buffer.Ptr.prototype.Grow = function(n) {
+		var b, m;
+		b = this;
+		if (n < 0) {
+			throw go$panic(new Go$String("bytes.Buffer.Grow: negative count"));
+		}
+		m = b.grow(n);
+		b.buf = go$subslice(b.buf, 0, m);
+	};
+	Buffer.prototype.Grow = function(n) { return this.go$val.Grow(n); };
+	Buffer.Ptr.prototype.Write = function(p) {
+		var n, err, b, m, _tuple;
+		n = 0;
+		err = null;
+		b = this;
+		b.lastRead = 0;
+		m = b.grow(p.length);
+		_tuple = [go$copySlice(go$subslice(b.buf, m), p), null]; n = _tuple[0]; err = _tuple[1];
+		return [n, err];
+	};
+	Buffer.prototype.Write = function(p) { return this.go$val.Write(p); };
+	Buffer.Ptr.prototype.WriteString = function(s) {
+		var n, err, b, m, _tuple;
+		n = 0;
+		err = null;
+		b = this;
+		b.lastRead = 0;
+		m = b.grow(s.length);
+		_tuple = [go$copyString(go$subslice(b.buf, m), s), null]; n = _tuple[0]; err = _tuple[1];
+		return [n, err];
+	};
+	Buffer.prototype.WriteString = function(s) { return this.go$val.WriteString(s); };
+	Buffer.Ptr.prototype.ReadFrom = function(r) {
+		var n, err, b, free, newBuf, x, _tuple, m, e, x$1, _tuple$1, _tuple$2;
+		n = new Go$Int64(0, 0);
+		err = null;
+		b = this;
+		b.lastRead = 0;
+		if (b.off >= b.buf.length) {
+			b.Truncate(0);
+		}
+		while (true) {
+			free = b.buf.capacity - b.buf.length >> 0;
+			if (free < 512) {
+				newBuf = b.buf;
+				if ((b.off + free >> 0) < 512) {
+					newBuf = makeSlice((x = b.buf.capacity, (((2 >>> 16 << 16) * x >> 0) + (2 << 16 >>> 16) * x) >> 0) + 512 >> 0);
+				}
+				go$copySlice(newBuf, go$subslice(b.buf, b.off));
+				b.buf = go$subslice(newBuf, 0, (b.buf.length - b.off >> 0));
+				b.off = 0;
+			}
+			_tuple = r.Read(go$subslice(b.buf, b.buf.length, b.buf.capacity)); m = _tuple[0]; e = _tuple[1];
+			b.buf = go$subslice(b.buf, 0, (b.buf.length + m >> 0));
+			n = (x$1 = new Go$Int64(0, m), new Go$Int64(n.high + x$1.high, n.low + x$1.low));
+			if (go$interfaceIsEqual(e, io.EOF)) {
+				break;
+			}
+			if (!(go$interfaceIsEqual(e, null))) {
+				_tuple$1 = [n, e]; n = _tuple$1[0]; err = _tuple$1[1];
+				return [n, err];
+			}
+		}
+		_tuple$2 = [n, null]; n = _tuple$2[0]; err = _tuple$2[1];
+		return [n, err];
+	};
+	Buffer.prototype.ReadFrom = function(r) { return this.go$val.ReadFrom(r); };
+	makeSlice = function(n) {
+		var go$deferred = [];
+		try {
+			go$deferred.push({ fun: (function() {
+				if (!(go$interfaceIsEqual(go$recover(), null))) {
+					throw go$panic(go$pkg.ErrTooLarge);
+				}
+			}), args: [] });
+			return (go$sliceType(Go$Uint8)).make(n, 0, function() { return 0; });
+		} catch(go$err) {
+			go$pushErr(go$err);
+			return (go$sliceType(Go$Uint8)).nil;
+		} finally {
+			go$callDeferred(go$deferred);
+		}
+	};
+	Buffer.Ptr.prototype.WriteTo = function(w) {
+		var n, err, b, nBytes, _tuple, m, e, _tuple$1, _tuple$2;
+		n = new Go$Int64(0, 0);
+		err = null;
+		b = this;
+		b.lastRead = 0;
+		if (b.off < b.buf.length) {
+			nBytes = b.Len();
+			_tuple = w.Write(go$subslice(b.buf, b.off)); m = _tuple[0]; e = _tuple[1];
+			if (m > nBytes) {
+				throw go$panic(new Go$String("bytes.Buffer.WriteTo: invalid Write count"));
+			}
+			b.off = b.off + (m) >> 0;
+			n = new Go$Int64(0, m);
+			if (!(go$interfaceIsEqual(e, null))) {
+				_tuple$1 = [n, e]; n = _tuple$1[0]; err = _tuple$1[1];
+				return [n, err];
+			}
+			if (!((m === nBytes))) {
+				_tuple$2 = [n, io.ErrShortWrite]; n = _tuple$2[0]; err = _tuple$2[1];
+				return [n, err];
+			}
+		}
+		b.Truncate(0);
+		return [n, err];
+	};
+	Buffer.prototype.WriteTo = function(w) { return this.go$val.WriteTo(w); };
+	Buffer.Ptr.prototype.WriteByte = function(c) {
+		var b, m, _slice, _index;
+		b = this;
+		b.lastRead = 0;
+		m = b.grow(1);
+		_slice = b.buf; _index = m;(_index >= 0 && _index < _slice.length) ? (_slice.array[_slice.offset + _index] = c) : go$throwRuntimeError("index out of range");
+		return null;
+	};
+	Buffer.prototype.WriteByte = function(c) { return this.go$val.WriteByte(c); };
+	Buffer.Ptr.prototype.WriteRune = function(r) {
+		var n, err, b, _tuple, _tuple$1;
+		n = 0;
+		err = null;
+		b = this;
+		if (r < 128) {
+			b.WriteByte((r << 24 >>> 24));
+			_tuple = [1, null]; n = _tuple[0]; err = _tuple[1];
+			return [n, err];
+		}
+		n = utf8.EncodeRune(go$subslice(new (go$sliceType(Go$Uint8))(b.runeBytes), 0), r);
+		b.Write(go$subslice(new (go$sliceType(Go$Uint8))(b.runeBytes), 0, n));
+		_tuple$1 = [n, null]; n = _tuple$1[0]; err = _tuple$1[1];
+		return [n, err];
+	};
+	Buffer.prototype.WriteRune = function(r) { return this.go$val.WriteRune(r); };
+	Buffer.Ptr.prototype.Read = function(p) {
+		var n, err, b, _tuple;
+		n = 0;
+		err = null;
+		b = this;
+		b.lastRead = 0;
+		if (b.off >= b.buf.length) {
+			b.Truncate(0);
+			if (p.length === 0) {
+				return [n, err];
+			}
+			_tuple = [0, io.EOF]; n = _tuple[0]; err = _tuple[1];
+			return [n, err];
+		}
+		n = go$copySlice(p, go$subslice(b.buf, b.off));
+		b.off = b.off + (n) >> 0;
+		if (n > 0) {
+			b.lastRead = 2;
+		}
+		return [n, err];
+	};
+	Buffer.prototype.Read = function(p) { return this.go$val.Read(p); };
+	Buffer.Ptr.prototype.Next = function(n) {
+		var b, m, data;
+		b = this;
+		b.lastRead = 0;
+		m = b.Len();
+		if (n > m) {
+			n = m;
+		}
+		data = go$subslice(b.buf, b.off, (b.off + n >> 0));
+		b.off = b.off + (n) >> 0;
+		if (n > 0) {
+			b.lastRead = 2;
+		}
+		return data;
+	};
+	Buffer.prototype.Next = function(n) { return this.go$val.Next(n); };
+	Buffer.Ptr.prototype.ReadByte = function() {
+		var c, err, b, _tuple, _slice, _index, _tuple$1;
+		c = 0;
+		err = null;
+		b = this;
+		b.lastRead = 0;
+		if (b.off >= b.buf.length) {
+			b.Truncate(0);
+			_tuple = [0, io.EOF]; c = _tuple[0]; err = _tuple[1];
+			return [c, err];
+		}
+		c = (_slice = b.buf, _index = b.off, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+		b.off = b.off + 1 >> 0;
+		b.lastRead = 2;
+		_tuple$1 = [c, null]; c = _tuple$1[0]; err = _tuple$1[1];
+		return [c, err];
+	};
+	Buffer.prototype.ReadByte = function() { return this.go$val.ReadByte(); };
+	Buffer.Ptr.prototype.ReadRune = function() {
+		var r, size, err, b, _tuple, _slice, _index, c, _tuple$1, _tuple$2, n, _tuple$3;
+		r = 0;
+		size = 0;
+		err = null;
+		b = this;
+		b.lastRead = 0;
+		if (b.off >= b.buf.length) {
+			b.Truncate(0);
+			_tuple = [0, 0, io.EOF]; r = _tuple[0]; size = _tuple[1]; err = _tuple[2];
+			return [r, size, err];
+		}
+		b.lastRead = 1;
+		c = (_slice = b.buf, _index = b.off, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+		if (c < 128) {
+			b.off = b.off + 1 >> 0;
+			_tuple$1 = [(c >> 0), 1, null]; r = _tuple$1[0]; size = _tuple$1[1]; err = _tuple$1[2];
+			return [r, size, err];
+		}
+		_tuple$2 = utf8.DecodeRune(go$subslice(b.buf, b.off)); r = _tuple$2[0]; n = _tuple$2[1];
+		b.off = b.off + (n) >> 0;
+		_tuple$3 = [r, n, null]; r = _tuple$3[0]; size = _tuple$3[1]; err = _tuple$3[2];
+		return [r, size, err];
+	};
+	Buffer.prototype.ReadRune = function() { return this.go$val.ReadRune(); };
+	Buffer.Ptr.prototype.UnreadRune = function() {
+		var b, _tuple, n;
+		b = this;
+		if (!((b.lastRead === 1))) {
+			return errors.New("bytes.Buffer: UnreadRune: previous operation was not ReadRune");
+		}
+		b.lastRead = 0;
+		if (b.off > 0) {
+			_tuple = utf8.DecodeLastRune(go$subslice(b.buf, 0, b.off)); n = _tuple[1];
+			b.off = b.off - (n) >> 0;
+		}
+		return null;
+	};
+	Buffer.prototype.UnreadRune = function() { return this.go$val.UnreadRune(); };
+	Buffer.Ptr.prototype.UnreadByte = function() {
+		var b;
+		b = this;
+		if (!((b.lastRead === 1)) && !((b.lastRead === 2))) {
+			return errors.New("bytes.Buffer: UnreadByte: previous operation was not a read");
+		}
+		b.lastRead = 0;
+		if (b.off > 0) {
+			b.off = b.off - 1 >> 0;
+		}
+		return null;
+	};
+	Buffer.prototype.UnreadByte = function() { return this.go$val.UnreadByte(); };
+	Buffer.Ptr.prototype.ReadBytes = function(delim) {
+		var line, err, b, _tuple, slice;
+		line = (go$sliceType(Go$Uint8)).nil;
+		err = null;
+		b = this;
+		_tuple = b.readSlice(delim); slice = _tuple[0]; err = _tuple[1];
+		line = go$appendSlice(line, slice);
+		return [line, err];
+	};
+	Buffer.prototype.ReadBytes = function(delim) { return this.go$val.ReadBytes(delim); };
+	Buffer.Ptr.prototype.readSlice = function(delim) {
+		var line, err, b, i, end, _tuple;
+		line = (go$sliceType(Go$Uint8)).nil;
+		err = null;
+		b = this;
+		i = IndexByte(go$subslice(b.buf, b.off), delim);
+		end = (b.off + i >> 0) + 1 >> 0;
+		if (i < 0) {
+			end = b.buf.length;
+			err = io.EOF;
+		}
+		line = go$subslice(b.buf, b.off, end);
+		b.off = end;
+		b.lastRead = 2;
+		_tuple = [line, err]; line = _tuple[0]; err = _tuple[1];
+		return [line, err];
+	};
+	Buffer.prototype.readSlice = function(delim) { return this.go$val.readSlice(delim); };
+	Buffer.Ptr.prototype.ReadString = function(delim) {
+		var line, err, b, _tuple, slice, _tuple$1;
+		line = "";
+		err = null;
+		b = this;
+		_tuple = b.readSlice(delim); slice = _tuple[0]; err = _tuple[1];
+		_tuple$1 = [go$bytesToString(slice), err]; line = _tuple$1[0]; err = _tuple$1[1];
+		return [line, err];
+	};
+	Buffer.prototype.ReadString = function(delim) { return this.go$val.ReadString(delim); };
+	NewBuffer = go$pkg.NewBuffer = function(buf) {
+		return new Buffer.Ptr(buf, 0, go$makeNativeArray("Uint8", 4, function() { return 0; }), go$makeNativeArray("Uint8", 64, function() { return 0; }), 0);
+	};
+	Index = go$pkg.Index = function(s, sep) {
+		var n, _slice, _index, c, i, t, _slice$1, _index$1, o;
+		n = sep.length;
+		if (n === 0) {
+			return 0;
+		}
+		if (n > s.length) {
+			return -1;
+		}
+		c = (_slice = sep, _index = 0, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+		if (n === 1) {
+			return IndexByte(s, c);
+		}
+		i = 0;
+		t = go$subslice(s, 0, ((s.length - n >> 0) + 1 >> 0));
+		while (i < t.length) {
+			if (!(((_slice$1 = t, _index$1 = i, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")) === c))) {
+				o = IndexByte(go$subslice(t, i), c);
+				if (o < 0) {
+					break;
+				}
+				i = i + (o) >> 0;
+			}
+			if (Equal(go$subslice(s, i, (i + n >> 0)), sep)) {
+				return i;
+			}
+			i = i + 1 >> 0;
+		}
+		return -1;
+	};
+	IndexAny = go$pkg.IndexAny = function(s, chars) {
+		var r, width, i, _slice, _index, _tuple, _ref, _i, _rune, ch;
+		if (chars.length > 0) {
+			r = 0;
+			width = 0;
+			i = 0;
+			while (i < s.length) {
+				r = ((_slice = s, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) >> 0);
+				if (r < 128) {
+					width = 1;
+				} else {
+					_tuple = utf8.DecodeRune(go$subslice(s, i)); r = _tuple[0]; width = _tuple[1];
+				}
+				_ref = chars;
+				_i = 0;
+				while (_i < _ref.length) {
+					_rune = go$decodeRune(_ref, _i);
+					ch = _rune[0];
+					if (r === ch) {
+						return i;
+					}
+					_i += _rune[1];
+				}
+				i = i + (width) >> 0;
+			}
+		}
+		return -1;
+	};
+	HasPrefix = go$pkg.HasPrefix = function(s, prefix) {
+		return s.length >= prefix.length && Equal(go$subslice(s, 0, prefix.length), prefix);
+	};
+	Map = go$pkg.Map = function(mapping, s) {
+		var maxbytes, nbytes, b, i, wid, _slice, _index, r, _tuple, nb;
+		maxbytes = s.length;
+		nbytes = 0;
+		b = (go$sliceType(Go$Uint8)).make(maxbytes, 0, function() { return 0; });
+		i = 0;
+		while (i < s.length) {
+			wid = 1;
+			r = ((_slice = s, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) >> 0);
+			if (r >= 128) {
+				_tuple = utf8.DecodeRune(go$subslice(s, i)); r = _tuple[0]; wid = _tuple[1];
+			}
+			r = mapping(r);
+			if (r >= 0) {
+				if ((nbytes + utf8.RuneLen(r) >> 0) > maxbytes) {
+					maxbytes = ((((maxbytes >>> 16 << 16) * 2 >> 0) + (maxbytes << 16 >>> 16) * 2) >> 0) + 4 >> 0;
+					nb = (go$sliceType(Go$Uint8)).make(maxbytes, 0, function() { return 0; });
+					go$copySlice(nb, go$subslice(b, 0, nbytes));
+					b = nb;
+				}
+				nbytes = nbytes + (utf8.EncodeRune(go$subslice(b, nbytes, maxbytes), r)) >> 0;
+			}
+			i = i + (wid) >> 0;
+		}
+		return go$subslice(b, 0, nbytes);
+	};
+	ToUpper = go$pkg.ToUpper = function(s) {
+		return Map(unicode.ToUpper, s);
+	};
+	ToLower = go$pkg.ToLower = function(s) {
+		return Map(unicode.ToLower, s);
+	};
+	TrimLeftFunc = go$pkg.TrimLeftFunc = function(s, f) {
+		var i;
+		i = indexFunc(s, f, false);
+		if (i === -1) {
+			return (go$sliceType(Go$Uint8)).nil;
+		}
+		return go$subslice(s, i);
+	};
+	TrimRightFunc = go$pkg.TrimRightFunc = function(s, f) {
+		var i, _slice, _index, _tuple, wid;
+		i = lastIndexFunc(s, f, false);
+		if (i >= 0 && (_slice = s, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) >= 128) {
+			_tuple = utf8.DecodeRune(go$subslice(s, i)); wid = _tuple[1];
+			i = i + (wid) >> 0;
+		} else {
+			i = i + 1 >> 0;
+		}
+		return go$subslice(s, 0, i);
+	};
+	TrimFunc = go$pkg.TrimFunc = function(s, f) {
+		return TrimRightFunc(TrimLeftFunc(s, f), f);
+	};
+	indexFunc = function(s, f, truth) {
+		var start, wid, _slice, _index, r, _tuple;
+		start = 0;
+		while (start < s.length) {
+			wid = 1;
+			r = ((_slice = s, _index = start, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) >> 0);
+			if (r >= 128) {
+				_tuple = utf8.DecodeRune(go$subslice(s, start)); r = _tuple[0]; wid = _tuple[1];
+			}
+			if (f(r) === truth) {
+				return start;
+			}
+			start = start + (wid) >> 0;
+		}
+		return -1;
+	};
+	lastIndexFunc = function(s, f, truth) {
+		var i, _slice, _index, _tuple, r, size, _tuple$1;
+		i = s.length;
+		while (i > 0) {
+			_tuple = [((_slice = s, _index = (i - 1 >> 0), (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) >> 0), 1]; r = _tuple[0]; size = _tuple[1];
+			if (r >= 128) {
+				_tuple$1 = utf8.DecodeLastRune(go$subslice(s, 0, i)); r = _tuple$1[0]; size = _tuple$1[1];
+			}
+			i = i - (size) >> 0;
+			if (f(r) === truth) {
+				return i;
+			}
+		}
+		return -1;
+	};
+	makeCutsetFunc = function(cutset) {
+		return (function(r) {
+			var _ref, _i, _rune, c;
+			_ref = cutset;
+			_i = 0;
+			while (_i < _ref.length) {
+				_rune = go$decodeRune(_ref, _i);
+				c = _rune[0];
+				if (c === r) {
+					return true;
+				}
+				_i += _rune[1];
+			}
+			return false;
+		});
+	};
+	TrimLeft = go$pkg.TrimLeft = function(s, cutset) {
+		return TrimLeftFunc(s, makeCutsetFunc(cutset));
+	};
+	TrimRight = go$pkg.TrimRight = function(s, cutset) {
+		return TrimRightFunc(s, makeCutsetFunc(cutset));
+	};
+	TrimSpace = go$pkg.TrimSpace = function(s) {
+		return TrimFunc(s, unicode.IsSpace);
+	};
+	go$pkg.init = function() {
+		(go$ptrType(Buffer)).methods = [["Bytes", "", [], [(go$sliceType(Go$Uint8))], false, -1], ["Grow", "", [Go$Int], [], false, -1], ["Len", "", [], [Go$Int], false, -1], ["Next", "", [Go$Int], [(go$sliceType(Go$Uint8))], false, -1], ["Read", "", [(go$sliceType(Go$Uint8))], [Go$Int, go$error], false, -1], ["ReadByte", "", [], [Go$Uint8, go$error], false, -1], ["ReadBytes", "", [Go$Uint8], [(go$sliceType(Go$Uint8)), go$error], false, -1], ["ReadFrom", "", [io.Reader], [Go$Int64, go$error], false, -1], ["ReadRune", "", [], [Go$Int32, Go$Int, go$error], false, -1], ["ReadString", "", [Go$Uint8], [Go$String, go$error], false, -1], ["Reset", "", [], [], false, -1], ["String", "", [], [Go$String], false, -1], ["Truncate", "", [Go$Int], [], false, -1], ["UnreadByte", "", [], [go$error], false, -1], ["UnreadRune", "", [], [go$error], false, -1], ["Write", "", [(go$sliceType(Go$Uint8))], [Go$Int, go$error], false, -1], ["WriteByte", "", [Go$Uint8], [go$error], false, -1], ["WriteRune", "", [Go$Int32], [Go$Int, go$error], false, -1], ["WriteString", "", [Go$String], [Go$Int, go$error], false, -1], ["WriteTo", "", [io.Writer], [Go$Int64, go$error], false, -1], ["grow", "bytes", [Go$Int], [Go$Int], false, -1], ["readSlice", "bytes", [Go$Uint8], [(go$sliceType(Go$Uint8)), go$error], false, -1]];
+		Buffer.init([["buf", "buf", "bytes", (go$sliceType(Go$Uint8)), ""], ["off", "off", "bytes", Go$Int, ""], ["runeBytes", "runeBytes", "bytes", (go$arrayType(Go$Uint8, 4)), ""], ["bootstrap", "bootstrap", "bytes", (go$arrayType(Go$Uint8, 64)), ""], ["lastRead", "lastRead", "bytes", readOp, ""]]);
+		go$pkg.ErrTooLarge = errors.New("bytes.Buffer: too large");
 	}
 	return go$pkg;
 })();
@@ -1428,6 +2836,8 @@ go$packages["github.com/gopherjs/gopherjs/js"] = (function() {
 		Error.methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [Object], false, 0], ["Index", "", [Go$Int], [Object], false, 0], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [Object], true, 0], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0]];
 		(go$ptrType(Error)).methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [Object], true, 0], ["Error", "", [], [Go$String], false, -1], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [Object], false, 0], ["Index", "", [Go$Int], [Object], false, 0], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [Object], true, 0], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0]];
 		Error.init([["Object", "", "", Object, ""]]);
+		var e;
+		e = new Error.Ptr(null);
 	}
 	return go$pkg;
 })();
@@ -2393,1218 +3803,6 @@ go$packages["github.com/gopherjs/jquery"] = (function() {
 	}
 	return go$pkg;
 })();
-go$packages["errors"] = (function() {
-	var go$pkg = {}, errorString, New;
-	errorString = go$pkg.errorString = go$newType(0, "Struct", "errors.errorString", "errorString", "errors", function(s_) {
-		this.go$val = this;
-		this.s = s_ !== undefined ? s_ : "";
-	});
-	New = go$pkg.New = function(text) {
-		return new errorString.Ptr(text);
-	};
-	errorString.Ptr.prototype.Error = function() {
-		var e;
-		e = this;
-		return e.s;
-	};
-	errorString.prototype.Error = function() { return this.go$val.Error(); };
-	go$pkg.init = function() {
-		(go$ptrType(errorString)).methods = [["Error", "", [], [Go$String], false, -1]];
-		errorString.init([["s", "s", "errors", Go$String, ""]]);
-	}
-	return go$pkg;
-})();
-go$packages["sync/atomic"] = (function() {
-	var go$pkg = {}, CompareAndSwapInt32, AddInt32, LoadInt32, LoadUint32, LoadPointer, StoreUint32, StorePointer;
-	CompareAndSwapInt32 = go$pkg.CompareAndSwapInt32 = function(addr, old, new$1) {
-		if (addr.go$get() === old) {
-			addr.go$set(new$1);
-			return true;
-		}
-		return false;
-	};
-	AddInt32 = go$pkg.AddInt32 = function(addr, delta) {
-		var new$1;
-		new$1 = addr.go$get() + delta >> 0;
-		addr.go$set(new$1);
-		return new$1;
-	};
-	LoadInt32 = go$pkg.LoadInt32 = function(addr) {
-		return addr.go$get();
-	};
-	LoadUint32 = go$pkg.LoadUint32 = function(addr) {
-		return addr.go$get();
-	};
-	LoadPointer = go$pkg.LoadPointer = function(addr) {
-		return addr.go$get();
-	};
-	StoreUint32 = go$pkg.StoreUint32 = function(addr, val) {
-		addr.go$set(val);
-	};
-	StorePointer = go$pkg.StorePointer = function(addr, val) {
-		addr.go$set(val);
-	};
-	go$pkg.init = function() {
-	}
-	return go$pkg;
-})();
-go$packages["sync"] = (function() {
-	var go$pkg = {}, atomic = go$packages["sync/atomic"], Mutex, Locker, Once, RWMutex, rlocker, WaitGroup, runtime_Semacquire, runtime_Semrelease, runtime_Syncsemcheck;
-	Mutex = go$pkg.Mutex = go$newType(0, "Struct", "sync.Mutex", "Mutex", "sync", function(state_, sema_) {
-		this.go$val = this;
-		this.state = state_ !== undefined ? state_ : 0;
-		this.sema = sema_ !== undefined ? sema_ : 0;
-	});
-	Locker = go$pkg.Locker = go$newType(0, "Interface", "sync.Locker", "Locker", "sync", null);
-	Once = go$pkg.Once = go$newType(0, "Struct", "sync.Once", "Once", "sync", function(m_, done_) {
-		this.go$val = this;
-		this.m = m_ !== undefined ? m_ : new Mutex.Ptr();
-		this.done = done_ !== undefined ? done_ : 0;
-	});
-	RWMutex = go$pkg.RWMutex = go$newType(0, "Struct", "sync.RWMutex", "RWMutex", "sync", function(w_, writerSem_, readerSem_, readerCount_, readerWait_) {
-		this.go$val = this;
-		this.w = w_ !== undefined ? w_ : new Mutex.Ptr();
-		this.writerSem = writerSem_ !== undefined ? writerSem_ : 0;
-		this.readerSem = readerSem_ !== undefined ? readerSem_ : 0;
-		this.readerCount = readerCount_ !== undefined ? readerCount_ : 0;
-		this.readerWait = readerWait_ !== undefined ? readerWait_ : 0;
-	});
-	rlocker = go$pkg.rlocker = go$newType(0, "Struct", "sync.rlocker", "rlocker", "sync", function(w_, writerSem_, readerSem_, readerCount_, readerWait_) {
-		this.go$val = this;
-		this.w = w_ !== undefined ? w_ : new Mutex.Ptr();
-		this.writerSem = writerSem_ !== undefined ? writerSem_ : 0;
-		this.readerSem = readerSem_ !== undefined ? readerSem_ : 0;
-		this.readerCount = readerCount_ !== undefined ? readerCount_ : 0;
-		this.readerWait = readerWait_ !== undefined ? readerWait_ : 0;
-	});
-	WaitGroup = go$pkg.WaitGroup = go$newType(0, "Struct", "sync.WaitGroup", "WaitGroup", "sync", function(m_, counter_, waiters_, sema_) {
-		this.go$val = this;
-		this.m = m_ !== undefined ? m_ : new Mutex.Ptr();
-		this.counter = counter_ !== undefined ? counter_ : 0;
-		this.waiters = waiters_ !== undefined ? waiters_ : 0;
-		this.sema = sema_ !== undefined ? sema_ : (go$ptrType(Go$Uint32)).nil;
-	});
-	Mutex.Ptr.prototype.Lock = function() {
-		var m, v, awoke, old, new$1, v$1, v$2;
-		m = this;
-		if (atomic.CompareAndSwapInt32(new (go$ptrType(Go$Int32))(function() { return m.state; }, function(v) { m.state = v;; }), 0, 1)) {
-			return;
-		}
-		awoke = false;
-		while (true) {
-			old = m.state;
-			new$1 = old | 1;
-			if (!(((old & 1) === 0))) {
-				new$1 = old + 4 >> 0;
-			}
-			if (awoke) {
-				new$1 = new$1 & ~2;
-			}
-			if (atomic.CompareAndSwapInt32(new (go$ptrType(Go$Int32))(function() { return m.state; }, function(v$1) { m.state = v$1;; }), old, new$1)) {
-				if ((old & 1) === 0) {
-					break;
-				}
-				runtime_Semacquire(new (go$ptrType(Go$Uint32))(function() { return m.sema; }, function(v$2) { m.sema = v$2;; }));
-				awoke = true;
-			}
-		}
-	};
-	Mutex.prototype.Lock = function() { return this.go$val.Lock(); };
-	Mutex.Ptr.prototype.Unlock = function() {
-		var m, v, new$1, old, v$1, v$2;
-		m = this;
-		new$1 = atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return m.state; }, function(v) { m.state = v;; }), -1);
-		if ((((new$1 + 1 >> 0)) & 1) === 0) {
-			throw go$panic(new Go$String("sync: unlock of unlocked mutex"));
-		}
-		old = new$1;
-		while (true) {
-			if (((old >> 2 >> 0) === 0) || !(((old & 3) === 0))) {
-				return;
-			}
-			new$1 = ((old - 4 >> 0)) | 2;
-			if (atomic.CompareAndSwapInt32(new (go$ptrType(Go$Int32))(function() { return m.state; }, function(v$1) { m.state = v$1;; }), old, new$1)) {
-				runtime_Semrelease(new (go$ptrType(Go$Uint32))(function() { return m.sema; }, function(v$2) { m.sema = v$2;; }));
-				return;
-			}
-			old = m.state;
-		}
-	};
-	Mutex.prototype.Unlock = function() { return this.go$val.Unlock(); };
-	Once.Ptr.prototype.Do = function(f) {
-		var o, v, v$1;
-		var go$deferred = [];
-		try {
-			o = this;
-			if (atomic.LoadUint32(new (go$ptrType(Go$Uint32))(function() { return o.done; }, function(v) { o.done = v;; })) === 1) {
-				return;
-			}
-			o.m.Lock();
-			go$deferred.push({ recv: o.m, method: "Unlock", args: [] });
-			if (o.done === 0) {
-				f();
-				atomic.StoreUint32(new (go$ptrType(Go$Uint32))(function() { return o.done; }, function(v$1) { o.done = v$1;; }), 1);
-			}
-		} catch(go$err) {
-			go$pushErr(go$err);
-		} finally {
-			go$callDeferred(go$deferred);
-		}
-	};
-	Once.prototype.Do = function(f) { return this.go$val.Do(f); };
-	runtime_Semacquire = function() {
-		throw go$panic("Native function not implemented: runtime_Semacquire");
-	};
-	runtime_Semrelease = function() {
-		throw go$panic("Native function not implemented: runtime_Semrelease");
-	};
-	runtime_Syncsemcheck = function() {};
-	RWMutex.Ptr.prototype.RLock = function() {
-		var rw, v, v$1;
-		rw = this;
-		if (atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return rw.readerCount; }, function(v) { rw.readerCount = v;; }), 1) < 0) {
-			runtime_Semacquire(new (go$ptrType(Go$Uint32))(function() { return rw.readerSem; }, function(v$1) { rw.readerSem = v$1;; }));
-		}
-	};
-	RWMutex.prototype.RLock = function() { return this.go$val.RLock(); };
-	RWMutex.Ptr.prototype.RUnlock = function() {
-		var rw, v, v$1, v$2;
-		rw = this;
-		if (atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return rw.readerCount; }, function(v) { rw.readerCount = v;; }), -1) < 0) {
-			if (atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return rw.readerWait; }, function(v$1) { rw.readerWait = v$1;; }), -1) === 0) {
-				runtime_Semrelease(new (go$ptrType(Go$Uint32))(function() { return rw.writerSem; }, function(v$2) { rw.writerSem = v$2;; }));
-			}
-		}
-	};
-	RWMutex.prototype.RUnlock = function() { return this.go$val.RUnlock(); };
-	RWMutex.Ptr.prototype.Lock = function() {
-		var rw, v, r, v$1, v$2;
-		rw = this;
-		rw.w.Lock();
-		r = atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return rw.readerCount; }, function(v) { rw.readerCount = v;; }), -1073741824) + 1073741824 >> 0;
-		if (!((r === 0)) && !((atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return rw.readerWait; }, function(v$1) { rw.readerWait = v$1;; }), r) === 0))) {
-			runtime_Semacquire(new (go$ptrType(Go$Uint32))(function() { return rw.writerSem; }, function(v$2) { rw.writerSem = v$2;; }));
-		}
-	};
-	RWMutex.prototype.Lock = function() { return this.go$val.Lock(); };
-	RWMutex.Ptr.prototype.Unlock = function() {
-		var rw, v, r, i, v$1;
-		rw = this;
-		r = atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return rw.readerCount; }, function(v) { rw.readerCount = v;; }), 1073741824);
-		i = 0;
-		while (i < (r >> 0)) {
-			runtime_Semrelease(new (go$ptrType(Go$Uint32))(function() { return rw.readerSem; }, function(v$1) { rw.readerSem = v$1;; }));
-			i = i + 1 >> 0;
-		}
-		rw.w.Unlock();
-	};
-	RWMutex.prototype.Unlock = function() { return this.go$val.Unlock(); };
-	RWMutex.Ptr.prototype.RLocker = function() {
-		var rw, _struct, _struct$1;
-		rw = this;
-		return (_struct = rw, new rlocker.Ptr((_struct$1 = _struct.w, new Mutex.Ptr(_struct$1.state, _struct$1.sema)), _struct.writerSem, _struct.readerSem, _struct.readerCount, _struct.readerWait));
-	};
-	RWMutex.prototype.RLocker = function() { return this.go$val.RLocker(); };
-	rlocker.Ptr.prototype.Lock = function() {
-		var r, _struct, _struct$1;
-		r = this;
-		(_struct = r, new RWMutex.Ptr((_struct$1 = _struct.w, new Mutex.Ptr(_struct$1.state, _struct$1.sema)), _struct.writerSem, _struct.readerSem, _struct.readerCount, _struct.readerWait)).RLock();
-	};
-	rlocker.prototype.Lock = function() { return this.go$val.Lock(); };
-	rlocker.Ptr.prototype.Unlock = function() {
-		var r, _struct, _struct$1;
-		r = this;
-		(_struct = r, new RWMutex.Ptr((_struct$1 = _struct.w, new Mutex.Ptr(_struct$1.state, _struct$1.sema)), _struct.writerSem, _struct.readerSem, _struct.readerCount, _struct.readerWait)).RUnlock();
-	};
-	rlocker.prototype.Unlock = function() { return this.go$val.Unlock(); };
-	WaitGroup.Ptr.prototype.Add = function(delta) {
-		var wg, v, v$1, v$2, i;
-		var go$deferred = [];
-		try {
-			wg = this;
-			v$1 = atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return wg.counter; }, function(v) { wg.counter = v;; }), (delta >> 0));
-			if (v$1 < 0) {
-				throw go$panic(new Go$String("sync: negative WaitGroup counter"));
-			}
-			if (v$1 > 0 || (atomic.LoadInt32(new (go$ptrType(Go$Int32))(function() { return wg.waiters; }, function(v$2) { wg.waiters = v$2;; })) === 0)) {
-				return;
-			}
-			wg.m.Lock();
-			i = 0;
-			while (i < wg.waiters) {
-				runtime_Semrelease(wg.sema);
-				i = i + 1 >> 0;
-			}
-			wg.waiters = 0;
-			wg.sema = (go$ptrType(Go$Uint32)).nil;
-			wg.m.Unlock();
-		} catch(go$err) {
-			go$pushErr(go$err);
-		} finally {
-			go$callDeferred(go$deferred);
-		}
-	};
-	WaitGroup.prototype.Add = function(delta) { return this.go$val.Add(delta); };
-	WaitGroup.Ptr.prototype.Done = function() {
-		var wg;
-		wg = this;
-		wg.Add(-1);
-	};
-	WaitGroup.prototype.Done = function() { return this.go$val.Done(); };
-	WaitGroup.Ptr.prototype.Wait = function() {
-		var wg, v, v$1, w, v$2, v$3, s;
-		wg = this;
-		if (atomic.LoadInt32(new (go$ptrType(Go$Int32))(function() { return wg.counter; }, function(v) { wg.counter = v;; })) === 0) {
-			return;
-		}
-		wg.m.Lock();
-		w = atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return wg.waiters; }, function(v$1) { wg.waiters = v$1;; }), 1);
-		if (atomic.LoadInt32(new (go$ptrType(Go$Int32))(function() { return wg.counter; }, function(v$2) { wg.counter = v$2;; })) === 0) {
-			atomic.AddInt32(new (go$ptrType(Go$Int32))(function() { return wg.waiters; }, function(v$3) { wg.waiters = v$3;; }), -1);
-			wg.m.Unlock();
-			return;
-		}
-		if (go$pointerIsEqual(wg.sema, (go$ptrType(Go$Uint32)).nil)) {
-			wg.sema = go$newDataPointer(0, (go$ptrType(Go$Uint32)));
-		}
-		s = wg.sema;
-		wg.m.Unlock();
-		runtime_Semacquire(s);
-	};
-	WaitGroup.prototype.Wait = function() { return this.go$val.Wait(); };
-	go$pkg.init = function() {
-		(go$ptrType(Mutex)).methods = [["Lock", "", [], [], false, -1], ["Unlock", "", [], [], false, -1]];
-		Mutex.init([["state", "state", "sync", Go$Int32, ""], ["sema", "sema", "sync", Go$Uint32, ""]]);
-		Locker.init([["Lock", "", (go$funcType([], [], false))], ["Unlock", "", (go$funcType([], [], false))]]);
-		(go$ptrType(Once)).methods = [["Do", "", [(go$funcType([], [], false))], [], false, -1]];
-		Once.init([["m", "m", "sync", Mutex, ""], ["done", "done", "sync", Go$Uint32, ""]]);
-		(go$ptrType(RWMutex)).methods = [["Lock", "", [], [], false, -1], ["RLock", "", [], [], false, -1], ["RLocker", "", [], [Locker], false, -1], ["RUnlock", "", [], [], false, -1], ["Unlock", "", [], [], false, -1]];
-		RWMutex.init([["w", "w", "sync", Mutex, ""], ["writerSem", "writerSem", "sync", Go$Uint32, ""], ["readerSem", "readerSem", "sync", Go$Uint32, ""], ["readerCount", "readerCount", "sync", Go$Int32, ""], ["readerWait", "readerWait", "sync", Go$Int32, ""]]);
-		(go$ptrType(rlocker)).methods = [["Lock", "", [], [], false, -1], ["Unlock", "", [], [], false, -1]];
-		rlocker.init([["w", "w", "sync", Mutex, ""], ["writerSem", "writerSem", "sync", Go$Uint32, ""], ["readerSem", "readerSem", "sync", Go$Uint32, ""], ["readerCount", "readerCount", "sync", Go$Int32, ""], ["readerWait", "readerWait", "sync", Go$Int32, ""]]);
-		(go$ptrType(WaitGroup)).methods = [["Add", "", [Go$Int], [], false, -1], ["Done", "", [], [], false, -1], ["Wait", "", [], [], false, -1]];
-		WaitGroup.init([["m", "m", "sync", Mutex, ""], ["counter", "counter", "sync", Go$Int32, ""], ["waiters", "waiters", "sync", Go$Int32, ""], ["sema", "sema", "sync", (go$ptrType(Go$Uint32)), ""]]);
-		var s;
-		s = go$makeNativeArray("Uintptr", 3, function() { return 0; });
-		runtime_Syncsemcheck(12);
-	}
-	return go$pkg;
-})();
-go$packages["io"] = (function() {
-	var go$pkg = {}, errors = go$packages["errors"], sync = go$packages["sync"], Reader, Writer, RuneReader, errWhence, errOffset;
-	Reader = go$pkg.Reader = go$newType(0, "Interface", "io.Reader", "Reader", "io", null);
-	Writer = go$pkg.Writer = go$newType(0, "Interface", "io.Writer", "Writer", "io", null);
-	RuneReader = go$pkg.RuneReader = go$newType(0, "Interface", "io.RuneReader", "RuneReader", "io", null);
-	go$pkg.init = function() {
-		Reader.init([["Read", "", (go$funcType([(go$sliceType(Go$Uint8))], [Go$Int, go$error], false))]]);
-		Writer.init([["Write", "", (go$funcType([(go$sliceType(Go$Uint8))], [Go$Int, go$error], false))]]);
-		RuneReader.init([["ReadRune", "", (go$funcType([], [Go$Int32, Go$Int, go$error], false))]]);
-		go$pkg.ErrShortWrite = errors.New("short write");
-		go$pkg.ErrShortBuffer = errors.New("short buffer");
-		go$pkg.EOF = errors.New("EOF");
-		go$pkg.ErrUnexpectedEOF = errors.New("unexpected EOF");
-		go$pkg.ErrNoProgress = errors.New("multiple Read calls return no data or error");
-		errWhence = errors.New("Seek: invalid whence");
-		errOffset = errors.New("Seek: invalid offset");
-		go$pkg.ErrClosedPipe = errors.New("io: read/write on closed pipe");
-	}
-	return go$pkg;
-})();
-go$packages["unicode"] = (function() {
-	var go$pkg = {}, RangeTable, Range16, Range32, CaseRange, d, foldPair, IsDigit, IsLetter, is16, is32, isExcludingLatin, to, To, ToUpper, ToLower, SimpleFold, _L, _Nd, _CaseRanges, properties, caseOrbit;
-	RangeTable = go$pkg.RangeTable = go$newType(0, "Struct", "unicode.RangeTable", "RangeTable", "unicode", function(R16_, R32_, LatinOffset_) {
-		this.go$val = this;
-		this.R16 = R16_ !== undefined ? R16_ : (go$sliceType(Range16)).nil;
-		this.R32 = R32_ !== undefined ? R32_ : (go$sliceType(Range32)).nil;
-		this.LatinOffset = LatinOffset_ !== undefined ? LatinOffset_ : 0;
-	});
-	Range16 = go$pkg.Range16 = go$newType(0, "Struct", "unicode.Range16", "Range16", "unicode", function(Lo_, Hi_, Stride_) {
-		this.go$val = this;
-		this.Lo = Lo_ !== undefined ? Lo_ : 0;
-		this.Hi = Hi_ !== undefined ? Hi_ : 0;
-		this.Stride = Stride_ !== undefined ? Stride_ : 0;
-	});
-	Range32 = go$pkg.Range32 = go$newType(0, "Struct", "unicode.Range32", "Range32", "unicode", function(Lo_, Hi_, Stride_) {
-		this.go$val = this;
-		this.Lo = Lo_ !== undefined ? Lo_ : 0;
-		this.Hi = Hi_ !== undefined ? Hi_ : 0;
-		this.Stride = Stride_ !== undefined ? Stride_ : 0;
-	});
-	CaseRange = go$pkg.CaseRange = go$newType(0, "Struct", "unicode.CaseRange", "CaseRange", "unicode", function(Lo_, Hi_, Delta_) {
-		this.go$val = this;
-		this.Lo = Lo_ !== undefined ? Lo_ : 0;
-		this.Hi = Hi_ !== undefined ? Hi_ : 0;
-		this.Delta = Delta_ !== undefined ? Delta_ : go$makeNativeArray("Int32", 3, function() { return 0; });
-	});
-	d = go$pkg.d = go$newType(0, "Array", "unicode.d", "d", "unicode", null);
-	foldPair = go$pkg.foldPair = go$newType(0, "Struct", "unicode.foldPair", "foldPair", "unicode", function(From_, To_) {
-		this.go$val = this;
-		this.From = From_ !== undefined ? From_ : 0;
-		this.To = To_ !== undefined ? To_ : 0;
-	});
-	IsDigit = go$pkg.IsDigit = function(r) {
-		if (r <= 255) {
-			return 48 <= r && r <= 57;
-		}
-		return isExcludingLatin(go$pkg.Digit, r);
-	};
-	IsLetter = go$pkg.IsLetter = function(r) {
-		if ((r >>> 0) <= 255) {
-			return !((((properties[(r << 24 >>> 24)] & 96) >>> 0) === 0));
-		}
-		return isExcludingLatin(go$pkg.Letter, r);
-	};
-	is16 = function(ranges, r) {
-		var _ref, _i, i, _slice, _index, range_, _r, lo, hi, _q, m, _slice$1, _index$1, range_$1, _r$1;
-		if (ranges.length <= 18 || r <= 255) {
-			_ref = ranges;
-			_i = 0;
-			while (_i < _ref.length) {
-				i = _i;
-				range_ = (_slice = ranges, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
-				if (r < range_.Lo) {
-					return false;
-				}
-				if (r <= range_.Hi) {
-					return (_r = ((r - range_.Lo << 16 >>> 16)) % range_.Stride, _r === _r ? _r : go$throwRuntimeError("integer divide by zero")) === 0;
-				}
-				_i++;
-			}
-			return false;
-		}
-		lo = 0;
-		hi = ranges.length;
-		while (lo < hi) {
-			m = lo + (_q = ((hi - lo >> 0)) / 2, (_q === _q && _q !== 1/0 && _q !== -1/0) ? _q >> 0 : go$throwRuntimeError("integer divide by zero")) >> 0;
-			range_$1 = (_slice$1 = ranges, _index$1 = m, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
-			if (range_$1.Lo <= r && r <= range_$1.Hi) {
-				return (_r$1 = ((r - range_$1.Lo << 16 >>> 16)) % range_$1.Stride, _r$1 === _r$1 ? _r$1 : go$throwRuntimeError("integer divide by zero")) === 0;
-			}
-			if (r < range_$1.Lo) {
-				hi = m;
-			} else {
-				lo = m + 1 >> 0;
-			}
-		}
-		return false;
-	};
-	is32 = function(ranges, r) {
-		var _ref, _i, i, _slice, _index, range_, _r, lo, hi, _q, m, _slice$1, _index$1, _struct, range_$1, _r$1;
-		if (ranges.length <= 18) {
-			_ref = ranges;
-			_i = 0;
-			while (_i < _ref.length) {
-				i = _i;
-				range_ = (_slice = ranges, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
-				if (r < range_.Lo) {
-					return false;
-				}
-				if (r <= range_.Hi) {
-					return (_r = ((r - range_.Lo >>> 0)) % range_.Stride, _r === _r ? _r : go$throwRuntimeError("integer divide by zero")) === 0;
-				}
-				_i++;
-			}
-			return false;
-		}
-		lo = 0;
-		hi = ranges.length;
-		while (lo < hi) {
-			m = lo + (_q = ((hi - lo >> 0)) / 2, (_q === _q && _q !== 1/0 && _q !== -1/0) ? _q >> 0 : go$throwRuntimeError("integer divide by zero")) >> 0;
-			range_$1 = (_struct = (_slice$1 = ranges, _index$1 = m, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")), new Range32.Ptr(_struct.Lo, _struct.Hi, _struct.Stride));
-			if (range_$1.Lo <= r && r <= range_$1.Hi) {
-				return (_r$1 = ((r - range_$1.Lo >>> 0)) % range_$1.Stride, _r$1 === _r$1 ? _r$1 : go$throwRuntimeError("integer divide by zero")) === 0;
-			}
-			if (r < range_$1.Lo) {
-				hi = m;
-			} else {
-				lo = m + 1 >> 0;
-			}
-		}
-		return false;
-	};
-	isExcludingLatin = function(rangeTab, r) {
-		var r16, off, _slice, _index, r32, _slice$1, _index$1;
-		r16 = rangeTab.R16;
-		off = rangeTab.LatinOffset;
-		if (r16.length > off && r <= ((_slice = r16, _index = (r16.length - 1 >> 0), (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).Hi >> 0)) {
-			return is16(go$subslice(r16, off), (r << 16 >>> 16));
-		}
-		r32 = rangeTab.R32;
-		if (r32.length > 0 && r >= ((_slice$1 = r32, _index$1 = 0, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).Lo >> 0)) {
-			return is32(r32, (r >>> 0));
-		}
-		return false;
-	};
-	to = function(_case, r, caseRange) {
-		var lo, hi, _q, m, _slice, _index, _struct, cr, delta;
-		if (_case < 0 || 3 <= _case) {
-			return 65533;
-		}
-		lo = 0;
-		hi = caseRange.length;
-		while (lo < hi) {
-			m = lo + (_q = ((hi - lo >> 0)) / 2, (_q === _q && _q !== 1/0 && _q !== -1/0) ? _q >> 0 : go$throwRuntimeError("integer divide by zero")) >> 0;
-			cr = (_struct = (_slice = caseRange, _index = m, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), new CaseRange.Ptr(_struct.Lo, _struct.Hi, go$mapArray(_struct.Delta, function(entry) { return entry; })));
-			if ((cr.Lo >> 0) <= r && r <= (cr.Hi >> 0)) {
-				delta = cr.Delta[_case];
-				if (delta > 1114111) {
-					return (cr.Lo >> 0) + (((((r - (cr.Lo >> 0) >> 0)) & ~1) | ((_case & 1) >> 0))) >> 0;
-				}
-				return r + delta >> 0;
-			}
-			if (r < (cr.Lo >> 0)) {
-				hi = m;
-			} else {
-				lo = m + 1 >> 0;
-			}
-		}
-		return r;
-	};
-	To = go$pkg.To = function(_case, r) {
-		return to(_case, r, go$pkg.CaseRanges);
-	};
-	ToUpper = go$pkg.ToUpper = function(r) {
-		if (r <= 127) {
-			if (97 <= r && r <= 122) {
-				r = r - 32 >> 0;
-			}
-			return r;
-		}
-		return To(0, r);
-	};
-	ToLower = go$pkg.ToLower = function(r) {
-		if (r <= 127) {
-			if (65 <= r && r <= 90) {
-				r = r + 32 >> 0;
-			}
-			return r;
-		}
-		return To(1, r);
-	};
-	SimpleFold = go$pkg.SimpleFold = function(r) {
-		var lo, hi, _q, m, _slice, _index, _slice$1, _index$1, _slice$2, _index$2, l;
-		lo = 0;
-		hi = caseOrbit.length;
-		while (lo < hi) {
-			m = lo + (_q = ((hi - lo >> 0)) / 2, (_q === _q && _q !== 1/0 && _q !== -1/0) ? _q >> 0 : go$throwRuntimeError("integer divide by zero")) >> 0;
-			if (((_slice = caseOrbit, _index = m, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).From >> 0) < r) {
-				lo = m + 1 >> 0;
-			} else {
-				hi = m;
-			}
-		}
-		if (lo < caseOrbit.length && (((_slice$1 = caseOrbit, _index$1 = lo, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).From >> 0) === r)) {
-			return ((_slice$2 = caseOrbit, _index$2 = lo, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range")).To >> 0);
-		}
-		l = ToLower(r);
-		if (!((l === r))) {
-			return l;
-		}
-		return ToUpper(r);
-	};
-	go$pkg.init = function() {
-		RangeTable.init([["R16", "R16", "", (go$sliceType(Range16)), ""], ["R32", "R32", "", (go$sliceType(Range32)), ""], ["LatinOffset", "LatinOffset", "", Go$Int, ""]]);
-		Range16.init([["Lo", "Lo", "", Go$Uint16, ""], ["Hi", "Hi", "", Go$Uint16, ""], ["Stride", "Stride", "", Go$Uint16, ""]]);
-		Range32.init([["Lo", "Lo", "", Go$Uint32, ""], ["Hi", "Hi", "", Go$Uint32, ""], ["Stride", "Stride", "", Go$Uint32, ""]]);
-		CaseRange.init([["Lo", "Lo", "", Go$Uint32, ""], ["Hi", "Hi", "", Go$Uint32, ""], ["Delta", "Delta", "", d, ""]]);
-		d.init(Go$Int32, 3);
-		foldPair.init([["From", "From", "", Go$Uint16, ""], ["To", "To", "", Go$Uint16, ""]]);
-		_L = new RangeTable.Ptr(new (go$sliceType(Range16))([new Range16.Ptr(65, 90, 1), new Range16.Ptr(97, 122, 1), new Range16.Ptr(170, 181, 11), new Range16.Ptr(186, 192, 6), new Range16.Ptr(193, 214, 1), new Range16.Ptr(216, 246, 1), new Range16.Ptr(248, 705, 1), new Range16.Ptr(710, 721, 1), new Range16.Ptr(736, 740, 1), new Range16.Ptr(748, 750, 2), new Range16.Ptr(880, 884, 1), new Range16.Ptr(886, 887, 1), new Range16.Ptr(890, 893, 1), new Range16.Ptr(902, 904, 2), new Range16.Ptr(905, 906, 1), new Range16.Ptr(908, 910, 2), new Range16.Ptr(911, 929, 1), new Range16.Ptr(931, 1013, 1), new Range16.Ptr(1015, 1153, 1), new Range16.Ptr(1162, 1319, 1), new Range16.Ptr(1329, 1366, 1), new Range16.Ptr(1369, 1377, 8), new Range16.Ptr(1378, 1415, 1), new Range16.Ptr(1488, 1514, 1), new Range16.Ptr(1520, 1522, 1), new Range16.Ptr(1568, 1610, 1), new Range16.Ptr(1646, 1647, 1), new Range16.Ptr(1649, 1747, 1), new Range16.Ptr(1749, 1765, 16), new Range16.Ptr(1766, 1774, 8), new Range16.Ptr(1775, 1786, 11), new Range16.Ptr(1787, 1788, 1), new Range16.Ptr(1791, 1808, 17), new Range16.Ptr(1810, 1839, 1), new Range16.Ptr(1869, 1957, 1), new Range16.Ptr(1969, 1994, 25), new Range16.Ptr(1995, 2026, 1), new Range16.Ptr(2036, 2037, 1), new Range16.Ptr(2042, 2048, 6), new Range16.Ptr(2049, 2069, 1), new Range16.Ptr(2074, 2084, 10), new Range16.Ptr(2088, 2112, 24), new Range16.Ptr(2113, 2136, 1), new Range16.Ptr(2208, 2210, 2), new Range16.Ptr(2211, 2220, 1), new Range16.Ptr(2308, 2361, 1), new Range16.Ptr(2365, 2384, 19), new Range16.Ptr(2392, 2401, 1), new Range16.Ptr(2417, 2423, 1), new Range16.Ptr(2425, 2431, 1), new Range16.Ptr(2437, 2444, 1), new Range16.Ptr(2447, 2448, 1), new Range16.Ptr(2451, 2472, 1), new Range16.Ptr(2474, 2480, 1), new Range16.Ptr(2482, 2486, 4), new Range16.Ptr(2487, 2489, 1), new Range16.Ptr(2493, 2510, 17), new Range16.Ptr(2524, 2525, 1), new Range16.Ptr(2527, 2529, 1), new Range16.Ptr(2544, 2545, 1), new Range16.Ptr(2565, 2570, 1), new Range16.Ptr(2575, 2576, 1), new Range16.Ptr(2579, 2600, 1), new Range16.Ptr(2602, 2608, 1), new Range16.Ptr(2610, 2611, 1), new Range16.Ptr(2613, 2614, 1), new Range16.Ptr(2616, 2617, 1), new Range16.Ptr(2649, 2652, 1), new Range16.Ptr(2654, 2674, 20), new Range16.Ptr(2675, 2676, 1), new Range16.Ptr(2693, 2701, 1), new Range16.Ptr(2703, 2705, 1), new Range16.Ptr(2707, 2728, 1), new Range16.Ptr(2730, 2736, 1), new Range16.Ptr(2738, 2739, 1), new Range16.Ptr(2741, 2745, 1), new Range16.Ptr(2749, 2768, 19), new Range16.Ptr(2784, 2785, 1), new Range16.Ptr(2821, 2828, 1), new Range16.Ptr(2831, 2832, 1), new Range16.Ptr(2835, 2856, 1), new Range16.Ptr(2858, 2864, 1), new Range16.Ptr(2866, 2867, 1), new Range16.Ptr(2869, 2873, 1), new Range16.Ptr(2877, 2908, 31), new Range16.Ptr(2909, 2911, 2), new Range16.Ptr(2912, 2913, 1), new Range16.Ptr(2929, 2947, 18), new Range16.Ptr(2949, 2954, 1), new Range16.Ptr(2958, 2960, 1), new Range16.Ptr(2962, 2965, 1), new Range16.Ptr(2969, 2970, 1), new Range16.Ptr(2972, 2974, 2), new Range16.Ptr(2975, 2979, 4), new Range16.Ptr(2980, 2984, 4), new Range16.Ptr(2985, 2986, 1), new Range16.Ptr(2990, 3001, 1), new Range16.Ptr(3024, 3077, 53), new Range16.Ptr(3078, 3084, 1), new Range16.Ptr(3086, 3088, 1), new Range16.Ptr(3090, 3112, 1), new Range16.Ptr(3114, 3123, 1), new Range16.Ptr(3125, 3129, 1), new Range16.Ptr(3133, 3160, 27), new Range16.Ptr(3161, 3168, 7), new Range16.Ptr(3169, 3205, 36), new Range16.Ptr(3206, 3212, 1), new Range16.Ptr(3214, 3216, 1), new Range16.Ptr(3218, 3240, 1), new Range16.Ptr(3242, 3251, 1), new Range16.Ptr(3253, 3257, 1), new Range16.Ptr(3261, 3294, 33), new Range16.Ptr(3296, 3297, 1), new Range16.Ptr(3313, 3314, 1), new Range16.Ptr(3333, 3340, 1), new Range16.Ptr(3342, 3344, 1), new Range16.Ptr(3346, 3386, 1), new Range16.Ptr(3389, 3406, 17), new Range16.Ptr(3424, 3425, 1), new Range16.Ptr(3450, 3455, 1), new Range16.Ptr(3461, 3478, 1), new Range16.Ptr(3482, 3505, 1), new Range16.Ptr(3507, 3515, 1), new Range16.Ptr(3517, 3520, 3), new Range16.Ptr(3521, 3526, 1), new Range16.Ptr(3585, 3632, 1), new Range16.Ptr(3634, 3635, 1), new Range16.Ptr(3648, 3654, 1), new Range16.Ptr(3713, 3714, 1), new Range16.Ptr(3716, 3719, 3), new Range16.Ptr(3720, 3722, 2), new Range16.Ptr(3725, 3732, 7), new Range16.Ptr(3733, 3735, 1), new Range16.Ptr(3737, 3743, 1), new Range16.Ptr(3745, 3747, 1), new Range16.Ptr(3749, 3751, 2), new Range16.Ptr(3754, 3755, 1), new Range16.Ptr(3757, 3760, 1), new Range16.Ptr(3762, 3763, 1), new Range16.Ptr(3773, 3776, 3), new Range16.Ptr(3777, 3780, 1), new Range16.Ptr(3782, 3804, 22), new Range16.Ptr(3805, 3807, 1), new Range16.Ptr(3840, 3904, 64), new Range16.Ptr(3905, 3911, 1), new Range16.Ptr(3913, 3948, 1), new Range16.Ptr(3976, 3980, 1), new Range16.Ptr(4096, 4138, 1), new Range16.Ptr(4159, 4176, 17), new Range16.Ptr(4177, 4181, 1), new Range16.Ptr(4186, 4189, 1), new Range16.Ptr(4193, 4197, 4), new Range16.Ptr(4198, 4206, 8), new Range16.Ptr(4207, 4208, 1), new Range16.Ptr(4213, 4225, 1), new Range16.Ptr(4238, 4256, 18), new Range16.Ptr(4257, 4293, 1), new Range16.Ptr(4295, 4301, 6), new Range16.Ptr(4304, 4346, 1), new Range16.Ptr(4348, 4680, 1), new Range16.Ptr(4682, 4685, 1), new Range16.Ptr(4688, 4694, 1), new Range16.Ptr(4696, 4698, 2), new Range16.Ptr(4699, 4701, 1), new Range16.Ptr(4704, 4744, 1), new Range16.Ptr(4746, 4749, 1), new Range16.Ptr(4752, 4784, 1), new Range16.Ptr(4786, 4789, 1), new Range16.Ptr(4792, 4798, 1), new Range16.Ptr(4800, 4802, 2), new Range16.Ptr(4803, 4805, 1), new Range16.Ptr(4808, 4822, 1), new Range16.Ptr(4824, 4880, 1), new Range16.Ptr(4882, 4885, 1), new Range16.Ptr(4888, 4954, 1), new Range16.Ptr(4992, 5007, 1), new Range16.Ptr(5024, 5108, 1), new Range16.Ptr(5121, 5740, 1), new Range16.Ptr(5743, 5759, 1), new Range16.Ptr(5761, 5786, 1), new Range16.Ptr(5792, 5866, 1), new Range16.Ptr(5888, 5900, 1), new Range16.Ptr(5902, 5905, 1), new Range16.Ptr(5920, 5937, 1), new Range16.Ptr(5952, 5969, 1), new Range16.Ptr(5984, 5996, 1), new Range16.Ptr(5998, 6000, 1), new Range16.Ptr(6016, 6067, 1), new Range16.Ptr(6103, 6108, 5), new Range16.Ptr(6176, 6263, 1), new Range16.Ptr(6272, 6312, 1), new Range16.Ptr(6314, 6320, 6), new Range16.Ptr(6321, 6389, 1), new Range16.Ptr(6400, 6428, 1), new Range16.Ptr(6480, 6509, 1), new Range16.Ptr(6512, 6516, 1), new Range16.Ptr(6528, 6571, 1), new Range16.Ptr(6593, 6599, 1), new Range16.Ptr(6656, 6678, 1), new Range16.Ptr(6688, 6740, 1), new Range16.Ptr(6823, 6917, 94), new Range16.Ptr(6918, 6963, 1), new Range16.Ptr(6981, 6987, 1), new Range16.Ptr(7043, 7072, 1), new Range16.Ptr(7086, 7087, 1), new Range16.Ptr(7098, 7141, 1), new Range16.Ptr(7168, 7203, 1), new Range16.Ptr(7245, 7247, 1), new Range16.Ptr(7258, 7293, 1), new Range16.Ptr(7401, 7404, 1), new Range16.Ptr(7406, 7409, 1), new Range16.Ptr(7413, 7414, 1), new Range16.Ptr(7424, 7615, 1), new Range16.Ptr(7680, 7957, 1), new Range16.Ptr(7960, 7965, 1), new Range16.Ptr(7968, 8005, 1), new Range16.Ptr(8008, 8013, 1), new Range16.Ptr(8016, 8023, 1), new Range16.Ptr(8025, 8031, 2), new Range16.Ptr(8032, 8061, 1), new Range16.Ptr(8064, 8116, 1), new Range16.Ptr(8118, 8124, 1), new Range16.Ptr(8126, 8130, 4), new Range16.Ptr(8131, 8132, 1), new Range16.Ptr(8134, 8140, 1), new Range16.Ptr(8144, 8147, 1), new Range16.Ptr(8150, 8155, 1), new Range16.Ptr(8160, 8172, 1), new Range16.Ptr(8178, 8180, 1), new Range16.Ptr(8182, 8188, 1), new Range16.Ptr(8305, 8319, 14), new Range16.Ptr(8336, 8348, 1), new Range16.Ptr(8450, 8455, 5), new Range16.Ptr(8458, 8467, 1), new Range16.Ptr(8469, 8473, 4), new Range16.Ptr(8474, 8477, 1), new Range16.Ptr(8484, 8490, 2), new Range16.Ptr(8491, 8493, 1), new Range16.Ptr(8495, 8505, 1), new Range16.Ptr(8508, 8511, 1), new Range16.Ptr(8517, 8521, 1), new Range16.Ptr(8526, 8579, 53), new Range16.Ptr(8580, 11264, 2684), new Range16.Ptr(11265, 11310, 1), new Range16.Ptr(11312, 11358, 1), new Range16.Ptr(11360, 11492, 1), new Range16.Ptr(11499, 11502, 1), new Range16.Ptr(11506, 11507, 1), new Range16.Ptr(11520, 11557, 1), new Range16.Ptr(11559, 11565, 6), new Range16.Ptr(11568, 11623, 1), new Range16.Ptr(11631, 11648, 17), new Range16.Ptr(11649, 11670, 1), new Range16.Ptr(11680, 11686, 1), new Range16.Ptr(11688, 11694, 1), new Range16.Ptr(11696, 11702, 1), new Range16.Ptr(11704, 11710, 1), new Range16.Ptr(11712, 11718, 1), new Range16.Ptr(11720, 11726, 1), new Range16.Ptr(11728, 11734, 1), new Range16.Ptr(11736, 11742, 1), new Range16.Ptr(11823, 12293, 470), new Range16.Ptr(12294, 12337, 43), new Range16.Ptr(12338, 12341, 1), new Range16.Ptr(12347, 12348, 1), new Range16.Ptr(12353, 12438, 1), new Range16.Ptr(12445, 12447, 1), new Range16.Ptr(12449, 12538, 1), new Range16.Ptr(12540, 12543, 1), new Range16.Ptr(12549, 12589, 1), new Range16.Ptr(12593, 12686, 1), new Range16.Ptr(12704, 12730, 1), new Range16.Ptr(12784, 12799, 1), new Range16.Ptr(13312, 19893, 1), new Range16.Ptr(19968, 40908, 1), new Range16.Ptr(40960, 42124, 1), new Range16.Ptr(42192, 42237, 1), new Range16.Ptr(42240, 42508, 1), new Range16.Ptr(42512, 42527, 1), new Range16.Ptr(42538, 42539, 1), new Range16.Ptr(42560, 42606, 1), new Range16.Ptr(42623, 42647, 1), new Range16.Ptr(42656, 42725, 1), new Range16.Ptr(42775, 42783, 1), new Range16.Ptr(42786, 42888, 1), new Range16.Ptr(42891, 42894, 1), new Range16.Ptr(42896, 42899, 1), new Range16.Ptr(42912, 42922, 1), new Range16.Ptr(43000, 43009, 1), new Range16.Ptr(43011, 43013, 1), new Range16.Ptr(43015, 43018, 1), new Range16.Ptr(43020, 43042, 1), new Range16.Ptr(43072, 43123, 1), new Range16.Ptr(43138, 43187, 1), new Range16.Ptr(43250, 43255, 1), new Range16.Ptr(43259, 43274, 15), new Range16.Ptr(43275, 43301, 1), new Range16.Ptr(43312, 43334, 1), new Range16.Ptr(43360, 43388, 1), new Range16.Ptr(43396, 43442, 1), new Range16.Ptr(43471, 43520, 49), new Range16.Ptr(43521, 43560, 1), new Range16.Ptr(43584, 43586, 1), new Range16.Ptr(43588, 43595, 1), new Range16.Ptr(43616, 43638, 1), new Range16.Ptr(43642, 43648, 6), new Range16.Ptr(43649, 43695, 1), new Range16.Ptr(43697, 43701, 4), new Range16.Ptr(43702, 43705, 3), new Range16.Ptr(43706, 43709, 1), new Range16.Ptr(43712, 43714, 2), new Range16.Ptr(43739, 43741, 1), new Range16.Ptr(43744, 43754, 1), new Range16.Ptr(43762, 43764, 1), new Range16.Ptr(43777, 43782, 1), new Range16.Ptr(43785, 43790, 1), new Range16.Ptr(43793, 43798, 1), new Range16.Ptr(43808, 43814, 1), new Range16.Ptr(43816, 43822, 1), new Range16.Ptr(43968, 44002, 1), new Range16.Ptr(44032, 55203, 1), new Range16.Ptr(55216, 55238, 1), new Range16.Ptr(55243, 55291, 1), new Range16.Ptr(63744, 64109, 1), new Range16.Ptr(64112, 64217, 1), new Range16.Ptr(64256, 64262, 1), new Range16.Ptr(64275, 64279, 1), new Range16.Ptr(64285, 64287, 2), new Range16.Ptr(64288, 64296, 1), new Range16.Ptr(64298, 64310, 1), new Range16.Ptr(64312, 64316, 1), new Range16.Ptr(64318, 64320, 2), new Range16.Ptr(64321, 64323, 2), new Range16.Ptr(64324, 64326, 2), new Range16.Ptr(64327, 64433, 1), new Range16.Ptr(64467, 64829, 1), new Range16.Ptr(64848, 64911, 1), new Range16.Ptr(64914, 64967, 1), new Range16.Ptr(65008, 65019, 1), new Range16.Ptr(65136, 65140, 1), new Range16.Ptr(65142, 65276, 1), new Range16.Ptr(65313, 65338, 1), new Range16.Ptr(65345, 65370, 1), new Range16.Ptr(65382, 65470, 1), new Range16.Ptr(65474, 65479, 1), new Range16.Ptr(65482, 65487, 1), new Range16.Ptr(65490, 65495, 1), new Range16.Ptr(65498, 65500, 1)]), new (go$sliceType(Range32))([new Range32.Ptr(65536, 65547, 1), new Range32.Ptr(65549, 65574, 1), new Range32.Ptr(65576, 65594, 1), new Range32.Ptr(65596, 65597, 1), new Range32.Ptr(65599, 65613, 1), new Range32.Ptr(65616, 65629, 1), new Range32.Ptr(65664, 65786, 1), new Range32.Ptr(66176, 66204, 1), new Range32.Ptr(66208, 66256, 1), new Range32.Ptr(66304, 66334, 1), new Range32.Ptr(66352, 66368, 1), new Range32.Ptr(66370, 66377, 1), new Range32.Ptr(66432, 66461, 1), new Range32.Ptr(66464, 66499, 1), new Range32.Ptr(66504, 66511, 1), new Range32.Ptr(66560, 66717, 1), new Range32.Ptr(67584, 67589, 1), new Range32.Ptr(67592, 67594, 2), new Range32.Ptr(67595, 67637, 1), new Range32.Ptr(67639, 67640, 1), new Range32.Ptr(67644, 67647, 3), new Range32.Ptr(67648, 67669, 1), new Range32.Ptr(67840, 67861, 1), new Range32.Ptr(67872, 67897, 1), new Range32.Ptr(67968, 68023, 1), new Range32.Ptr(68030, 68031, 1), new Range32.Ptr(68096, 68112, 16), new Range32.Ptr(68113, 68115, 1), new Range32.Ptr(68117, 68119, 1), new Range32.Ptr(68121, 68147, 1), new Range32.Ptr(68192, 68220, 1), new Range32.Ptr(68352, 68405, 1), new Range32.Ptr(68416, 68437, 1), new Range32.Ptr(68448, 68466, 1), new Range32.Ptr(68608, 68680, 1), new Range32.Ptr(69635, 69687, 1), new Range32.Ptr(69763, 69807, 1), new Range32.Ptr(69840, 69864, 1), new Range32.Ptr(69891, 69926, 1), new Range32.Ptr(70019, 70066, 1), new Range32.Ptr(70081, 70084, 1), new Range32.Ptr(71296, 71338, 1), new Range32.Ptr(73728, 74606, 1), new Range32.Ptr(77824, 78894, 1), new Range32.Ptr(92160, 92728, 1), new Range32.Ptr(93952, 94020, 1), new Range32.Ptr(94032, 94099, 67), new Range32.Ptr(94100, 94111, 1), new Range32.Ptr(110592, 110593, 1), new Range32.Ptr(119808, 119892, 1), new Range32.Ptr(119894, 119964, 1), new Range32.Ptr(119966, 119967, 1), new Range32.Ptr(119970, 119973, 3), new Range32.Ptr(119974, 119977, 3), new Range32.Ptr(119978, 119980, 1), new Range32.Ptr(119982, 119993, 1), new Range32.Ptr(119995, 119997, 2), new Range32.Ptr(119998, 120003, 1), new Range32.Ptr(120005, 120069, 1), new Range32.Ptr(120071, 120074, 1), new Range32.Ptr(120077, 120084, 1), new Range32.Ptr(120086, 120092, 1), new Range32.Ptr(120094, 120121, 1), new Range32.Ptr(120123, 120126, 1), new Range32.Ptr(120128, 120132, 1), new Range32.Ptr(120134, 120138, 4), new Range32.Ptr(120139, 120144, 1), new Range32.Ptr(120146, 120485, 1), new Range32.Ptr(120488, 120512, 1), new Range32.Ptr(120514, 120538, 1), new Range32.Ptr(120540, 120570, 1), new Range32.Ptr(120572, 120596, 1), new Range32.Ptr(120598, 120628, 1), new Range32.Ptr(120630, 120654, 1), new Range32.Ptr(120656, 120686, 1), new Range32.Ptr(120688, 120712, 1), new Range32.Ptr(120714, 120744, 1), new Range32.Ptr(120746, 120770, 1), new Range32.Ptr(120772, 120779, 1), new Range32.Ptr(126464, 126467, 1), new Range32.Ptr(126469, 126495, 1), new Range32.Ptr(126497, 126498, 1), new Range32.Ptr(126500, 126503, 3), new Range32.Ptr(126505, 126514, 1), new Range32.Ptr(126516, 126519, 1), new Range32.Ptr(126521, 126523, 2), new Range32.Ptr(126530, 126535, 5), new Range32.Ptr(126537, 126541, 2), new Range32.Ptr(126542, 126543, 1), new Range32.Ptr(126545, 126546, 1), new Range32.Ptr(126548, 126551, 3), new Range32.Ptr(126553, 126561, 2), new Range32.Ptr(126562, 126564, 2), new Range32.Ptr(126567, 126570, 1), new Range32.Ptr(126572, 126578, 1), new Range32.Ptr(126580, 126583, 1), new Range32.Ptr(126585, 126588, 1), new Range32.Ptr(126590, 126592, 2), new Range32.Ptr(126593, 126601, 1), new Range32.Ptr(126603, 126619, 1), new Range32.Ptr(126625, 126627, 1), new Range32.Ptr(126629, 126633, 1), new Range32.Ptr(126635, 126651, 1), new Range32.Ptr(131072, 173782, 1), new Range32.Ptr(173824, 177972, 1), new Range32.Ptr(177984, 178205, 1), new Range32.Ptr(194560, 195101, 1)]), 6);
-		_Nd = new RangeTable.Ptr(new (go$sliceType(Range16))([new Range16.Ptr(48, 57, 1), new Range16.Ptr(1632, 1641, 1), new Range16.Ptr(1776, 1785, 1), new Range16.Ptr(1984, 1993, 1), new Range16.Ptr(2406, 2415, 1), new Range16.Ptr(2534, 2543, 1), new Range16.Ptr(2662, 2671, 1), new Range16.Ptr(2790, 2799, 1), new Range16.Ptr(2918, 2927, 1), new Range16.Ptr(3046, 3055, 1), new Range16.Ptr(3174, 3183, 1), new Range16.Ptr(3302, 3311, 1), new Range16.Ptr(3430, 3439, 1), new Range16.Ptr(3664, 3673, 1), new Range16.Ptr(3792, 3801, 1), new Range16.Ptr(3872, 3881, 1), new Range16.Ptr(4160, 4169, 1), new Range16.Ptr(4240, 4249, 1), new Range16.Ptr(6112, 6121, 1), new Range16.Ptr(6160, 6169, 1), new Range16.Ptr(6470, 6479, 1), new Range16.Ptr(6608, 6617, 1), new Range16.Ptr(6784, 6793, 1), new Range16.Ptr(6800, 6809, 1), new Range16.Ptr(6992, 7001, 1), new Range16.Ptr(7088, 7097, 1), new Range16.Ptr(7232, 7241, 1), new Range16.Ptr(7248, 7257, 1), new Range16.Ptr(42528, 42537, 1), new Range16.Ptr(43216, 43225, 1), new Range16.Ptr(43264, 43273, 1), new Range16.Ptr(43472, 43481, 1), new Range16.Ptr(43600, 43609, 1), new Range16.Ptr(44016, 44025, 1), new Range16.Ptr(65296, 65305, 1)]), new (go$sliceType(Range32))([new Range32.Ptr(66720, 66729, 1), new Range32.Ptr(69734, 69743, 1), new Range32.Ptr(69872, 69881, 1), new Range32.Ptr(69942, 69951, 1), new Range32.Ptr(70096, 70105, 1), new Range32.Ptr(71360, 71369, 1), new Range32.Ptr(120782, 120831, 1)]), 1);
-		go$pkg.Digit = _Nd;
-		go$pkg.Letter = _L;
-		_CaseRanges = new (go$sliceType(CaseRange))([new CaseRange.Ptr(65, 90, go$toNativeArray("Int32", [0, 32, 0])), new CaseRange.Ptr(97, 122, go$toNativeArray("Int32", [-32, 0, -32])), new CaseRange.Ptr(181, 181, go$toNativeArray("Int32", [743, 0, 743])), new CaseRange.Ptr(192, 214, go$toNativeArray("Int32", [0, 32, 0])), new CaseRange.Ptr(216, 222, go$toNativeArray("Int32", [0, 32, 0])), new CaseRange.Ptr(224, 246, go$toNativeArray("Int32", [-32, 0, -32])), new CaseRange.Ptr(248, 254, go$toNativeArray("Int32", [-32, 0, -32])), new CaseRange.Ptr(255, 255, go$toNativeArray("Int32", [121, 0, 121])), new CaseRange.Ptr(256, 303, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(304, 304, go$toNativeArray("Int32", [0, -199, 0])), new CaseRange.Ptr(305, 305, go$toNativeArray("Int32", [-232, 0, -232])), new CaseRange.Ptr(306, 311, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(313, 328, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(330, 375, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(376, 376, go$toNativeArray("Int32", [0, -121, 0])), new CaseRange.Ptr(377, 382, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(383, 383, go$toNativeArray("Int32", [-300, 0, -300])), new CaseRange.Ptr(384, 384, go$toNativeArray("Int32", [195, 0, 195])), new CaseRange.Ptr(385, 385, go$toNativeArray("Int32", [0, 210, 0])), new CaseRange.Ptr(386, 389, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(390, 390, go$toNativeArray("Int32", [0, 206, 0])), new CaseRange.Ptr(391, 392, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(393, 394, go$toNativeArray("Int32", [0, 205, 0])), new CaseRange.Ptr(395, 396, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(398, 398, go$toNativeArray("Int32", [0, 79, 0])), new CaseRange.Ptr(399, 399, go$toNativeArray("Int32", [0, 202, 0])), new CaseRange.Ptr(400, 400, go$toNativeArray("Int32", [0, 203, 0])), new CaseRange.Ptr(401, 402, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(403, 403, go$toNativeArray("Int32", [0, 205, 0])), new CaseRange.Ptr(404, 404, go$toNativeArray("Int32", [0, 207, 0])), new CaseRange.Ptr(405, 405, go$toNativeArray("Int32", [97, 0, 97])), new CaseRange.Ptr(406, 406, go$toNativeArray("Int32", [0, 211, 0])), new CaseRange.Ptr(407, 407, go$toNativeArray("Int32", [0, 209, 0])), new CaseRange.Ptr(408, 409, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(410, 410, go$toNativeArray("Int32", [163, 0, 163])), new CaseRange.Ptr(412, 412, go$toNativeArray("Int32", [0, 211, 0])), new CaseRange.Ptr(413, 413, go$toNativeArray("Int32", [0, 213, 0])), new CaseRange.Ptr(414, 414, go$toNativeArray("Int32", [130, 0, 130])), new CaseRange.Ptr(415, 415, go$toNativeArray("Int32", [0, 214, 0])), new CaseRange.Ptr(416, 421, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(422, 422, go$toNativeArray("Int32", [0, 218, 0])), new CaseRange.Ptr(423, 424, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(425, 425, go$toNativeArray("Int32", [0, 218, 0])), new CaseRange.Ptr(428, 429, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(430, 430, go$toNativeArray("Int32", [0, 218, 0])), new CaseRange.Ptr(431, 432, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(433, 434, go$toNativeArray("Int32", [0, 217, 0])), new CaseRange.Ptr(435, 438, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(439, 439, go$toNativeArray("Int32", [0, 219, 0])), new CaseRange.Ptr(440, 441, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(444, 445, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(447, 447, go$toNativeArray("Int32", [56, 0, 56])), new CaseRange.Ptr(452, 452, go$toNativeArray("Int32", [0, 2, 1])), new CaseRange.Ptr(453, 453, go$toNativeArray("Int32", [-1, 1, 0])), new CaseRange.Ptr(454, 454, go$toNativeArray("Int32", [-2, 0, -1])), new CaseRange.Ptr(455, 455, go$toNativeArray("Int32", [0, 2, 1])), new CaseRange.Ptr(456, 456, go$toNativeArray("Int32", [-1, 1, 0])), new CaseRange.Ptr(457, 457, go$toNativeArray("Int32", [-2, 0, -1])), new CaseRange.Ptr(458, 458, go$toNativeArray("Int32", [0, 2, 1])), new CaseRange.Ptr(459, 459, go$toNativeArray("Int32", [-1, 1, 0])), new CaseRange.Ptr(460, 460, go$toNativeArray("Int32", [-2, 0, -1])), new CaseRange.Ptr(461, 476, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(477, 477, go$toNativeArray("Int32", [-79, 0, -79])), new CaseRange.Ptr(478, 495, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(497, 497, go$toNativeArray("Int32", [0, 2, 1])), new CaseRange.Ptr(498, 498, go$toNativeArray("Int32", [-1, 1, 0])), new CaseRange.Ptr(499, 499, go$toNativeArray("Int32", [-2, 0, -1])), new CaseRange.Ptr(500, 501, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(502, 502, go$toNativeArray("Int32", [0, -97, 0])), new CaseRange.Ptr(503, 503, go$toNativeArray("Int32", [0, -56, 0])), new CaseRange.Ptr(504, 543, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(544, 544, go$toNativeArray("Int32", [0, -130, 0])), new CaseRange.Ptr(546, 563, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(570, 570, go$toNativeArray("Int32", [0, 10795, 0])), new CaseRange.Ptr(571, 572, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(573, 573, go$toNativeArray("Int32", [0, -163, 0])), new CaseRange.Ptr(574, 574, go$toNativeArray("Int32", [0, 10792, 0])), new CaseRange.Ptr(575, 576, go$toNativeArray("Int32", [10815, 0, 10815])), new CaseRange.Ptr(577, 578, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(579, 579, go$toNativeArray("Int32", [0, -195, 0])), new CaseRange.Ptr(580, 580, go$toNativeArray("Int32", [0, 69, 0])), new CaseRange.Ptr(581, 581, go$toNativeArray("Int32", [0, 71, 0])), new CaseRange.Ptr(582, 591, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(592, 592, go$toNativeArray("Int32", [10783, 0, 10783])), new CaseRange.Ptr(593, 593, go$toNativeArray("Int32", [10780, 0, 10780])), new CaseRange.Ptr(594, 594, go$toNativeArray("Int32", [10782, 0, 10782])), new CaseRange.Ptr(595, 595, go$toNativeArray("Int32", [-210, 0, -210])), new CaseRange.Ptr(596, 596, go$toNativeArray("Int32", [-206, 0, -206])), new CaseRange.Ptr(598, 599, go$toNativeArray("Int32", [-205, 0, -205])), new CaseRange.Ptr(601, 601, go$toNativeArray("Int32", [-202, 0, -202])), new CaseRange.Ptr(603, 603, go$toNativeArray("Int32", [-203, 0, -203])), new CaseRange.Ptr(608, 608, go$toNativeArray("Int32", [-205, 0, -205])), new CaseRange.Ptr(611, 611, go$toNativeArray("Int32", [-207, 0, -207])), new CaseRange.Ptr(613, 613, go$toNativeArray("Int32", [42280, 0, 42280])), new CaseRange.Ptr(614, 614, go$toNativeArray("Int32", [42308, 0, 42308])), new CaseRange.Ptr(616, 616, go$toNativeArray("Int32", [-209, 0, -209])), new CaseRange.Ptr(617, 617, go$toNativeArray("Int32", [-211, 0, -211])), new CaseRange.Ptr(619, 619, go$toNativeArray("Int32", [10743, 0, 10743])), new CaseRange.Ptr(623, 623, go$toNativeArray("Int32", [-211, 0, -211])), new CaseRange.Ptr(625, 625, go$toNativeArray("Int32", [10749, 0, 10749])), new CaseRange.Ptr(626, 626, go$toNativeArray("Int32", [-213, 0, -213])), new CaseRange.Ptr(629, 629, go$toNativeArray("Int32", [-214, 0, -214])), new CaseRange.Ptr(637, 637, go$toNativeArray("Int32", [10727, 0, 10727])), new CaseRange.Ptr(640, 640, go$toNativeArray("Int32", [-218, 0, -218])), new CaseRange.Ptr(643, 643, go$toNativeArray("Int32", [-218, 0, -218])), new CaseRange.Ptr(648, 648, go$toNativeArray("Int32", [-218, 0, -218])), new CaseRange.Ptr(649, 649, go$toNativeArray("Int32", [-69, 0, -69])), new CaseRange.Ptr(650, 651, go$toNativeArray("Int32", [-217, 0, -217])), new CaseRange.Ptr(652, 652, go$toNativeArray("Int32", [-71, 0, -71])), new CaseRange.Ptr(658, 658, go$toNativeArray("Int32", [-219, 0, -219])), new CaseRange.Ptr(837, 837, go$toNativeArray("Int32", [84, 0, 84])), new CaseRange.Ptr(880, 883, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(886, 887, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(891, 893, go$toNativeArray("Int32", [130, 0, 130])), new CaseRange.Ptr(902, 902, go$toNativeArray("Int32", [0, 38, 0])), new CaseRange.Ptr(904, 906, go$toNativeArray("Int32", [0, 37, 0])), new CaseRange.Ptr(908, 908, go$toNativeArray("Int32", [0, 64, 0])), new CaseRange.Ptr(910, 911, go$toNativeArray("Int32", [0, 63, 0])), new CaseRange.Ptr(913, 929, go$toNativeArray("Int32", [0, 32, 0])), new CaseRange.Ptr(931, 939, go$toNativeArray("Int32", [0, 32, 0])), new CaseRange.Ptr(940, 940, go$toNativeArray("Int32", [-38, 0, -38])), new CaseRange.Ptr(941, 943, go$toNativeArray("Int32", [-37, 0, -37])), new CaseRange.Ptr(945, 961, go$toNativeArray("Int32", [-32, 0, -32])), new CaseRange.Ptr(962, 962, go$toNativeArray("Int32", [-31, 0, -31])), new CaseRange.Ptr(963, 971, go$toNativeArray("Int32", [-32, 0, -32])), new CaseRange.Ptr(972, 972, go$toNativeArray("Int32", [-64, 0, -64])), new CaseRange.Ptr(973, 974, go$toNativeArray("Int32", [-63, 0, -63])), new CaseRange.Ptr(975, 975, go$toNativeArray("Int32", [0, 8, 0])), new CaseRange.Ptr(976, 976, go$toNativeArray("Int32", [-62, 0, -62])), new CaseRange.Ptr(977, 977, go$toNativeArray("Int32", [-57, 0, -57])), new CaseRange.Ptr(981, 981, go$toNativeArray("Int32", [-47, 0, -47])), new CaseRange.Ptr(982, 982, go$toNativeArray("Int32", [-54, 0, -54])), new CaseRange.Ptr(983, 983, go$toNativeArray("Int32", [-8, 0, -8])), new CaseRange.Ptr(984, 1007, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(1008, 1008, go$toNativeArray("Int32", [-86, 0, -86])), new CaseRange.Ptr(1009, 1009, go$toNativeArray("Int32", [-80, 0, -80])), new CaseRange.Ptr(1010, 1010, go$toNativeArray("Int32", [7, 0, 7])), new CaseRange.Ptr(1012, 1012, go$toNativeArray("Int32", [0, -60, 0])), new CaseRange.Ptr(1013, 1013, go$toNativeArray("Int32", [-96, 0, -96])), new CaseRange.Ptr(1015, 1016, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(1017, 1017, go$toNativeArray("Int32", [0, -7, 0])), new CaseRange.Ptr(1018, 1019, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(1021, 1023, go$toNativeArray("Int32", [0, -130, 0])), new CaseRange.Ptr(1024, 1039, go$toNativeArray("Int32", [0, 80, 0])), new CaseRange.Ptr(1040, 1071, go$toNativeArray("Int32", [0, 32, 0])), new CaseRange.Ptr(1072, 1103, go$toNativeArray("Int32", [-32, 0, -32])), new CaseRange.Ptr(1104, 1119, go$toNativeArray("Int32", [-80, 0, -80])), new CaseRange.Ptr(1120, 1153, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(1162, 1215, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(1216, 1216, go$toNativeArray("Int32", [0, 15, 0])), new CaseRange.Ptr(1217, 1230, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(1231, 1231, go$toNativeArray("Int32", [-15, 0, -15])), new CaseRange.Ptr(1232, 1319, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(1329, 1366, go$toNativeArray("Int32", [0, 48, 0])), new CaseRange.Ptr(1377, 1414, go$toNativeArray("Int32", [-48, 0, -48])), new CaseRange.Ptr(4256, 4293, go$toNativeArray("Int32", [0, 7264, 0])), new CaseRange.Ptr(4295, 4295, go$toNativeArray("Int32", [0, 7264, 0])), new CaseRange.Ptr(4301, 4301, go$toNativeArray("Int32", [0, 7264, 0])), new CaseRange.Ptr(7545, 7545, go$toNativeArray("Int32", [35332, 0, 35332])), new CaseRange.Ptr(7549, 7549, go$toNativeArray("Int32", [3814, 0, 3814])), new CaseRange.Ptr(7680, 7829, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(7835, 7835, go$toNativeArray("Int32", [-59, 0, -59])), new CaseRange.Ptr(7838, 7838, go$toNativeArray("Int32", [0, -7615, 0])), new CaseRange.Ptr(7840, 7935, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(7936, 7943, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(7944, 7951, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(7952, 7957, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(7960, 7965, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(7968, 7975, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(7976, 7983, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(7984, 7991, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(7992, 7999, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8000, 8005, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8008, 8013, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8017, 8017, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8019, 8019, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8021, 8021, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8023, 8023, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8025, 8025, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8027, 8027, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8029, 8029, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8031, 8031, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8032, 8039, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8040, 8047, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8048, 8049, go$toNativeArray("Int32", [74, 0, 74])), new CaseRange.Ptr(8050, 8053, go$toNativeArray("Int32", [86, 0, 86])), new CaseRange.Ptr(8054, 8055, go$toNativeArray("Int32", [100, 0, 100])), new CaseRange.Ptr(8056, 8057, go$toNativeArray("Int32", [128, 0, 128])), new CaseRange.Ptr(8058, 8059, go$toNativeArray("Int32", [112, 0, 112])), new CaseRange.Ptr(8060, 8061, go$toNativeArray("Int32", [126, 0, 126])), new CaseRange.Ptr(8064, 8071, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8072, 8079, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8080, 8087, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8088, 8095, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8096, 8103, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8104, 8111, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8112, 8113, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8115, 8115, go$toNativeArray("Int32", [9, 0, 9])), new CaseRange.Ptr(8120, 8121, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8122, 8123, go$toNativeArray("Int32", [0, -74, 0])), new CaseRange.Ptr(8124, 8124, go$toNativeArray("Int32", [0, -9, 0])), new CaseRange.Ptr(8126, 8126, go$toNativeArray("Int32", [-7205, 0, -7205])), new CaseRange.Ptr(8131, 8131, go$toNativeArray("Int32", [9, 0, 9])), new CaseRange.Ptr(8136, 8139, go$toNativeArray("Int32", [0, -86, 0])), new CaseRange.Ptr(8140, 8140, go$toNativeArray("Int32", [0, -9, 0])), new CaseRange.Ptr(8144, 8145, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8152, 8153, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8154, 8155, go$toNativeArray("Int32", [0, -100, 0])), new CaseRange.Ptr(8160, 8161, go$toNativeArray("Int32", [8, 0, 8])), new CaseRange.Ptr(8165, 8165, go$toNativeArray("Int32", [7, 0, 7])), new CaseRange.Ptr(8168, 8169, go$toNativeArray("Int32", [0, -8, 0])), new CaseRange.Ptr(8170, 8171, go$toNativeArray("Int32", [0, -112, 0])), new CaseRange.Ptr(8172, 8172, go$toNativeArray("Int32", [0, -7, 0])), new CaseRange.Ptr(8179, 8179, go$toNativeArray("Int32", [9, 0, 9])), new CaseRange.Ptr(8184, 8185, go$toNativeArray("Int32", [0, -128, 0])), new CaseRange.Ptr(8186, 8187, go$toNativeArray("Int32", [0, -126, 0])), new CaseRange.Ptr(8188, 8188, go$toNativeArray("Int32", [0, -9, 0])), new CaseRange.Ptr(8486, 8486, go$toNativeArray("Int32", [0, -7517, 0])), new CaseRange.Ptr(8490, 8490, go$toNativeArray("Int32", [0, -8383, 0])), new CaseRange.Ptr(8491, 8491, go$toNativeArray("Int32", [0, -8262, 0])), new CaseRange.Ptr(8498, 8498, go$toNativeArray("Int32", [0, 28, 0])), new CaseRange.Ptr(8526, 8526, go$toNativeArray("Int32", [-28, 0, -28])), new CaseRange.Ptr(8544, 8559, go$toNativeArray("Int32", [0, 16, 0])), new CaseRange.Ptr(8560, 8575, go$toNativeArray("Int32", [-16, 0, -16])), new CaseRange.Ptr(8579, 8580, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(9398, 9423, go$toNativeArray("Int32", [0, 26, 0])), new CaseRange.Ptr(9424, 9449, go$toNativeArray("Int32", [-26, 0, -26])), new CaseRange.Ptr(11264, 11310, go$toNativeArray("Int32", [0, 48, 0])), new CaseRange.Ptr(11312, 11358, go$toNativeArray("Int32", [-48, 0, -48])), new CaseRange.Ptr(11360, 11361, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(11362, 11362, go$toNativeArray("Int32", [0, -10743, 0])), new CaseRange.Ptr(11363, 11363, go$toNativeArray("Int32", [0, -3814, 0])), new CaseRange.Ptr(11364, 11364, go$toNativeArray("Int32", [0, -10727, 0])), new CaseRange.Ptr(11365, 11365, go$toNativeArray("Int32", [-10795, 0, -10795])), new CaseRange.Ptr(11366, 11366, go$toNativeArray("Int32", [-10792, 0, -10792])), new CaseRange.Ptr(11367, 11372, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(11373, 11373, go$toNativeArray("Int32", [0, -10780, 0])), new CaseRange.Ptr(11374, 11374, go$toNativeArray("Int32", [0, -10749, 0])), new CaseRange.Ptr(11375, 11375, go$toNativeArray("Int32", [0, -10783, 0])), new CaseRange.Ptr(11376, 11376, go$toNativeArray("Int32", [0, -10782, 0])), new CaseRange.Ptr(11378, 11379, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(11381, 11382, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(11390, 11391, go$toNativeArray("Int32", [0, -10815, 0])), new CaseRange.Ptr(11392, 11491, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(11499, 11502, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(11506, 11507, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(11520, 11557, go$toNativeArray("Int32", [-7264, 0, -7264])), new CaseRange.Ptr(11559, 11559, go$toNativeArray("Int32", [-7264, 0, -7264])), new CaseRange.Ptr(11565, 11565, go$toNativeArray("Int32", [-7264, 0, -7264])), new CaseRange.Ptr(42560, 42605, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42624, 42647, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42786, 42799, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42802, 42863, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42873, 42876, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42877, 42877, go$toNativeArray("Int32", [0, -35332, 0])), new CaseRange.Ptr(42878, 42887, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42891, 42892, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42893, 42893, go$toNativeArray("Int32", [0, -42280, 0])), new CaseRange.Ptr(42896, 42899, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42912, 42921, go$toNativeArray("Int32", [1114112, 1114112, 1114112])), new CaseRange.Ptr(42922, 42922, go$toNativeArray("Int32", [0, -42308, 0])), new CaseRange.Ptr(65313, 65338, go$toNativeArray("Int32", [0, 32, 0])), new CaseRange.Ptr(65345, 65370, go$toNativeArray("Int32", [-32, 0, -32])), new CaseRange.Ptr(66560, 66599, go$toNativeArray("Int32", [0, 40, 0])), new CaseRange.Ptr(66600, 66639, go$toNativeArray("Int32", [-40, 0, -40]))]);
-		go$pkg.CaseRanges = _CaseRanges;
-		properties = go$toNativeArray("Uint8", [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 144, 130, 130, 130, 136, 130, 130, 130, 130, 130, 130, 136, 130, 130, 130, 130, 132, 132, 132, 132, 132, 132, 132, 132, 132, 132, 130, 130, 136, 136, 136, 130, 130, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 130, 130, 130, 136, 130, 136, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 130, 136, 130, 136, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 16, 130, 136, 136, 136, 136, 136, 130, 136, 136, 224, 130, 136, 0, 136, 136, 136, 136, 132, 132, 136, 192, 130, 130, 136, 132, 224, 130, 132, 132, 132, 130, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 160, 136, 160, 160, 160, 160, 160, 160, 160, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 136, 192, 192, 192, 192, 192, 192, 192, 192]);
-		caseOrbit = new (go$sliceType(foldPair))([new foldPair.Ptr(75, 107), new foldPair.Ptr(83, 115), new foldPair.Ptr(107, 8490), new foldPair.Ptr(115, 383), new foldPair.Ptr(181, 924), new foldPair.Ptr(197, 229), new foldPair.Ptr(223, 7838), new foldPair.Ptr(229, 8491), new foldPair.Ptr(304, 304), new foldPair.Ptr(305, 305), new foldPair.Ptr(383, 83), new foldPair.Ptr(452, 453), new foldPair.Ptr(453, 454), new foldPair.Ptr(454, 452), new foldPair.Ptr(455, 456), new foldPair.Ptr(456, 457), new foldPair.Ptr(457, 455), new foldPair.Ptr(458, 459), new foldPair.Ptr(459, 460), new foldPair.Ptr(460, 458), new foldPair.Ptr(497, 498), new foldPair.Ptr(498, 499), new foldPair.Ptr(499, 497), new foldPair.Ptr(837, 921), new foldPair.Ptr(914, 946), new foldPair.Ptr(917, 949), new foldPair.Ptr(920, 952), new foldPair.Ptr(921, 953), new foldPair.Ptr(922, 954), new foldPair.Ptr(924, 956), new foldPair.Ptr(928, 960), new foldPair.Ptr(929, 961), new foldPair.Ptr(931, 962), new foldPair.Ptr(934, 966), new foldPair.Ptr(937, 969), new foldPair.Ptr(946, 976), new foldPair.Ptr(949, 1013), new foldPair.Ptr(952, 977), new foldPair.Ptr(953, 8126), new foldPair.Ptr(954, 1008), new foldPair.Ptr(956, 181), new foldPair.Ptr(960, 982), new foldPair.Ptr(961, 1009), new foldPair.Ptr(962, 963), new foldPair.Ptr(963, 931), new foldPair.Ptr(966, 981), new foldPair.Ptr(969, 8486), new foldPair.Ptr(976, 914), new foldPair.Ptr(977, 1012), new foldPair.Ptr(981, 934), new foldPair.Ptr(982, 928), new foldPair.Ptr(1008, 922), new foldPair.Ptr(1009, 929), new foldPair.Ptr(1012, 920), new foldPair.Ptr(1013, 917), new foldPair.Ptr(7776, 7777), new foldPair.Ptr(7777, 7835), new foldPair.Ptr(7835, 7776), new foldPair.Ptr(7838, 223), new foldPair.Ptr(8126, 837), new foldPair.Ptr(8486, 937), new foldPair.Ptr(8490, 75), new foldPair.Ptr(8491, 197)]);
-	}
-	return go$pkg;
-})();
-go$packages["unicode/utf8"] = (function() {
-	var go$pkg = {}, decodeRuneInternal, decodeRuneInStringInternal, FullRune, DecodeRune, DecodeRuneInString, DecodeLastRune, RuneLen, EncodeRune, RuneCountInString, RuneStart;
-	decodeRuneInternal = function(p) {
-		var r, size, short$1, n, _tuple, _slice, _index, c0, _tuple$1, _tuple$2, _tuple$3, _slice$1, _index$1, c1, _tuple$4, _tuple$5, _tuple$6, _tuple$7, _slice$2, _index$2, c2, _tuple$8, _tuple$9, _tuple$10, _tuple$11, _tuple$12, _slice$3, _index$3, c3, _tuple$13, _tuple$14, _tuple$15, _tuple$16;
-		r = 0;
-		size = 0;
-		short$1 = false;
-		n = p.length;
-		if (n < 1) {
-			_tuple = [65533, 0, true]; r = _tuple[0]; size = _tuple[1]; short$1 = _tuple[2];
-			return [r, size, short$1];
-		}
-		c0 = (_slice = p, _index = 0, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
-		if (c0 < 128) {
-			_tuple$1 = [(c0 >> 0), 1, false]; r = _tuple$1[0]; size = _tuple$1[1]; short$1 = _tuple$1[2];
-			return [r, size, short$1];
-		}
-		if (c0 < 192) {
-			_tuple$2 = [65533, 1, false]; r = _tuple$2[0]; size = _tuple$2[1]; short$1 = _tuple$2[2];
-			return [r, size, short$1];
-		}
-		if (n < 2) {
-			_tuple$3 = [65533, 1, true]; r = _tuple$3[0]; size = _tuple$3[1]; short$1 = _tuple$3[2];
-			return [r, size, short$1];
-		}
-		c1 = (_slice$1 = p, _index$1 = 1, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
-		if (c1 < 128 || 192 <= c1) {
-			_tuple$4 = [65533, 1, false]; r = _tuple$4[0]; size = _tuple$4[1]; short$1 = _tuple$4[2];
-			return [r, size, short$1];
-		}
-		if (c0 < 224) {
-			r = ((((c0 & 31) >>> 0) >> 0) << 6 >> 0) | (((c1 & 63) >>> 0) >> 0);
-			if (r <= 127) {
-				_tuple$5 = [65533, 1, false]; r = _tuple$5[0]; size = _tuple$5[1]; short$1 = _tuple$5[2];
-				return [r, size, short$1];
-			}
-			_tuple$6 = [r, 2, false]; r = _tuple$6[0]; size = _tuple$6[1]; short$1 = _tuple$6[2];
-			return [r, size, short$1];
-		}
-		if (n < 3) {
-			_tuple$7 = [65533, 1, true]; r = _tuple$7[0]; size = _tuple$7[1]; short$1 = _tuple$7[2];
-			return [r, size, short$1];
-		}
-		c2 = (_slice$2 = p, _index$2 = 2, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range"));
-		if (c2 < 128 || 192 <= c2) {
-			_tuple$8 = [65533, 1, false]; r = _tuple$8[0]; size = _tuple$8[1]; short$1 = _tuple$8[2];
-			return [r, size, short$1];
-		}
-		if (c0 < 240) {
-			r = (((((c0 & 15) >>> 0) >> 0) << 12 >> 0) | ((((c1 & 63) >>> 0) >> 0) << 6 >> 0)) | (((c2 & 63) >>> 0) >> 0);
-			if (r <= 2047) {
-				_tuple$9 = [65533, 1, false]; r = _tuple$9[0]; size = _tuple$9[1]; short$1 = _tuple$9[2];
-				return [r, size, short$1];
-			}
-			if (55296 <= r && r <= 57343) {
-				_tuple$10 = [65533, 1, false]; r = _tuple$10[0]; size = _tuple$10[1]; short$1 = _tuple$10[2];
-				return [r, size, short$1];
-			}
-			_tuple$11 = [r, 3, false]; r = _tuple$11[0]; size = _tuple$11[1]; short$1 = _tuple$11[2];
-			return [r, size, short$1];
-		}
-		if (n < 4) {
-			_tuple$12 = [65533, 1, true]; r = _tuple$12[0]; size = _tuple$12[1]; short$1 = _tuple$12[2];
-			return [r, size, short$1];
-		}
-		c3 = (_slice$3 = p, _index$3 = 3, (_index$3 >= 0 && _index$3 < _slice$3.length) ? _slice$3.array[_slice$3.offset + _index$3] : go$throwRuntimeError("index out of range"));
-		if (c3 < 128 || 192 <= c3) {
-			_tuple$13 = [65533, 1, false]; r = _tuple$13[0]; size = _tuple$13[1]; short$1 = _tuple$13[2];
-			return [r, size, short$1];
-		}
-		if (c0 < 248) {
-			r = ((((((c0 & 7) >>> 0) >> 0) << 18 >> 0) | ((((c1 & 63) >>> 0) >> 0) << 12 >> 0)) | ((((c2 & 63) >>> 0) >> 0) << 6 >> 0)) | (((c3 & 63) >>> 0) >> 0);
-			if (r <= 65535 || 1114111 < r) {
-				_tuple$14 = [65533, 1, false]; r = _tuple$14[0]; size = _tuple$14[1]; short$1 = _tuple$14[2];
-				return [r, size, short$1];
-			}
-			_tuple$15 = [r, 4, false]; r = _tuple$15[0]; size = _tuple$15[1]; short$1 = _tuple$15[2];
-			return [r, size, short$1];
-		}
-		_tuple$16 = [65533, 1, false]; r = _tuple$16[0]; size = _tuple$16[1]; short$1 = _tuple$16[2];
-		return [r, size, short$1];
-	};
-	decodeRuneInStringInternal = function(s) {
-		var r, size, short$1, n, _tuple, c0, _tuple$1, _tuple$2, _tuple$3, c1, _tuple$4, _tuple$5, _tuple$6, _tuple$7, c2, _tuple$8, _tuple$9, _tuple$10, _tuple$11, _tuple$12, c3, _tuple$13, _tuple$14, _tuple$15, _tuple$16;
-		r = 0;
-		size = 0;
-		short$1 = false;
-		n = s.length;
-		if (n < 1) {
-			_tuple = [65533, 0, true]; r = _tuple[0]; size = _tuple[1]; short$1 = _tuple[2];
-			return [r, size, short$1];
-		}
-		c0 = s.charCodeAt(0);
-		if (c0 < 128) {
-			_tuple$1 = [(c0 >> 0), 1, false]; r = _tuple$1[0]; size = _tuple$1[1]; short$1 = _tuple$1[2];
-			return [r, size, short$1];
-		}
-		if (c0 < 192) {
-			_tuple$2 = [65533, 1, false]; r = _tuple$2[0]; size = _tuple$2[1]; short$1 = _tuple$2[2];
-			return [r, size, short$1];
-		}
-		if (n < 2) {
-			_tuple$3 = [65533, 1, true]; r = _tuple$3[0]; size = _tuple$3[1]; short$1 = _tuple$3[2];
-			return [r, size, short$1];
-		}
-		c1 = s.charCodeAt(1);
-		if (c1 < 128 || 192 <= c1) {
-			_tuple$4 = [65533, 1, false]; r = _tuple$4[0]; size = _tuple$4[1]; short$1 = _tuple$4[2];
-			return [r, size, short$1];
-		}
-		if (c0 < 224) {
-			r = ((((c0 & 31) >>> 0) >> 0) << 6 >> 0) | (((c1 & 63) >>> 0) >> 0);
-			if (r <= 127) {
-				_tuple$5 = [65533, 1, false]; r = _tuple$5[0]; size = _tuple$5[1]; short$1 = _tuple$5[2];
-				return [r, size, short$1];
-			}
-			_tuple$6 = [r, 2, false]; r = _tuple$6[0]; size = _tuple$6[1]; short$1 = _tuple$6[2];
-			return [r, size, short$1];
-		}
-		if (n < 3) {
-			_tuple$7 = [65533, 1, true]; r = _tuple$7[0]; size = _tuple$7[1]; short$1 = _tuple$7[2];
-			return [r, size, short$1];
-		}
-		c2 = s.charCodeAt(2);
-		if (c2 < 128 || 192 <= c2) {
-			_tuple$8 = [65533, 1, false]; r = _tuple$8[0]; size = _tuple$8[1]; short$1 = _tuple$8[2];
-			return [r, size, short$1];
-		}
-		if (c0 < 240) {
-			r = (((((c0 & 15) >>> 0) >> 0) << 12 >> 0) | ((((c1 & 63) >>> 0) >> 0) << 6 >> 0)) | (((c2 & 63) >>> 0) >> 0);
-			if (r <= 2047) {
-				_tuple$9 = [65533, 1, false]; r = _tuple$9[0]; size = _tuple$9[1]; short$1 = _tuple$9[2];
-				return [r, size, short$1];
-			}
-			if (55296 <= r && r <= 57343) {
-				_tuple$10 = [65533, 1, false]; r = _tuple$10[0]; size = _tuple$10[1]; short$1 = _tuple$10[2];
-				return [r, size, short$1];
-			}
-			_tuple$11 = [r, 3, false]; r = _tuple$11[0]; size = _tuple$11[1]; short$1 = _tuple$11[2];
-			return [r, size, short$1];
-		}
-		if (n < 4) {
-			_tuple$12 = [65533, 1, true]; r = _tuple$12[0]; size = _tuple$12[1]; short$1 = _tuple$12[2];
-			return [r, size, short$1];
-		}
-		c3 = s.charCodeAt(3);
-		if (c3 < 128 || 192 <= c3) {
-			_tuple$13 = [65533, 1, false]; r = _tuple$13[0]; size = _tuple$13[1]; short$1 = _tuple$13[2];
-			return [r, size, short$1];
-		}
-		if (c0 < 248) {
-			r = ((((((c0 & 7) >>> 0) >> 0) << 18 >> 0) | ((((c1 & 63) >>> 0) >> 0) << 12 >> 0)) | ((((c2 & 63) >>> 0) >> 0) << 6 >> 0)) | (((c3 & 63) >>> 0) >> 0);
-			if (r <= 65535 || 1114111 < r) {
-				_tuple$14 = [65533, 1, false]; r = _tuple$14[0]; size = _tuple$14[1]; short$1 = _tuple$14[2];
-				return [r, size, short$1];
-			}
-			_tuple$15 = [r, 4, false]; r = _tuple$15[0]; size = _tuple$15[1]; short$1 = _tuple$15[2];
-			return [r, size, short$1];
-		}
-		_tuple$16 = [65533, 1, false]; r = _tuple$16[0]; size = _tuple$16[1]; short$1 = _tuple$16[2];
-		return [r, size, short$1];
-	};
-	FullRune = go$pkg.FullRune = function(p) {
-		var _tuple, short$1;
-		_tuple = decodeRuneInternal(p); short$1 = _tuple[2];
-		return !short$1;
-	};
-	DecodeRune = go$pkg.DecodeRune = function(p) {
-		var r, size, _tuple;
-		r = 0;
-		size = 0;
-		_tuple = decodeRuneInternal(p); r = _tuple[0]; size = _tuple[1];
-		return [r, size];
-	};
-	DecodeRuneInString = go$pkg.DecodeRuneInString = function(s) {
-		var r, size, _tuple;
-		r = 0;
-		size = 0;
-		_tuple = decodeRuneInStringInternal(s); r = _tuple[0]; size = _tuple[1];
-		return [r, size];
-	};
-	DecodeLastRune = go$pkg.DecodeLastRune = function(p) {
-		var r, size, end, _tuple, start, _slice, _index, _tuple$1, lim, _slice$1, _index$1, _tuple$2, _tuple$3, _tuple$4;
-		r = 0;
-		size = 0;
-		end = p.length;
-		if (end === 0) {
-			_tuple = [65533, 0]; r = _tuple[0]; size = _tuple[1];
-			return [r, size];
-		}
-		start = end - 1 >> 0;
-		r = ((_slice = p, _index = start, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) >> 0);
-		if (r < 128) {
-			_tuple$1 = [r, 1]; r = _tuple$1[0]; size = _tuple$1[1];
-			return [r, size];
-		}
-		lim = end - 4 >> 0;
-		if (lim < 0) {
-			lim = 0;
-		}
-		start = start - 1 >> 0;
-		while (start >= lim) {
-			if (RuneStart((_slice$1 = p, _index$1 = start, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")))) {
-				break;
-			}
-			start = start - 1 >> 0;
-		}
-		if (start < 0) {
-			start = 0;
-		}
-		_tuple$2 = DecodeRune(go$subslice(p, start, end)); r = _tuple$2[0]; size = _tuple$2[1];
-		if (!(((start + size >> 0) === end))) {
-			_tuple$3 = [65533, 1]; r = _tuple$3[0]; size = _tuple$3[1];
-			return [r, size];
-		}
-		_tuple$4 = [r, size]; r = _tuple$4[0]; size = _tuple$4[1];
-		return [r, size];
-	};
-	RuneLen = go$pkg.RuneLen = function(r) {
-		if (r < 0) {
-			return -1;
-		} else if (r <= 127) {
-			return 1;
-		} else if (r <= 2047) {
-			return 2;
-		} else if (55296 <= r && r <= 57343) {
-			return -1;
-		} else if (r <= 65535) {
-			return 3;
-		} else if (r <= 1114111) {
-			return 4;
-		}
-		return -1;
-	};
-	EncodeRune = go$pkg.EncodeRune = function(p, r) {
-		var _slice, _index, _slice$1, _index$1, _slice$2, _index$2, _slice$3, _index$3, _slice$4, _index$4, _slice$5, _index$5, _slice$6, _index$6, _slice$7, _index$7, _slice$8, _index$8, _slice$9, _index$9;
-		if ((r >>> 0) <= 127) {
-			_slice = p; _index = 0;(_index >= 0 && _index < _slice.length) ? (_slice.array[_slice.offset + _index] = (r << 24 >>> 24)) : go$throwRuntimeError("index out of range");
-			return 1;
-		}
-		if ((r >>> 0) <= 2047) {
-			_slice$1 = p; _index$1 = 0;(_index$1 >= 0 && _index$1 < _slice$1.length) ? (_slice$1.array[_slice$1.offset + _index$1] = (192 | ((r >> 6 >> 0) << 24 >>> 24)) >>> 0) : go$throwRuntimeError("index out of range");
-			_slice$2 = p; _index$2 = 1;(_index$2 >= 0 && _index$2 < _slice$2.length) ? (_slice$2.array[_slice$2.offset + _index$2] = (128 | (((r << 24 >>> 24) & 63) >>> 0)) >>> 0) : go$throwRuntimeError("index out of range");
-			return 2;
-		}
-		if ((r >>> 0) > 1114111) {
-			r = 65533;
-		}
-		if (55296 <= r && r <= 57343) {
-			r = 65533;
-		}
-		if ((r >>> 0) <= 65535) {
-			_slice$3 = p; _index$3 = 0;(_index$3 >= 0 && _index$3 < _slice$3.length) ? (_slice$3.array[_slice$3.offset + _index$3] = (224 | ((r >> 12 >> 0) << 24 >>> 24)) >>> 0) : go$throwRuntimeError("index out of range");
-			_slice$4 = p; _index$4 = 1;(_index$4 >= 0 && _index$4 < _slice$4.length) ? (_slice$4.array[_slice$4.offset + _index$4] = (128 | ((((r >> 6 >> 0) << 24 >>> 24) & 63) >>> 0)) >>> 0) : go$throwRuntimeError("index out of range");
-			_slice$5 = p; _index$5 = 2;(_index$5 >= 0 && _index$5 < _slice$5.length) ? (_slice$5.array[_slice$5.offset + _index$5] = (128 | (((r << 24 >>> 24) & 63) >>> 0)) >>> 0) : go$throwRuntimeError("index out of range");
-			return 3;
-		}
-		_slice$6 = p; _index$6 = 0;(_index$6 >= 0 && _index$6 < _slice$6.length) ? (_slice$6.array[_slice$6.offset + _index$6] = (240 | ((r >> 18 >> 0) << 24 >>> 24)) >>> 0) : go$throwRuntimeError("index out of range");
-		_slice$7 = p; _index$7 = 1;(_index$7 >= 0 && _index$7 < _slice$7.length) ? (_slice$7.array[_slice$7.offset + _index$7] = (128 | ((((r >> 12 >> 0) << 24 >>> 24) & 63) >>> 0)) >>> 0) : go$throwRuntimeError("index out of range");
-		_slice$8 = p; _index$8 = 2;(_index$8 >= 0 && _index$8 < _slice$8.length) ? (_slice$8.array[_slice$8.offset + _index$8] = (128 | ((((r >> 6 >> 0) << 24 >>> 24) & 63) >>> 0)) >>> 0) : go$throwRuntimeError("index out of range");
-		_slice$9 = p; _index$9 = 3;(_index$9 >= 0 && _index$9 < _slice$9.length) ? (_slice$9.array[_slice$9.offset + _index$9] = (128 | (((r << 24 >>> 24) & 63) >>> 0)) >>> 0) : go$throwRuntimeError("index out of range");
-		return 4;
-	};
-	RuneCountInString = go$pkg.RuneCountInString = function(s) {
-		var n, _ref, _i, _rune;
-		n = 0;
-		_ref = s;
-		_i = 0;
-		while (_i < _ref.length) {
-			_rune = go$decodeRune(_ref, _i);
-			n = n + 1 >> 0;
-			_i += _rune[1];
-		}
-		return n;
-	};
-	RuneStart = go$pkg.RuneStart = function(b) {
-		return !((((b & 192) >>> 0) === 128));
-	};
-	go$pkg.init = function() {
-	}
-	return go$pkg;
-})();
-go$packages["bytes"] = (function() {
-	var go$pkg = {}, errors = go$packages["errors"], io = go$packages["io"], utf8 = go$packages["unicode/utf8"], unicode = go$packages["unicode"], Buffer, readOp, IndexByte, makeSlice, Map;
-	Buffer = go$pkg.Buffer = go$newType(0, "Struct", "bytes.Buffer", "Buffer", "bytes", function(buf_, off_, runeBytes_, bootstrap_, lastRead_) {
-		this.go$val = this;
-		this.buf = buf_ !== undefined ? buf_ : (go$sliceType(Go$Uint8)).nil;
-		this.off = off_ !== undefined ? off_ : 0;
-		this.runeBytes = runeBytes_ !== undefined ? runeBytes_ : go$makeNativeArray("Uint8", 4, function() { return 0; });
-		this.bootstrap = bootstrap_ !== undefined ? bootstrap_ : go$makeNativeArray("Uint8", 64, function() { return 0; });
-		this.lastRead = lastRead_ !== undefined ? lastRead_ : 0;
-	});
-	readOp = go$pkg.readOp = go$newType(4, "Int", "bytes.readOp", "readOp", "bytes", null);
-	IndexByte = go$pkg.IndexByte = function(s, c) {
-		var _ref, _i, _slice, _index, b, i;
-		_ref = s;
-		_i = 0;
-		while (_i < _ref.length) {
-			b = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
-			i = _i;
-			if (b === c) {
-				return i;
-			}
-			_i++;
-		}
-		return -1;
-	};
-	Buffer.Ptr.prototype.Bytes = function() {
-		var b;
-		b = this;
-		return go$subslice(b.buf, b.off);
-	};
-	Buffer.prototype.Bytes = function() { return this.go$val.Bytes(); };
-	Buffer.Ptr.prototype.String = function() {
-		var b;
-		b = this;
-		if (b === (go$ptrType(Buffer)).nil) {
-			return "<nil>";
-		}
-		return go$bytesToString(go$subslice(b.buf, b.off));
-	};
-	Buffer.prototype.String = function() { return this.go$val.String(); };
-	Buffer.Ptr.prototype.Len = function() {
-		var b;
-		b = this;
-		return b.buf.length - b.off >> 0;
-	};
-	Buffer.prototype.Len = function() { return this.go$val.Len(); };
-	Buffer.Ptr.prototype.Truncate = function(n) {
-		var b;
-		b = this;
-		b.lastRead = 0;
-		if (n < 0 || n > b.Len()) {
-			throw go$panic(new Go$String("bytes.Buffer: truncation out of range"));
-		} else if (n === 0) {
-			b.off = 0;
-		}
-		b.buf = go$subslice(b.buf, 0, (b.off + n >> 0));
-	};
-	Buffer.prototype.Truncate = function(n) { return this.go$val.Truncate(n); };
-	Buffer.Ptr.prototype.Reset = function() {
-		var b;
-		b = this;
-		b.Truncate(0);
-	};
-	Buffer.prototype.Reset = function() { return this.go$val.Reset(); };
-	Buffer.Ptr.prototype.grow = function(n) {
-		var b, m, buf, _q, x;
-		b = this;
-		m = b.Len();
-		if ((m === 0) && !((b.off === 0))) {
-			b.Truncate(0);
-		}
-		if ((b.buf.length + n >> 0) > b.buf.capacity) {
-			buf = (go$sliceType(Go$Uint8)).nil;
-			if (b.buf === (go$sliceType(Go$Uint8)).nil && n <= 64) {
-				buf = go$subslice(new (go$sliceType(Go$Uint8))(b.bootstrap), 0);
-			} else if ((m + n >> 0) <= (_q = b.buf.capacity / 2, (_q === _q && _q !== 1/0 && _q !== -1/0) ? _q >> 0 : go$throwRuntimeError("integer divide by zero"))) {
-				go$copySlice(b.buf, go$subslice(b.buf, b.off));
-				buf = go$subslice(b.buf, 0, m);
-			} else {
-				buf = makeSlice((x = b.buf.capacity, (((2 >>> 16 << 16) * x >> 0) + (2 << 16 >>> 16) * x) >> 0) + n >> 0);
-				go$copySlice(buf, go$subslice(b.buf, b.off));
-			}
-			b.buf = buf;
-			b.off = 0;
-		}
-		b.buf = go$subslice(b.buf, 0, ((b.off + m >> 0) + n >> 0));
-		return b.off + m >> 0;
-	};
-	Buffer.prototype.grow = function(n) { return this.go$val.grow(n); };
-	Buffer.Ptr.prototype.Grow = function(n) {
-		var b, m;
-		b = this;
-		if (n < 0) {
-			throw go$panic(new Go$String("bytes.Buffer.Grow: negative count"));
-		}
-		m = b.grow(n);
-		b.buf = go$subslice(b.buf, 0, m);
-	};
-	Buffer.prototype.Grow = function(n) { return this.go$val.Grow(n); };
-	Buffer.Ptr.prototype.Write = function(p) {
-		var n, err, b, m, _tuple;
-		n = 0;
-		err = null;
-		b = this;
-		b.lastRead = 0;
-		m = b.grow(p.length);
-		_tuple = [go$copySlice(go$subslice(b.buf, m), p), null]; n = _tuple[0]; err = _tuple[1];
-		return [n, err];
-	};
-	Buffer.prototype.Write = function(p) { return this.go$val.Write(p); };
-	Buffer.Ptr.prototype.WriteString = function(s) {
-		var n, err, b, m, _tuple;
-		n = 0;
-		err = null;
-		b = this;
-		b.lastRead = 0;
-		m = b.grow(s.length);
-		_tuple = [go$copyString(go$subslice(b.buf, m), s), null]; n = _tuple[0]; err = _tuple[1];
-		return [n, err];
-	};
-	Buffer.prototype.WriteString = function(s) { return this.go$val.WriteString(s); };
-	Buffer.Ptr.prototype.ReadFrom = function(r) {
-		var n, err, b, free, newBuf, x, _tuple, m, e, x$1, _tuple$1, _tuple$2;
-		n = new Go$Int64(0, 0);
-		err = null;
-		b = this;
-		b.lastRead = 0;
-		if (b.off >= b.buf.length) {
-			b.Truncate(0);
-		}
-		while (true) {
-			free = b.buf.capacity - b.buf.length >> 0;
-			if (free < 512) {
-				newBuf = b.buf;
-				if ((b.off + free >> 0) < 512) {
-					newBuf = makeSlice((x = b.buf.capacity, (((2 >>> 16 << 16) * x >> 0) + (2 << 16 >>> 16) * x) >> 0) + 512 >> 0);
-				}
-				go$copySlice(newBuf, go$subslice(b.buf, b.off));
-				b.buf = go$subslice(newBuf, 0, (b.buf.length - b.off >> 0));
-				b.off = 0;
-			}
-			_tuple = r.Read(go$subslice(b.buf, b.buf.length, b.buf.capacity)); m = _tuple[0]; e = _tuple[1];
-			b.buf = go$subslice(b.buf, 0, (b.buf.length + m >> 0));
-			n = (x$1 = new Go$Int64(0, m), new Go$Int64(n.high + x$1.high, n.low + x$1.low));
-			if (go$interfaceIsEqual(e, io.EOF)) {
-				break;
-			}
-			if (!(go$interfaceIsEqual(e, null))) {
-				_tuple$1 = [n, e]; n = _tuple$1[0]; err = _tuple$1[1];
-				return [n, err];
-			}
-		}
-		_tuple$2 = [n, null]; n = _tuple$2[0]; err = _tuple$2[1];
-		return [n, err];
-	};
-	Buffer.prototype.ReadFrom = function(r) { return this.go$val.ReadFrom(r); };
-	makeSlice = function(n) {
-		var go$deferred = [];
-		try {
-			go$deferred.push({ fun: (function() {
-				if (!(go$interfaceIsEqual(go$recover(), null))) {
-					throw go$panic(go$pkg.ErrTooLarge);
-				}
-			}), args: [] });
-			return (go$sliceType(Go$Uint8)).make(n, 0, function() { return 0; });
-		} catch(go$err) {
-			go$pushErr(go$err);
-			return (go$sliceType(Go$Uint8)).nil;
-		} finally {
-			go$callDeferred(go$deferred);
-		}
-	};
-	Buffer.Ptr.prototype.WriteTo = function(w) {
-		var n, err, b, nBytes, _tuple, m, e, _tuple$1, _tuple$2;
-		n = new Go$Int64(0, 0);
-		err = null;
-		b = this;
-		b.lastRead = 0;
-		if (b.off < b.buf.length) {
-			nBytes = b.Len();
-			_tuple = w.Write(go$subslice(b.buf, b.off)); m = _tuple[0]; e = _tuple[1];
-			if (m > nBytes) {
-				throw go$panic(new Go$String("bytes.Buffer.WriteTo: invalid Write count"));
-			}
-			b.off = b.off + (m) >> 0;
-			n = new Go$Int64(0, m);
-			if (!(go$interfaceIsEqual(e, null))) {
-				_tuple$1 = [n, e]; n = _tuple$1[0]; err = _tuple$1[1];
-				return [n, err];
-			}
-			if (!((m === nBytes))) {
-				_tuple$2 = [n, io.ErrShortWrite]; n = _tuple$2[0]; err = _tuple$2[1];
-				return [n, err];
-			}
-		}
-		b.Truncate(0);
-		return [n, err];
-	};
-	Buffer.prototype.WriteTo = function(w) { return this.go$val.WriteTo(w); };
-	Buffer.Ptr.prototype.WriteByte = function(c) {
-		var b, m, _slice, _index;
-		b = this;
-		b.lastRead = 0;
-		m = b.grow(1);
-		_slice = b.buf; _index = m;(_index >= 0 && _index < _slice.length) ? (_slice.array[_slice.offset + _index] = c) : go$throwRuntimeError("index out of range");
-		return null;
-	};
-	Buffer.prototype.WriteByte = function(c) { return this.go$val.WriteByte(c); };
-	Buffer.Ptr.prototype.WriteRune = function(r) {
-		var n, err, b, _tuple, _tuple$1;
-		n = 0;
-		err = null;
-		b = this;
-		if (r < 128) {
-			b.WriteByte((r << 24 >>> 24));
-			_tuple = [1, null]; n = _tuple[0]; err = _tuple[1];
-			return [n, err];
-		}
-		n = utf8.EncodeRune(go$subslice(new (go$sliceType(Go$Uint8))(b.runeBytes), 0), r);
-		b.Write(go$subslice(new (go$sliceType(Go$Uint8))(b.runeBytes), 0, n));
-		_tuple$1 = [n, null]; n = _tuple$1[0]; err = _tuple$1[1];
-		return [n, err];
-	};
-	Buffer.prototype.WriteRune = function(r) { return this.go$val.WriteRune(r); };
-	Buffer.Ptr.prototype.Read = function(p) {
-		var n, err, b, _tuple;
-		n = 0;
-		err = null;
-		b = this;
-		b.lastRead = 0;
-		if (b.off >= b.buf.length) {
-			b.Truncate(0);
-			if (p.length === 0) {
-				return [n, err];
-			}
-			_tuple = [0, io.EOF]; n = _tuple[0]; err = _tuple[1];
-			return [n, err];
-		}
-		n = go$copySlice(p, go$subslice(b.buf, b.off));
-		b.off = b.off + (n) >> 0;
-		if (n > 0) {
-			b.lastRead = 2;
-		}
-		return [n, err];
-	};
-	Buffer.prototype.Read = function(p) { return this.go$val.Read(p); };
-	Buffer.Ptr.prototype.Next = function(n) {
-		var b, m, data;
-		b = this;
-		b.lastRead = 0;
-		m = b.Len();
-		if (n > m) {
-			n = m;
-		}
-		data = go$subslice(b.buf, b.off, (b.off + n >> 0));
-		b.off = b.off + (n) >> 0;
-		if (n > 0) {
-			b.lastRead = 2;
-		}
-		return data;
-	};
-	Buffer.prototype.Next = function(n) { return this.go$val.Next(n); };
-	Buffer.Ptr.prototype.ReadByte = function() {
-		var c, err, b, _tuple, _slice, _index, _tuple$1;
-		c = 0;
-		err = null;
-		b = this;
-		b.lastRead = 0;
-		if (b.off >= b.buf.length) {
-			b.Truncate(0);
-			_tuple = [0, io.EOF]; c = _tuple[0]; err = _tuple[1];
-			return [c, err];
-		}
-		c = (_slice = b.buf, _index = b.off, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
-		b.off = b.off + 1 >> 0;
-		b.lastRead = 2;
-		_tuple$1 = [c, null]; c = _tuple$1[0]; err = _tuple$1[1];
-		return [c, err];
-	};
-	Buffer.prototype.ReadByte = function() { return this.go$val.ReadByte(); };
-	Buffer.Ptr.prototype.ReadRune = function() {
-		var r, size, err, b, _tuple, _slice, _index, c, _tuple$1, _tuple$2, n, _tuple$3;
-		r = 0;
-		size = 0;
-		err = null;
-		b = this;
-		b.lastRead = 0;
-		if (b.off >= b.buf.length) {
-			b.Truncate(0);
-			_tuple = [0, 0, io.EOF]; r = _tuple[0]; size = _tuple[1]; err = _tuple[2];
-			return [r, size, err];
-		}
-		b.lastRead = 1;
-		c = (_slice = b.buf, _index = b.off, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
-		if (c < 128) {
-			b.off = b.off + 1 >> 0;
-			_tuple$1 = [(c >> 0), 1, null]; r = _tuple$1[0]; size = _tuple$1[1]; err = _tuple$1[2];
-			return [r, size, err];
-		}
-		_tuple$2 = utf8.DecodeRune(go$subslice(b.buf, b.off)); r = _tuple$2[0]; n = _tuple$2[1];
-		b.off = b.off + (n) >> 0;
-		_tuple$3 = [r, n, null]; r = _tuple$3[0]; size = _tuple$3[1]; err = _tuple$3[2];
-		return [r, size, err];
-	};
-	Buffer.prototype.ReadRune = function() { return this.go$val.ReadRune(); };
-	Buffer.Ptr.prototype.UnreadRune = function() {
-		var b, _tuple, n;
-		b = this;
-		if (!((b.lastRead === 1))) {
-			return errors.New("bytes.Buffer: UnreadRune: previous operation was not ReadRune");
-		}
-		b.lastRead = 0;
-		if (b.off > 0) {
-			_tuple = utf8.DecodeLastRune(go$subslice(b.buf, 0, b.off)); n = _tuple[1];
-			b.off = b.off - (n) >> 0;
-		}
-		return null;
-	};
-	Buffer.prototype.UnreadRune = function() { return this.go$val.UnreadRune(); };
-	Buffer.Ptr.prototype.UnreadByte = function() {
-		var b;
-		b = this;
-		if (!((b.lastRead === 1)) && !((b.lastRead === 2))) {
-			return errors.New("bytes.Buffer: UnreadByte: previous operation was not a read");
-		}
-		b.lastRead = 0;
-		if (b.off > 0) {
-			b.off = b.off - 1 >> 0;
-		}
-		return null;
-	};
-	Buffer.prototype.UnreadByte = function() { return this.go$val.UnreadByte(); };
-	Buffer.Ptr.prototype.ReadBytes = function(delim) {
-		var line, err, b, _tuple, slice;
-		line = (go$sliceType(Go$Uint8)).nil;
-		err = null;
-		b = this;
-		_tuple = b.readSlice(delim); slice = _tuple[0]; err = _tuple[1];
-		line = go$appendSlice(line, slice);
-		return [line, err];
-	};
-	Buffer.prototype.ReadBytes = function(delim) { return this.go$val.ReadBytes(delim); };
-	Buffer.Ptr.prototype.readSlice = function(delim) {
-		var line, err, b, i, end, _tuple;
-		line = (go$sliceType(Go$Uint8)).nil;
-		err = null;
-		b = this;
-		i = IndexByte(go$subslice(b.buf, b.off), delim);
-		end = (b.off + i >> 0) + 1 >> 0;
-		if (i < 0) {
-			end = b.buf.length;
-			err = io.EOF;
-		}
-		line = go$subslice(b.buf, b.off, end);
-		b.off = end;
-		b.lastRead = 2;
-		_tuple = [line, err]; line = _tuple[0]; err = _tuple[1];
-		return [line, err];
-	};
-	Buffer.prototype.readSlice = function(delim) { return this.go$val.readSlice(delim); };
-	Buffer.Ptr.prototype.ReadString = function(delim) {
-		var line, err, b, _tuple, slice, _tuple$1;
-		line = "";
-		err = null;
-		b = this;
-		_tuple = b.readSlice(delim); slice = _tuple[0]; err = _tuple[1];
-		_tuple$1 = [go$bytesToString(slice), err]; line = _tuple$1[0]; err = _tuple$1[1];
-		return [line, err];
-	};
-	Buffer.prototype.ReadString = function(delim) { return this.go$val.ReadString(delim); };
-	Map = go$pkg.Map = function(mapping, s) {
-		var maxbytes, nbytes, b, i, wid, _slice, _index, r, _tuple, nb;
-		maxbytes = s.length;
-		nbytes = 0;
-		b = (go$sliceType(Go$Uint8)).make(maxbytes, 0, function() { return 0; });
-		i = 0;
-		while (i < s.length) {
-			wid = 1;
-			r = ((_slice = s, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) >> 0);
-			if (r >= 128) {
-				_tuple = utf8.DecodeRune(go$subslice(s, i)); r = _tuple[0]; wid = _tuple[1];
-			}
-			r = mapping(r);
-			if (r >= 0) {
-				if ((nbytes + utf8.RuneLen(r) >> 0) > maxbytes) {
-					maxbytes = ((((maxbytes >>> 16 << 16) * 2 >> 0) + (maxbytes << 16 >>> 16) * 2) >> 0) + 4 >> 0;
-					nb = (go$sliceType(Go$Uint8)).make(maxbytes, 0, function() { return 0; });
-					go$copySlice(nb, go$subslice(b, 0, nbytes));
-					b = nb;
-				}
-				nbytes = nbytes + (utf8.EncodeRune(go$subslice(b, nbytes, maxbytes), r)) >> 0;
-			}
-			i = i + (wid) >> 0;
-		}
-		return go$subslice(b, 0, nbytes);
-	};
-	go$pkg.init = function() {
-		(go$ptrType(Buffer)).methods = [["Bytes", "", [], [(go$sliceType(Go$Uint8))], false, -1], ["Grow", "", [Go$Int], [], false, -1], ["Len", "", [], [Go$Int], false, -1], ["Next", "", [Go$Int], [(go$sliceType(Go$Uint8))], false, -1], ["Read", "", [(go$sliceType(Go$Uint8))], [Go$Int, go$error], false, -1], ["ReadByte", "", [], [Go$Uint8, go$error], false, -1], ["ReadBytes", "", [Go$Uint8], [(go$sliceType(Go$Uint8)), go$error], false, -1], ["ReadFrom", "", [io.Reader], [Go$Int64, go$error], false, -1], ["ReadRune", "", [], [Go$Int32, Go$Int, go$error], false, -1], ["ReadString", "", [Go$Uint8], [Go$String, go$error], false, -1], ["Reset", "", [], [], false, -1], ["String", "", [], [Go$String], false, -1], ["Truncate", "", [Go$Int], [], false, -1], ["UnreadByte", "", [], [go$error], false, -1], ["UnreadRune", "", [], [go$error], false, -1], ["Write", "", [(go$sliceType(Go$Uint8))], [Go$Int, go$error], false, -1], ["WriteByte", "", [Go$Uint8], [go$error], false, -1], ["WriteRune", "", [Go$Int32], [Go$Int, go$error], false, -1], ["WriteString", "", [Go$String], [Go$Int, go$error], false, -1], ["WriteTo", "", [io.Writer], [Go$Int64, go$error], false, -1], ["grow", "bytes", [Go$Int], [Go$Int], false, -1], ["readSlice", "bytes", [Go$Uint8], [(go$sliceType(Go$Uint8)), go$error], false, -1]];
-		Buffer.init([["buf", "buf", "bytes", (go$sliceType(Go$Uint8)), ""], ["off", "off", "bytes", Go$Int, ""], ["runeBytes", "runeBytes", "bytes", (go$arrayType(Go$Uint8, 4)), ""], ["bootstrap", "bootstrap", "bytes", (go$arrayType(Go$Uint8, 64)), ""], ["lastRead", "lastRead", "bytes", readOp, ""]]);
-		go$pkg.ErrTooLarge = errors.New("bytes.Buffer: too large");
-	}
-	return go$pkg;
-})();
 go$packages["encoding"] = (function() {
 	var go$pkg = {}, TextMarshaler, TextUnmarshaler;
 	TextMarshaler = go$pkg.TextMarshaler = go$newType(0, "Interface", "encoding.TextMarshaler", "TextMarshaler", "encoding", null);
@@ -3616,7 +3814,7 @@ go$packages["encoding"] = (function() {
 	return go$pkg;
 })();
 go$packages["math"] = (function() {
-	var go$pkg = {}, js = go$packages["github.com/gopherjs/gopherjs/js"], Exp, Inf, IsInf, IsNaN, Ldexp, Log, Mod, NaN, Float32bits, Float32frombits, Float64bits, Float64frombits, math, zero, posInf, negInf, nan, pow10tab;
+	var go$pkg = {}, js = go$packages["github.com/gopherjs/gopherjs/js"], Exp, Inf, IsInf, IsNaN, Ldexp, Log, NaN, Float32bits, Float32frombits, Float64bits, Float64frombits, math, zero, posInf, negInf, nan, pow10tab;
 	Exp = go$pkg.Exp = function(x) {
 		return go$parseFloat(math.exp(x));
 	};
@@ -3643,16 +3841,22 @@ go$packages["math"] = (function() {
 		return is;
 	};
 	Ldexp = go$pkg.Ldexp = function(frac, exp$1) {
-		return go$parseFloat(go$ldexp(frac, exp$1));
+		if (frac === 0) {
+			return frac;
+		}
+		if (exp$1 >= 1024) {
+			return frac * go$parseFloat(math.pow(2, 1023)) * go$parseFloat(math.pow(2, exp$1 - 1023 >> 0));
+		}
+		if (exp$1 <= -1024) {
+			return frac * go$parseFloat(math.pow(2, -1023)) * go$parseFloat(math.pow(2, exp$1 + 1023 >> 0));
+		}
+		return frac * go$parseFloat(math.pow(2, exp$1));
 	};
 	Log = go$pkg.Log = function(x) {
 		if (!((x === x))) {
 			return nan;
 		}
 		return go$parseFloat(math.log(x));
-	};
-	Mod = go$pkg.Mod = function(x, y) {
-		return go$parseFloat(go$mod(x, y));
 	};
 	NaN = go$pkg.NaN = function() {
 		return nan;
@@ -3688,7 +3892,7 @@ go$packages["math"] = (function() {
 			}
 			f = f * 2;
 		}
-		r = Mod(go$float32frombits(go$float32bits(f)), 2);
+		r = go$parseFloat(go$mod(f, 2));
 		if ((r > 0.5 && r < 1) || r >= 1.5) {
 			f = f + 1;
 		}
@@ -3779,6 +3983,8 @@ go$packages["math"] = (function() {
 		negInf = -1 / zero;
 		nan = 0 / zero;
 		var i, _q, m;
+		Float32bits(0);
+		Float32frombits(0);
 		pow10tab[0] = 1;
 		pow10tab[1] = 10;
 		i = 2;
@@ -3791,7 +3997,7 @@ go$packages["math"] = (function() {
 	return go$pkg;
 })();
 go$packages["strconv"] = (function() {
-	var go$pkg = {}, math = go$packages["math"], errors = go$packages["errors"], utf8 = go$packages["unicode/utf8"], NumError, decimal, leftCheat, extFloat, floatInfo, decimalSlice, equalIgnoreCase, special, readFloat, atof64exact, atof32exact, atof32, atof64, ParseFloat, syntaxError, rangeError, cutoff64, ParseUint, ParseInt, digitZero, trim, rightShift, prefixIsLessThan, leftShift, shouldRoundUp, frexp10Many, adjustLastDigitFixed, adjustLastDigit, FormatFloat, AppendFloat, genericFtoa, bigFtoa, formatDigits, roundShortest, fmtE, fmtF, fmtB, max, FormatInt, Itoa, AppendInt, AppendUint, formatBits, quoteWith, Quote, QuoteToASCII, QuoteRune, AppendQuoteRune, QuoteRuneToASCII, AppendQuoteRuneToASCII, CanBackquote, unhex, UnquoteChar, Unquote, contains, bsearch16, bsearch32, IsPrint, optimize, powtab, float64pow10, float32pow10, leftcheats, smallPowersOfTen, powersOfTen, uint64pow10, float32info, float64info, isPrint16, isNotPrint16, isPrint32, isNotPrint32, shifts;
+	var go$pkg = {}, math = go$packages["math"], errors = go$packages["errors"], utf8 = go$packages["unicode/utf8"], NumError, decimal, leftCheat, extFloat, floatInfo, decimalSlice, equalIgnoreCase, special, readFloat, atof64exact, atof32exact, atof32, atof64, ParseFloat, syntaxError, rangeError, cutoff64, ParseUint, ParseInt, Atoi, digitZero, trim, rightShift, prefixIsLessThan, leftShift, shouldRoundUp, frexp10Many, adjustLastDigitFixed, adjustLastDigit, FormatFloat, AppendFloat, genericFtoa, bigFtoa, formatDigits, roundShortest, fmtE, fmtF, fmtB, max, FormatInt, Itoa, AppendInt, AppendUint, formatBits, quoteWith, Quote, QuoteToASCII, QuoteRune, AppendQuoteRune, QuoteRuneToASCII, AppendQuoteRuneToASCII, CanBackquote, unhex, UnquoteChar, Unquote, contains, bsearch16, bsearch32, IsPrint, optimize, powtab, float64pow10, float32pow10, leftcheats, smallPowersOfTen, powersOfTen, uint64pow10, float32info, float64info, isPrint16, isNotPrint16, isPrint32, isNotPrint32, shifts;
 	NumError = go$pkg.NumError = go$newType(0, "Struct", "strconv.NumError", "NumError", "strconv", function(Func_, Num_, Err_) {
 		this.go$val = this;
 		this.Func = Func_ !== undefined ? Func_ : "";
@@ -4292,7 +4498,7 @@ go$packages["strconv"] = (function() {
 		err = null;
 		if (bitSize === 32) {
 			_tuple = atof32(s); f1 = _tuple[0]; err1 = _tuple[1];
-			_tuple$1 = [go$float32frombits(go$float32bits(f1)), err1]; f = _tuple$1[0]; err = _tuple$1[1];
+			_tuple$1 = [go$coerceFloat32(f1), err1]; f = _tuple$1[0]; err = _tuple$1[1];
 			return [f, err];
 		}
 		_tuple$2 = atof64(s); f1$1 = _tuple$2[0]; err1$1 = _tuple$2[1];
@@ -4435,6 +4641,14 @@ go$packages["strconv"] = (function() {
 			n = new Go$Int64(-n.high, -n.low);
 		}
 		_tuple$5 = [n, null]; i = _tuple$5[0]; err = _tuple$5[1];
+		return [i, err];
+	};
+	Atoi = go$pkg.Atoi = function(s) {
+		var i, err, _tuple, i64, _tuple$1;
+		i = 0;
+		err = null;
+		_tuple = ParseInt(s, 10, 0); i64 = _tuple[0]; err = _tuple[1];
+		_tuple$1 = [((i64.low + ((i64.high >> 31) * 4294967296)) >> 0), err]; i = _tuple$1[0]; err = _tuple$1[1];
 		return [i, err];
 	};
 	decimal.Ptr.prototype.String = function() {
@@ -5964,9 +6178,37 @@ go$packages["strconv"] = (function() {
 	return go$pkg;
 })();
 go$packages["strings"] = (function() {
-	var go$pkg = {}, js = go$packages["github.com/gopherjs/gopherjs/js"], errors = go$packages["errors"], io = go$packages["io"], utf8 = go$packages["unicode/utf8"], unicode = go$packages["unicode"], IndexByte, hashstr, ContainsRune, Index, IndexRune, Map, EqualFold;
+	var go$pkg = {}, js = go$packages["github.com/gopherjs/gopherjs/js"], errors = go$packages["errors"], io = go$packages["io"], utf8 = go$packages["unicode/utf8"], unicode = go$packages["unicode"], IndexByte, explode, hashstr, Count, Contains, ContainsRune, Index, LastIndex, IndexRune, IndexAny, genSplit, Split, Join, HasPrefix, Map, ToLower, IndexFunc, indexFunc, Replace, EqualFold;
 	IndexByte = go$pkg.IndexByte = function(s, c) {
 		return go$parseInt(s.indexOf(go$global.String.fromCharCode(c))) >> 0;
+	};
+	explode = function(s, n) {
+		var l, a, size, ch, _tuple, i, cur, _tuple$1, _slice, _index, _slice$1, _index$1, _slice$2, _index$2;
+		if (n === 0) {
+			return (go$sliceType(Go$String)).nil;
+		}
+		l = utf8.RuneCountInString(s);
+		if (n <= 0 || n > l) {
+			n = l;
+		}
+		a = (go$sliceType(Go$String)).make(n, 0, function() { return ""; });
+		size = 0;
+		ch = 0;
+		_tuple = [0, 0]; i = _tuple[0]; cur = _tuple[1];
+		while ((i + 1 >> 0) < n) {
+			_tuple$1 = utf8.DecodeRuneInString(s.substring(cur)); ch = _tuple$1[0]; size = _tuple$1[1];
+			if (ch === 65533) {
+				_slice = a; _index = i;(_index >= 0 && _index < _slice.length) ? (_slice.array[_slice.offset + _index] = "\xEF\xBF\xBD") : go$throwRuntimeError("index out of range");
+			} else {
+				_slice$1 = a; _index$1 = i;(_index$1 >= 0 && _index$1 < _slice$1.length) ? (_slice$1.array[_slice$1.offset + _index$1] = s.substring(cur, (cur + size >> 0))) : go$throwRuntimeError("index out of range");
+			}
+			cur = cur + (size) >> 0;
+			i = i + 1 >> 0;
+		}
+		if (cur < s.length) {
+			_slice$2 = a; _index$2 = i;(_index$2 >= 0 && _index$2 < _slice$2.length) ? (_slice$2.array[_slice$2.offset + _index$2] = s.substring(cur)) : go$throwRuntimeError("index out of range");
+		}
+		return a;
 	};
 	hashstr = function(sep) {
 		var hash, i, _tuple, pow, sq, i$1, x, x$1;
@@ -5986,6 +6228,57 @@ go$packages["strings"] = (function() {
 			i$1 = i$1 >> 1 >> 0;
 		}
 		return [hash, pow];
+	};
+	Count = go$pkg.Count = function(s, sep) {
+		var n, c, i, _tuple, hashsep, pow, h, i$1, lastmatch, i$2, x;
+		n = 0;
+		if (sep.length === 0) {
+			return utf8.RuneCountInString(s) + 1 >> 0;
+		} else if (sep.length === 1) {
+			c = sep.charCodeAt(0);
+			i = 0;
+			while (i < s.length) {
+				if (s.charCodeAt(i) === c) {
+					n = n + 1 >> 0;
+				}
+				i = i + 1 >> 0;
+			}
+			return n;
+		} else if (sep.length > s.length) {
+			return 0;
+		} else if (sep.length === s.length) {
+			if (sep === s) {
+				return 1;
+			}
+			return 0;
+		}
+		_tuple = hashstr(sep); hashsep = _tuple[0]; pow = _tuple[1];
+		h = 0;
+		i$1 = 0;
+		while (i$1 < sep.length) {
+			h = ((((h >>> 16 << 16) * 16777619 >>> 0) + (h << 16 >>> 16) * 16777619) >>> 0) + (s.charCodeAt(i$1) >>> 0) >>> 0;
+			i$1 = i$1 + 1 >> 0;
+		}
+		lastmatch = 0;
+		if ((h === hashsep) && s.substring(0, sep.length) === sep) {
+			n = n + 1 >> 0;
+			lastmatch = sep.length;
+		}
+		i$2 = sep.length;
+		while (i$2 < s.length) {
+			h = (((h >>> 16 << 16) * 16777619 >>> 0) + (h << 16 >>> 16) * 16777619) >>> 0;
+			h = h + ((s.charCodeAt(i$2) >>> 0)) >>> 0;
+			h = h - ((x = (s.charCodeAt((i$2 - sep.length >> 0)) >>> 0), (((pow >>> 16 << 16) * x >>> 0) + (pow << 16 >>> 16) * x) >>> 0)) >>> 0;
+			i$2 = i$2 + 1 >> 0;
+			if ((h === hashsep) && lastmatch <= (i$2 - sep.length >> 0) && s.substring(i$2 - sep.length >> 0, i$2) === sep) {
+				n = n + 1 >> 0;
+				lastmatch = i$2;
+			}
+		}
+		return n;
+	};
+	Contains = go$pkg.Contains = function(s, substr) {
+		return Index(s, substr) >= 0;
 	};
 	ContainsRune = go$pkg.ContainsRune = function(s, r) {
 		return IndexRune(s, r) >= 0;
@@ -6027,6 +6320,32 @@ go$packages["strings"] = (function() {
 		}
 		return -1;
 	};
+	LastIndex = go$pkg.LastIndex = function(s, sep) {
+		var n, c, i, i$1;
+		n = sep.length;
+		if (n === 0) {
+			return s.length;
+		}
+		c = sep.charCodeAt(0);
+		if (n === 1) {
+			i = s.length - 1 >> 0;
+			while (i >= 0) {
+				if (s.charCodeAt(i) === c) {
+					return i;
+				}
+				i = i - 1 >> 0;
+			}
+			return -1;
+		}
+		i$1 = s.length - n >> 0;
+		while (i$1 >= 0) {
+			if ((s.charCodeAt(i$1) === c) && s.substring(i$1, (i$1 + n >> 0)) === sep) {
+				return i$1;
+			}
+			i$1 = i$1 - 1 >> 0;
+		}
+		return -1;
+	};
 	IndexRune = go$pkg.IndexRune = function(s, r) {
 		var b, i, _ref, _i, _rune, c, i$1;
 		if (r < 128) {
@@ -6052,6 +6371,90 @@ go$packages["strings"] = (function() {
 			}
 		}
 		return -1;
+	};
+	IndexAny = go$pkg.IndexAny = function(s, chars) {
+		var _ref, _i, _rune, c, i, _ref$1, _i$1, _rune$1, m;
+		if (chars.length > 0) {
+			_ref = s;
+			_i = 0;
+			while (_i < _ref.length) {
+				_rune = go$decodeRune(_ref, _i);
+				c = _rune[0];
+				i = _i;
+				_ref$1 = chars;
+				_i$1 = 0;
+				while (_i$1 < _ref$1.length) {
+					_rune$1 = go$decodeRune(_ref$1, _i$1);
+					m = _rune$1[0];
+					if (c === m) {
+						return i;
+					}
+					_i$1 += _rune$1[1];
+				}
+				_i += _rune[1];
+			}
+		}
+		return -1;
+	};
+	genSplit = function(s, sep, sepSave, n) {
+		var c, start, a, na, i, _slice, _index, _slice$1, _index$1;
+		if (n === 0) {
+			return (go$sliceType(Go$String)).nil;
+		}
+		if (sep === "") {
+			return explode(s, n);
+		}
+		if (n < 0) {
+			n = Count(s, sep) + 1 >> 0;
+		}
+		c = sep.charCodeAt(0);
+		start = 0;
+		a = (go$sliceType(Go$String)).make(n, 0, function() { return ""; });
+		na = 0;
+		i = 0;
+		while ((i + sep.length >> 0) <= s.length && (na + 1 >> 0) < n) {
+			if ((s.charCodeAt(i) === c) && ((sep.length === 1) || s.substring(i, (i + sep.length >> 0)) === sep)) {
+				_slice = a; _index = na;(_index >= 0 && _index < _slice.length) ? (_slice.array[_slice.offset + _index] = s.substring(start, (i + sepSave >> 0))) : go$throwRuntimeError("index out of range");
+				na = na + 1 >> 0;
+				start = i + sep.length >> 0;
+				i = i + ((sep.length - 1 >> 0)) >> 0;
+			}
+			i = i + 1 >> 0;
+		}
+		_slice$1 = a; _index$1 = na;(_index$1 >= 0 && _index$1 < _slice$1.length) ? (_slice$1.array[_slice$1.offset + _index$1] = s.substring(start)) : go$throwRuntimeError("index out of range");
+		return go$subslice(a, 0, (na + 1 >> 0));
+	};
+	Split = go$pkg.Split = function(s, sep) {
+		return genSplit(s, sep, 0, -1);
+	};
+	Join = go$pkg.Join = function(a, sep) {
+		var _slice, _index, x, x$1, n, i, _slice$1, _index$1, b, _slice$2, _index$2, bp, _ref, _i, _slice$3, _index$3, s;
+		if (a.length === 0) {
+			return "";
+		}
+		if (a.length === 1) {
+			return (_slice = a, _index = 0, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+		}
+		n = (x = sep.length, x$1 = (a.length - 1 >> 0), (((x >>> 16 << 16) * x$1 >> 0) + (x << 16 >>> 16) * x$1) >> 0);
+		i = 0;
+		while (i < a.length) {
+			n = n + ((_slice$1 = a, _index$1 = i, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).length) >> 0;
+			i = i + 1 >> 0;
+		}
+		b = (go$sliceType(Go$Uint8)).make(n, 0, function() { return 0; });
+		bp = go$copyString(b, (_slice$2 = a, _index$2 = 0, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range")));
+		_ref = go$subslice(a, 1);
+		_i = 0;
+		while (_i < _ref.length) {
+			s = (_slice$3 = _ref, _index$3 = _i, (_index$3 >= 0 && _index$3 < _slice$3.length) ? _slice$3.array[_slice$3.offset + _index$3] : go$throwRuntimeError("index out of range"));
+			bp = bp + (go$copyString(go$subslice(b, bp), sep)) >> 0;
+			bp = bp + (go$copyString(go$subslice(b, bp), s)) >> 0;
+			_i++;
+		}
+		return go$bytesToString(b);
+	};
+	HasPrefix = go$pkg.HasPrefix = function(s, prefix) {
+		return s.length >= prefix.length && s.substring(0, prefix.length) === prefix;
 	};
 	Map = go$pkg.Map = function(mapping, s) {
 		var maxbytes, nbytes, b, _ref, _i, _rune, c, i, r, wid, nb;
@@ -6092,6 +6495,61 @@ go$packages["strings"] = (function() {
 			return s;
 		}
 		return go$bytesToString(go$subslice(b, 0, nbytes));
+	};
+	ToLower = go$pkg.ToLower = function(s) {
+		return Map(unicode.ToLower, s);
+	};
+	IndexFunc = go$pkg.IndexFunc = function(s, f) {
+		return indexFunc(s, f, true);
+	};
+	indexFunc = function(s, f, truth) {
+		var start, wid, r, _tuple;
+		start = 0;
+		while (start < s.length) {
+			wid = 1;
+			r = (s.charCodeAt(start) >> 0);
+			if (r >= 128) {
+				_tuple = utf8.DecodeRuneInString(s.substring(start)); r = _tuple[0]; wid = _tuple[1];
+			}
+			if (f(r) === truth) {
+				return start;
+			}
+			start = start + (wid) >> 0;
+		}
+		return -1;
+	};
+	Replace = go$pkg.Replace = function(s, old, new$1, n) {
+		var m, x, t, w, start, i, j, _tuple, wid;
+		if (old === new$1 || (n === 0)) {
+			return s;
+		}
+		m = Count(s, old);
+		if (m === 0) {
+			return s;
+		} else if (n < 0 || m < n) {
+			n = m;
+		}
+		t = (go$sliceType(Go$Uint8)).make(s.length + (x = (new$1.length - old.length >> 0), (((n >>> 16 << 16) * x >> 0) + (n << 16 >>> 16) * x) >> 0) >> 0, 0, function() { return 0; });
+		w = 0;
+		start = 0;
+		i = 0;
+		while (i < n) {
+			j = start;
+			if (old.length === 0) {
+				if (i > 0) {
+					_tuple = utf8.DecodeRuneInString(s.substring(start)); wid = _tuple[1];
+					j = j + (wid) >> 0;
+				}
+			} else {
+				j = j + (Index(s.substring(start), old)) >> 0;
+			}
+			w = w + (go$copyString(go$subslice(t, w), s.substring(start, j))) >> 0;
+			w = w + (go$copyString(go$subslice(t, w), new$1)) >> 0;
+			start = j + old.length >> 0;
+			i = i + 1 >> 0;
+		}
+		w = w + (go$copyString(go$subslice(t, w), s.substring(start))) >> 0;
+		return go$bytesToString(go$subslice(t, 0, w));
 	};
 	EqualFold = go$pkg.EqualFold = function(s, t) {
 		var _tuple, sr, tr, _tuple$1, _tuple$2, r, size, _tuple$3, _tuple$4, _tuple$5, r$1, size$1, _tuple$6, _tuple$7, r$2;
@@ -7852,7 +8310,7 @@ go$packages["syscall"] = (function() {
 	return go$pkg;
 })();
 go$packages["time"] = (function() {
-	var go$pkg = {}, errors = go$packages["errors"], syscall = go$packages["syscall"], sync = go$packages["sync"], runtime = go$packages["runtime"], ParseError, Time, Month, Weekday, Duration, Location, zone, zoneTrans, abbr, startsWithLowerCase, nextStdChunk, match, lookup, appendUint, atoi, formatNano, quote, isDigit, getnum, cutspace, skip, Parse, parse, parseTimeZone, parseGMT, parseNanoseconds, leadingInt, absWeekday, absClock, fmtFrac, fmtInt, absDate, daysIn, now, Now, Unix, isLeap, norm, Date, div, FixedZone, getKeyValue, matchZoneKey, toEnglishName, extractCAPS, abbrev, pseudoUnix, initLocalFromTZI, initLocal, std0x, longDayNames, shortDayNames, shortMonthNames, longMonthNames, atoiError, errBad, errLeadingInt, months, days, daysBefore, utcLoc, localLoc, localOnce, zoneinfo, abbrs, badData;
+	var go$pkg = {}, js = go$packages["github.com/gopherjs/gopherjs/js"], errors = go$packages["errors"], syscall = go$packages["syscall"], sync = go$packages["sync"], runtime = go$packages["runtime"], ParseError, Time, Month, Weekday, Duration, Location, zone, zoneTrans, abbr, now, startsWithLowerCase, nextStdChunk, match, lookup, appendUint, atoi, formatNano, quote, isDigit, getnum, cutspace, skip, Parse, parse, parseTimeZone, parseGMT, parseNanoseconds, leadingInt, absWeekday, absClock, fmtFrac, fmtInt, absDate, daysIn, Now, Unix, isLeap, norm, Date, div, FixedZone, getKeyValue, matchZoneKey, toEnglishName, extractCAPS, abbrev, pseudoUnix, initLocalFromTZI, initLocal, std0x, longDayNames, shortDayNames, shortMonthNames, longMonthNames, atoiError, errBad, errLeadingInt, months, days, daysBefore, utcLoc, localLoc, localOnce, zoneinfo, abbrs, badData;
 	ParseError = go$pkg.ParseError = go$newType(0, "Struct", "time.ParseError", "ParseError", "time", function(Layout_, Value_, LayoutElem_, ValueElem_, Message_) {
 		this.go$val = this;
 		this.Layout = Layout_ !== undefined ? Layout_ : "";
@@ -7897,6 +8355,14 @@ go$packages["time"] = (function() {
 		this.std = std_ !== undefined ? std_ : "";
 		this.dst = dst_ !== undefined ? dst_ : "";
 	});
+	now = function() {
+		var sec, nsec, msec, x, x$1, _tuple;
+		sec = new Go$Int64(0, 0);
+		nsec = 0;
+		msec = go$internalize(new (go$global.Date)().getTime(), Go$Int64);
+		_tuple = [go$div64(msec, new Go$Int64(0, 1000), false), (x = ((x$1 = go$div64(msec, new Go$Int64(0, 1000), true), x$1.low + ((x$1.high >> 31) * 4294967296)) >> 0), (((x >>> 16 << 16) * 1000000 >> 0) + (x << 16 >>> 16) * 1000000) >> 0)]; sec = _tuple[0]; nsec = _tuple[1];
+		return [sec, nsec];
+	};
 	startsWithLowerCase = function(str) {
 		var c;
 		if (str.length === 0) {
@@ -9197,7 +9663,6 @@ go$packages["time"] = (function() {
 		}
 		return ((daysBefore[m] - daysBefore[(m - 1 >> 0)] >> 0) >> 0);
 	};
-	now = go$now;
 	Now = go$pkg.Now = function() {
 		var _tuple, sec, nsec;
 		_tuple = now(); sec = _tuple[0]; nsec = _tuple[1];
@@ -9889,7 +10354,7 @@ go$packages["time"] = (function() {
 	return go$pkg;
 })();
 go$packages["os"] = (function() {
-	var go$pkg = {}, time = go$packages["time"], syscall = go$packages["syscall"], errors = go$packages["errors"], runtime = go$packages["runtime"], atomic = go$packages["sync/atomic"], io = go$packages["io"], sync = go$packages["sync"], utf16 = go$packages["unicode/utf16"], utf8 = go$packages["unicode/utf8"], PathError, SyscallError, File, file, dirInfo, FileInfo, FileMode, fileStat, Getenv, NewSyscallError, Open, syscallMode, newFile, NewFile, epipecheck, openFile, openDir, OpenFile, Getwd, Stat, Lstat, basename, isSlash, isAbs, volumeName, SameFile, sameFile, getwdCache, useSyscallwd, devNullStat;
+	var go$pkg = {}, js = go$packages["github.com/gopherjs/gopherjs/js"], time = go$packages["time"], syscall = go$packages["syscall"], errors = go$packages["errors"], runtime = go$packages["runtime"], atomic = go$packages["sync/atomic"], io = go$packages["io"], sync = go$packages["sync"], utf16 = go$packages["unicode/utf16"], utf8 = go$packages["unicode/utf8"], PathError, SyscallError, File, file, dirInfo, FileInfo, FileMode, fileStat, NewFile, Getenv, NewSyscallError, Open, syscallMode, newFile, epipecheck, openFile, openDir, OpenFile, Getwd, IsPathSeparator, Stat, Lstat, basename, isSlash, isAbs, volumeName, SameFile, sameFile, getwdCache, useSyscallwd, devNullStat;
 	PathError = go$pkg.PathError = go$newType(0, "Struct", "os.PathError", "PathError", "os", function(Op_, Path_, Err_) {
 		this.go$val = this;
 		this.Op = Op_ !== undefined ? Op_ : "";
@@ -9934,6 +10399,9 @@ go$packages["os"] = (function() {
 		this.idxhi = idxhi_ !== undefined ? idxhi_ : 0;
 		this.idxlo = idxlo_ !== undefined ? idxlo_ : 0;
 	});
+	NewFile = go$pkg.NewFile = function(fd, name) {
+		return new File.Ptr((go$ptrType(file)).nil);
+	};
 	File.Ptr.prototype.readdirnames = function(n) {
 		var names, err, file$1, _tuple, fis, _ref, _i, _slice, _index, fi, i, _slice$1, _index$1, _tuple$1;
 		names = (go$sliceType(Go$String)).nil;
@@ -10244,14 +10712,6 @@ go$packages["os"] = (function() {
 		}
 		runtime.SetFinalizer(f.file, new (go$funcType([(go$ptrType(file))], [go$error], false))((function(recv) { return recv.close(); })));
 		return f;
-	};
-	NewFile = go$pkg.NewFile = function(fd, name) {
-		var h;
-		h = (fd >>> 0);
-		if (h === 4294967295) {
-			return (go$ptrType(File)).nil;
-		}
-		return newFile(h, name);
 	};
 	epipecheck = function(file$1, e) {
 	};
@@ -10751,6 +11211,9 @@ go$packages["os"] = (function() {
 		return [pwd, err];
 		/* */ } break; } }; return go$f();
 	};
+	IsPathSeparator = go$pkg.IsPathSeparator = function(c) {
+		return (c === 92) || (c === 47);
+	};
 	File.Ptr.prototype.Stat = function() {
 		var fi, err, file$1, _tuple, _tuple$1, _tuple$2, _tuple$3, d, e, _tuple$4, _struct, _struct$1, _struct$2, _tuple$5;
 		fi = null;
@@ -11064,11 +11527,7 @@ go$packages["os"] = (function() {
 		}
 		return (fs1.vol === fs2.vol) && (fs1.idxhi === fs2.idxhi) && (fs1.idxlo === fs2.idxlo);
 	};
-
-			if (go$packages["syscall"].Syscall15 !== undefined) { // windows
-				NewFile = go$pkg.NewFile = function() { return new File.Ptr(); };
-			}
-			go$pkg.init = function() {
+	go$pkg.init = function() {
 		(go$ptrType(PathError)).methods = [["Error", "", [], [Go$String], false, -1]];
 		PathError.init([["Op", "Op", "", Go$String, ""], ["Path", "Path", "", Go$String, ""], ["Err", "Err", "", go$error, ""]]);
 		(go$ptrType(SyscallError)).methods = [["Error", "", [], [Go$String], false, -1]];
@@ -11085,7 +11544,7 @@ go$packages["os"] = (function() {
 		(go$ptrType(fileStat)).methods = [["IsDir", "", [], [Go$Bool], false, -1], ["Lock", "", [], [], false, 2], ["ModTime", "", [], [time.Time], false, -1], ["Mode", "", [], [FileMode], false, -1], ["Name", "", [], [Go$String], false, -1], ["Size", "", [], [Go$Int64], false, -1], ["Sys", "", [], [go$emptyInterface], false, -1], ["Unlock", "", [], [], false, 2], ["loadFileId", "os", [], [go$error], false, -1]];
 		fileStat.init([["name", "name", "os", Go$String, ""], ["sys", "sys", "os", syscall.Win32FileAttributeData, ""], ["Mutex", "", "", sync.Mutex, ""], ["path", "path", "os", Go$String, ""], ["vol", "vol", "os", Go$Uint32, ""], ["idxhi", "idxhi", "os", Go$Uint32, ""], ["idxlo", "idxlo", "os", Go$Uint32, ""]]);
 		getwdCache = new (go$structType([["Mutex", "", "", sync.Mutex, ""], ["dir", "dir", "os", Go$String, ""]])).Ptr(new sync.Mutex.Ptr(), "");
-		go$pkg.Args = new (go$sliceType(Go$String))((typeof process !== 'undefined') ? process.argv.slice(1) : []);
+		go$pkg.Args = (go$sliceType(Go$String)).nil;
 		go$pkg.ErrInvalid = errors.New("invalid argument");
 		go$pkg.ErrPermission = errors.New("permission denied");
 		go$pkg.ErrExist = errors.New("file already exists");
@@ -11097,9 +11556,19 @@ go$packages["os"] = (function() {
 			return true;
 		});
 		devNullStat = new fileStat.Ptr("NUL", new syscall.Win32FileAttributeData.Ptr(), new sync.Mutex.Ptr(), "", 0, 0, 0);
-		var argc, cmd, _tuple, v, argv, e, _ref, _i, _slice, _index, v$1, i, _slice$1, _index$1;
+		var process, args, i, _slice, _index, argc, cmd, _tuple, v, argv, e, _ref, _i, _slice$1, _index$1, v$1, i$1, _slice$2, _index$2;
 		var go$deferred = [];
 		try {
+			process = go$global.process;
+			if (!(process === undefined)) {
+				args = process.argv;
+				go$pkg.Args = (go$sliceType(Go$String)).make(go$parseInt(args.length) - 1 >> 0, 0, function() { return ""; });
+				i = 0;
+				while (i < (go$parseInt(args.length) - 1 >> 0)) {
+					_slice = go$pkg.Args; _index = i;(_index >= 0 && _index < _slice.length) ? (_slice.array[_slice.offset + _index] = go$internalize(args[(i + 1 >> 0)], Go$String)) : go$throwRuntimeError("index out of range");
+					i = i + 1 >> 0;
+				}
+			}
 			argc = 0;
 			cmd = syscall.GetCommandLine();
 			_tuple = syscall.CommandLineToArgv(cmd, new (go$ptrType(Go$Int32))(function() { return argc; }, function(v) { argc = v;; })); argv = _tuple[0]; e = _tuple[1];
@@ -11111,9 +11580,9 @@ go$packages["os"] = (function() {
 			_ref = go$subslice(new (go$sliceType((go$ptrType((go$arrayType(Go$Uint16, 8192))))))((argv)), 0, argc);
 			_i = 0;
 			while (_i < _ref.length) {
-				v$1 = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
-				i = _i;
-				_slice$1 = go$pkg.Args; _index$1 = i;(_index$1 >= 0 && _index$1 < _slice$1.length) ? (_slice$1.array[_slice$1.offset + _index$1] = syscall.UTF16ToString(new (go$sliceType(Go$Uint16))((v$1)))) : go$throwRuntimeError("index out of range");
+				v$1 = (_slice$1 = _ref, _index$1 = _i, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
+				i$1 = _i;
+				_slice$2 = go$pkg.Args; _index$2 = i$1;(_index$2 >= 0 && _index$2 < _slice$2.length) ? (_slice$2.array[_slice$2.offset + _index$2] = syscall.UTF16ToString(new (go$sliceType(Go$Uint16))((v$1)))) : go$throwRuntimeError("index out of range");
 				_i++;
 			}
 		} catch(go$err) {
@@ -12505,9 +12974,9 @@ go$packages["reflect"] = (function() {
 		_ref = k;
 		if (_ref === 13) {
 			if (!((((v.flag & 2) >>> 0) === 0))) {
-				return go$float32frombits(go$float32bits(v.val.go$get()));
+				return go$coerceFloat32(v.val.go$get());
 			}
-			return go$float32frombits(go$float32bits(v.val));
+			return go$coerceFloat32(v.val);
 		} else if (_ref === 14) {
 			if (!((((v.flag & 2) >>> 0) === 0))) {
 				return v.val.go$get();
@@ -13835,7 +14304,7 @@ go$packages["reflect"] = (function() {
 	return go$pkg;
 })();
 go$packages["fmt"] = (function() {
-	var go$pkg = {}, strconv = go$packages["strconv"], utf8 = go$packages["unicode/utf8"], errors = go$packages["errors"], io = go$packages["io"], os = go$packages["os"], reflect = go$packages["reflect"], sync = go$packages["sync"], math = go$packages["math"], fmt, State, Formatter, Stringer, GoStringer, buffer, pp, cache, runeUnreader, scanError, ss, ssave, doPrec, newCache, newPrinter, Sprintf, Errorf, getField, parsenum, intFromArg, parseArgNumber, isSpace, notSpace, indexRune, padZeroBytes, padSpaceBytes, trueBytes, falseBytes, commaSpaceBytes, nilAngleBytes, nilParenBytes, nilBytes, mapBytes, percentBangBytes, missingBytes, badIndexBytes, panicBytes, extraBytes, irparenBytes, bytesBytes, badWidthBytes, badPrecBytes, noVerbBytes, ppFree, intBits, uintptrBits, space, ssFree, complexError, boolError;
+	var go$pkg = {}, strconv = go$packages["strconv"], utf8 = go$packages["unicode/utf8"], errors = go$packages["errors"], io = go$packages["io"], os = go$packages["os"], reflect = go$packages["reflect"], sync = go$packages["sync"], math = go$packages["math"], fmt, State, Formatter, Stringer, GoStringer, buffer, pp, cache, runeUnreader, ScanState, Scanner, stringReader, scanError, ss, ssave, readRune, doPrec, newCache, newPrinter, Fprintf, Sprintf, Errorf, Fprint, Sprint, Sprintln, getField, parsenum, intFromArg, parseArgNumber, Sscan, Fscan, isSpace, notSpace, newScanState, indexRune, errorHandler, padZeroBytes, padSpaceBytes, trueBytes, falseBytes, commaSpaceBytes, nilAngleBytes, nilParenBytes, nilBytes, mapBytes, percentBangBytes, missingBytes, badIndexBytes, panicBytes, extraBytes, irparenBytes, bytesBytes, badWidthBytes, badPrecBytes, noVerbBytes, ppFree, intBits, uintptrBits, space, ssFree, complexError, boolError;
 	fmt = go$pkg.fmt = go$newType(0, "Struct", "fmt.fmt", "fmt", "fmt", function(intbuf_, buf_, wid_, prec_, widPresent_, precPresent_, minus_, plus_, sharp_, space_, unicode_, uniQuote_, zero_) {
 		this.go$val = this;
 		this.intbuf = intbuf_ !== undefined ? intbuf_ : go$makeNativeArray("Uint8", 65, function() { return 0; });
@@ -13877,6 +14346,9 @@ go$packages["fmt"] = (function() {
 		this.new$2 = new$2_ !== undefined ? new$2_ : go$throwNilPointerError;
 	});
 	runeUnreader = go$pkg.runeUnreader = go$newType(0, "Interface", "fmt.runeUnreader", "runeUnreader", "fmt", null);
+	ScanState = go$pkg.ScanState = go$newType(0, "Interface", "fmt.ScanState", "ScanState", "fmt", null);
+	Scanner = go$pkg.Scanner = go$newType(0, "Interface", "fmt.Scanner", "Scanner", "fmt", null);
+	stringReader = go$pkg.stringReader = go$newType(0, "String", "fmt.stringReader", "stringReader", "fmt", null);
 	scanError = go$pkg.scanError = go$newType(0, "Struct", "fmt.scanError", "scanError", "fmt", function(err_) {
 		this.go$val = this;
 		this.err = err_ !== undefined ? err_ : null;
@@ -13899,6 +14371,13 @@ go$packages["fmt"] = (function() {
 		this.argLimit = argLimit_ !== undefined ? argLimit_ : 0;
 		this.limit = limit_ !== undefined ? limit_ : 0;
 		this.maxWid = maxWid_ !== undefined ? maxWid_ : 0;
+	});
+	readRune = go$pkg.readRune = go$newType(0, "Struct", "fmt.readRune", "readRune", "fmt", function(reader_, buf_, pending_, pendBuf_) {
+		this.go$val = this;
+		this.reader = reader_ !== undefined ? reader_ : null;
+		this.buf = buf_ !== undefined ? buf_ : go$makeNativeArray("Uint8", 4, function() { return 0; });
+		this.pending = pending_ !== undefined ? pending_ : 0;
+		this.pendBuf = pendBuf_ !== undefined ? pendBuf_ : go$makeNativeArray("Uint8", 4, function() { return 0; });
 	});
 	fmt.Ptr.prototype.clearflags = function() {
 		var f;
@@ -14261,37 +14740,37 @@ go$packages["fmt"] = (function() {
 	fmt.Ptr.prototype.fmt_e32 = function(v) {
 		var f;
 		f = this;
-		f.formatFloat(go$float32frombits(go$float32bits(v)), 101, doPrec(f, 6), 32);
+		f.formatFloat(go$coerceFloat32(v), 101, doPrec(f, 6), 32);
 	};
 	fmt.prototype.fmt_e32 = function(v) { return this.go$val.fmt_e32(v); };
 	fmt.Ptr.prototype.fmt_E32 = function(v) {
 		var f;
 		f = this;
-		f.formatFloat(go$float32frombits(go$float32bits(v)), 69, doPrec(f, 6), 32);
+		f.formatFloat(go$coerceFloat32(v), 69, doPrec(f, 6), 32);
 	};
 	fmt.prototype.fmt_E32 = function(v) { return this.go$val.fmt_E32(v); };
 	fmt.Ptr.prototype.fmt_f32 = function(v) {
 		var f;
 		f = this;
-		f.formatFloat(go$float32frombits(go$float32bits(v)), 102, doPrec(f, 6), 32);
+		f.formatFloat(go$coerceFloat32(v), 102, doPrec(f, 6), 32);
 	};
 	fmt.prototype.fmt_f32 = function(v) { return this.go$val.fmt_f32(v); };
 	fmt.Ptr.prototype.fmt_g32 = function(v) {
 		var f;
 		f = this;
-		f.formatFloat(go$float32frombits(go$float32bits(v)), 103, doPrec(f, -1), 32);
+		f.formatFloat(go$coerceFloat32(v), 103, doPrec(f, -1), 32);
 	};
 	fmt.prototype.fmt_g32 = function(v) { return this.go$val.fmt_g32(v); };
 	fmt.Ptr.prototype.fmt_G32 = function(v) {
 		var f;
 		f = this;
-		f.formatFloat(go$float32frombits(go$float32bits(v)), 71, doPrec(f, -1), 32);
+		f.formatFloat(go$coerceFloat32(v), 71, doPrec(f, -1), 32);
 	};
 	fmt.prototype.fmt_G32 = function(v) { return this.go$val.fmt_G32(v); };
 	fmt.Ptr.prototype.fmt_fb32 = function(v) {
 		var f;
 		f = this;
-		f.formatFloat(go$float32frombits(go$float32bits(v)), 98, 0, 32);
+		f.formatFloat(go$coerceFloat32(v), 98, 0, 32);
 	};
 	fmt.prototype.fmt_fb32 = function(v) { return this.go$val.fmt_fb32(v); };
 	fmt.Ptr.prototype.fmt_c64 = function(v, verb) {
@@ -14503,6 +14982,16 @@ go$packages["fmt"] = (function() {
 		return [ret, err];
 	};
 	pp.prototype.Write = function(b) { return this.go$val.Write(b); };
+	Fprintf = go$pkg.Fprintf = function(w, format, a) {
+		var n, err, p, _tuple, x;
+		n = 0;
+		err = null;
+		p = newPrinter();
+		p.doPrintf(format, a);
+		_tuple = w.Write((x = p.buf, go$subslice(new (go$sliceType(Go$Uint8))(x.array), x.offset, x.offset + x.length))); n = _tuple[0]; err = _tuple[1];
+		p.free();
+		return [n, err];
+	};
 	Sprintf = go$pkg.Sprintf = function(format, a) {
 		var p, s;
 		p = newPrinter();
@@ -14513,6 +15002,32 @@ go$packages["fmt"] = (function() {
 	};
 	Errorf = go$pkg.Errorf = function(format, a) {
 		return errors.New(Sprintf(format, a));
+	};
+	Fprint = go$pkg.Fprint = function(w, a) {
+		var n, err, p, _tuple, x;
+		n = 0;
+		err = null;
+		p = newPrinter();
+		p.doPrint(a, false, false);
+		_tuple = w.Write((x = p.buf, go$subslice(new (go$sliceType(Go$Uint8))(x.array), x.offset, x.offset + x.length))); n = _tuple[0]; err = _tuple[1];
+		p.free();
+		return [n, err];
+	};
+	Sprint = go$pkg.Sprint = function(a) {
+		var p, s;
+		p = newPrinter();
+		p.doPrint(a, false, false);
+		s = go$bytesToString(p.buf);
+		p.free();
+		return s;
+	};
+	Sprintln = go$pkg.Sprintln = function(a) {
+		var p, s;
+		p = newPrinter();
+		p.doPrint(a, true, true);
+		s = go$bytesToString(p.buf);
+		p.free();
+		return s;
 	};
 	getField = function(v, i) {
 		var _struct, val, _struct$1, _struct$2;
@@ -15456,6 +15971,57 @@ go$packages["fmt"] = (function() {
 		}
 	};
 	pp.prototype.doPrintf = function(format, a) { return this.go$val.doPrintf(format, a); };
+	pp.Ptr.prototype.doPrint = function(a, addspace, addnewline) {
+		var p, prevString, argNum, _slice, _index, arg, isString, v, v$1;
+		p = this;
+		prevString = false;
+		argNum = 0;
+		while (argNum < a.length) {
+			p.fmt.clearflags();
+			arg = (_slice = a, _index = argNum, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			if (argNum > 0) {
+				isString = !(go$interfaceIsEqual(arg, null)) && (reflect.TypeOf(arg).Kind() === 24);
+				if (addspace || !isString && !prevString) {
+					(new (go$ptrType(buffer))(function() { return p.buf; }, function(v) { p.buf = v; })).WriteByte(32);
+				}
+			}
+			prevString = p.printArg(arg, 118, false, false, 0);
+			argNum = argNum + 1 >> 0;
+		}
+		if (addnewline) {
+			(new (go$ptrType(buffer))(function() { return p.buf; }, function(v$1) { p.buf = v$1; })).WriteByte(10);
+		}
+	};
+	pp.prototype.doPrint = function(a, addspace, addnewline) { return this.go$val.doPrint(a, addspace, addnewline); };
+	go$ptrType(stringReader).prototype.Read = function(b) {
+		var n, err, r;
+		n = 0;
+		err = null;
+		r = this;
+		n = go$copyString(b, r.go$get());
+		r.go$set((r.go$get()).substring(n));
+		if (n === 0) {
+			err = io.EOF;
+		}
+		return [n, err];
+	};
+	stringReader.prototype.Read = function(b) { var obj = this.go$val; return (new (go$ptrType(stringReader))(function() { return obj; }, null)).Read(b); };
+	Sscan = go$pkg.Sscan = function(str, a) {
+		var n, err, _tuple, x, v;
+		n = 0;
+		err = null;
+		_tuple = Fscan((x = new (go$ptrType(Go$String))(function() { return str; }, function(v) { str = v;; }), new (go$ptrType(stringReader))(x.go$get, x.go$set)), a); n = _tuple[0]; err = _tuple[1];
+		return [n, err];
+	};
+	Fscan = go$pkg.Fscan = function(r, a) {
+		var n, err, _tuple, s, _struct, old, _tuple$1, _struct$1;
+		n = 0;
+		err = null;
+		_tuple = newScanState(r, true, false); s = _tuple[0]; old = (_struct = _tuple[1], new ssave.Ptr(_struct.validSave, _struct.nlIsEnd, _struct.nlIsSpace, _struct.argLimit, _struct.limit, _struct.maxWid));
+		_tuple$1 = s.doScan(a); n = _tuple$1[0]; err = _tuple$1[1];
+		s.free((_struct$1 = old, new ssave.Ptr(_struct$1.validSave, _struct$1.nlIsEnd, _struct$1.nlIsSpace, _struct$1.argLimit, _struct$1.limit, _struct$1.maxWid)));
+		return [n, err];
+	};
 	ss.Ptr.prototype.Read = function(buf) {
 		var n, err, s, _tuple;
 		n = 0;
@@ -15521,6 +16087,17 @@ go$packages["fmt"] = (function() {
 		return r;
 	};
 	ss.prototype.getRune = function() { return this.go$val.getRune(); };
+	ss.Ptr.prototype.mustReadRune = function() {
+		var r, s;
+		r = 0;
+		s = this;
+		r = s.getRune();
+		if (r === -1) {
+			s.error(io.ErrUnexpectedEOF);
+		}
+		return r;
+	};
+	ss.prototype.mustReadRune = function() { return this.go$val.mustReadRune(); };
 	ss.Ptr.prototype.UnreadRune = function() {
 		var s, _tuple, x, u, ok;
 		s = this;
@@ -15609,6 +16186,99 @@ go$packages["fmt"] = (function() {
 		s.skipSpace(false);
 	};
 	ss.prototype.SkipSpace = function() { return this.go$val.SkipSpace(); };
+	readRune.Ptr.prototype.readByte = function() {
+		var b, err, r, _tuple, n, _tuple$1, _tuple$2;
+		b = 0;
+		err = null;
+		r = this;
+		if (r.pending > 0) {
+			b = r.pendBuf[0];
+			go$copySlice(go$subslice(new (go$sliceType(Go$Uint8))(r.pendBuf), 0), go$subslice(new (go$sliceType(Go$Uint8))(r.pendBuf), 1));
+			r.pending = r.pending - 1 >> 0;
+			return [b, err];
+		}
+		_tuple = io.ReadFull(r.reader, go$subslice(new (go$sliceType(Go$Uint8))(r.pendBuf), 0, 1)); n = _tuple[0]; err = _tuple[1];
+		if (!((n === 1))) {
+			_tuple$1 = [0, err]; b = _tuple$1[0]; err = _tuple$1[1];
+			return [b, err];
+		}
+		_tuple$2 = [r.pendBuf[0], err]; b = _tuple$2[0]; err = _tuple$2[1];
+		return [b, err];
+	};
+	readRune.prototype.readByte = function() { return this.go$val.readByte(); };
+	readRune.Ptr.prototype.unread = function(buf) {
+		var r;
+		r = this;
+		go$copySlice(go$subslice(new (go$sliceType(Go$Uint8))(r.pendBuf), r.pending), buf);
+		r.pending = r.pending + (buf.length) >> 0;
+	};
+	readRune.prototype.unread = function(buf) { return this.go$val.unread(buf); };
+	readRune.Ptr.prototype.ReadRune = function() {
+		var rr, size, err, r, _tuple, _tuple$1, n, _tuple$2, _tuple$3;
+		rr = 0;
+		size = 0;
+		err = null;
+		r = this;
+		_tuple = r.readByte(); r.buf[0] = _tuple[0]; err = _tuple[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			_tuple$1 = [0, 0, err]; rr = _tuple$1[0]; size = _tuple$1[1]; err = _tuple$1[2];
+			return [rr, size, err];
+		}
+		if (r.buf[0] < 128) {
+			rr = (r.buf[0] >> 0);
+			return [rr, size, err];
+		}
+		n = 0;
+		n = 1;
+		while (!utf8.FullRune(go$subslice(new (go$sliceType(Go$Uint8))(r.buf), 0, n))) {
+			_tuple$2 = r.readByte(); r.buf[n] = _tuple$2[0]; err = _tuple$2[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				if (go$interfaceIsEqual(err, io.EOF)) {
+					err = null;
+					break;
+				}
+				return [rr, size, err];
+			}
+			n = n + 1 >> 0;
+		}
+		_tuple$3 = utf8.DecodeRune(go$subslice(new (go$sliceType(Go$Uint8))(r.buf), 0, n)); rr = _tuple$3[0]; size = _tuple$3[1];
+		if (size < n) {
+			r.unread(go$subslice(new (go$sliceType(Go$Uint8))(r.buf), size, n));
+		}
+		return [rr, size, err];
+	};
+	readRune.prototype.ReadRune = function() { return this.go$val.ReadRune(); };
+	newScanState = function(r, nlIsSpace, nlIsEnd) {
+		var s, old, _tuple, ok, _struct, _struct$1, x, _tuple$1, rr, ok$1, _struct$2;
+		s = (go$ptrType(ss)).nil;
+		old = new ssave.Ptr();
+		_tuple = (r !== null && r.constructor === (go$ptrType(ss)) ? [r.go$val, true] : [(go$ptrType(ss)).nil, false]); s = _tuple[0]; ok = _tuple[1];
+		if (ok) {
+			old = (_struct = s.ssave, new ssave.Ptr(_struct.validSave, _struct.nlIsEnd, _struct.nlIsSpace, _struct.argLimit, _struct.limit, _struct.maxWid));
+			s.ssave.limit = s.ssave.argLimit;
+			s.ssave.nlIsEnd = nlIsEnd || s.ssave.nlIsEnd;
+			s.ssave.nlIsSpace = nlIsSpace;
+			return [s, (_struct$1 = old, new ssave.Ptr(_struct$1.validSave, _struct$1.nlIsEnd, _struct$1.nlIsSpace, _struct$1.argLimit, _struct$1.limit, _struct$1.maxWid))];
+		}
+		s = (x = ssFree.get(), (x !== null && x.constructor === (go$ptrType(ss)) ? x.go$val : go$typeAssertionFailed(x, (go$ptrType(ss)))));
+		_tuple$1 = (r !== null && io.RuneReader.implementedBy.indexOf(r.constructor) !== -1 ? [r, true] : [null, false]); rr = _tuple$1[0]; ok$1 = _tuple$1[1];
+		if (ok$1) {
+			s.rr = rr;
+		} else {
+			s.rr = new readRune.Ptr(r, go$makeNativeArray("Uint8", 4, function() { return 0; }), 0, go$makeNativeArray("Uint8", 4, function() { return 0; }));
+		}
+		s.ssave.nlIsSpace = nlIsSpace;
+		s.ssave.nlIsEnd = nlIsEnd;
+		s.prevRune = -1;
+		s.peekRune = -1;
+		s.atEOF = false;
+		s.ssave.limit = 1073741824;
+		s.ssave.argLimit = 1073741824;
+		s.ssave.maxWid = 1073741824;
+		s.ssave.validSave = true;
+		s.count = 0;
+		return [s, (_struct$2 = old, new ssave.Ptr(_struct$2.validSave, _struct$2.nlIsEnd, _struct$2.nlIsSpace, _struct$2.argLimit, _struct$2.limit, _struct$2.maxWid))];
+	};
 	ss.Ptr.prototype.free = function(old) {
 		var s, _struct;
 		s = this;
@@ -15687,6 +16357,25 @@ go$packages["fmt"] = (function() {
 		}
 		return -1;
 	};
+	ss.Ptr.prototype.consume = function(ok, accept) {
+		var s, r, v;
+		s = this;
+		r = s.getRune();
+		if (r === -1) {
+			return false;
+		}
+		if (indexRune(ok, r) >= 0) {
+			if (accept) {
+				(new (go$ptrType(buffer))(function() { return s.buf; }, function(v) { s.buf = v; })).WriteRune(r);
+			}
+			return true;
+		}
+		if (!((r === -1)) && accept) {
+			s.UnreadRune();
+		}
+		return false;
+	};
+	ss.prototype.consume = function(ok, accept) { return this.go$val.consume(ok, accept); };
 	ss.Ptr.prototype.peek = function(ok) {
 		var s, r;
 		s = this;
@@ -15697,6 +16386,576 @@ go$packages["fmt"] = (function() {
 		return indexRune(ok, r) >= 0;
 	};
 	ss.prototype.peek = function(ok) { return this.go$val.peek(ok); };
+	ss.Ptr.prototype.notEOF = function() {
+		var s, r;
+		s = this;
+		r = s.getRune();
+		if (r === -1) {
+			throw go$panic(io.EOF);
+		}
+		s.UnreadRune();
+	};
+	ss.prototype.notEOF = function() { return this.go$val.notEOF(); };
+	ss.Ptr.prototype.accept = function(ok) {
+		var s;
+		s = this;
+		return s.consume(ok, true);
+	};
+	ss.prototype.accept = function(ok) { return this.go$val.accept(ok); };
+	ss.Ptr.prototype.okVerb = function(verb, okVerbs, typ) {
+		var s, _ref, _i, _rune, v;
+		s = this;
+		_ref = okVerbs;
+		_i = 0;
+		while (_i < _ref.length) {
+			_rune = go$decodeRune(_ref, _i);
+			v = _rune[0];
+			if (v === verb) {
+				return true;
+			}
+			_i += _rune[1];
+		}
+		s.errorString("bad verb %" + go$encodeRune(verb) + " for " + typ);
+		return false;
+	};
+	ss.prototype.okVerb = function(verb, okVerbs, typ) { return this.go$val.okVerb(verb, okVerbs, typ); };
+	ss.Ptr.prototype.scanBool = function(verb) {
+		var s, _ref;
+		s = this;
+		s.skipSpace(false);
+		s.notEOF();
+		if (!s.okVerb(verb, "tv", "boolean")) {
+			return false;
+		}
+		_ref = s.getRune();
+		if (_ref === 48) {
+			return false;
+		} else if (_ref === 49) {
+			return true;
+		} else if (_ref === 116 || _ref === 84) {
+			if (s.accept("rR") && (!s.accept("uU") || !s.accept("eE"))) {
+				s.error(boolError);
+			}
+			return true;
+		} else if (_ref === 102 || _ref === 70) {
+			if (s.accept("aA") && (!s.accept("lL") || !s.accept("sS") || !s.accept("eE"))) {
+				s.error(boolError);
+			}
+			return false;
+		}
+		return false;
+	};
+	ss.prototype.scanBool = function(verb) { return this.go$val.scanBool(verb); };
+	ss.Ptr.prototype.getBase = function(verb) {
+		var base, digits, s, _ref;
+		base = 0;
+		digits = "";
+		s = this;
+		s.okVerb(verb, "bdoUxXv", "integer");
+		base = 10;
+		digits = "0123456789";
+		_ref = verb;
+		if (_ref === 98) {
+			base = 2;
+			digits = "01";
+		} else if (_ref === 111) {
+			base = 8;
+			digits = "01234567";
+		} else if (_ref === 120 || _ref === 88 || _ref === 85) {
+			base = 16;
+			digits = "0123456789aAbBcCdDeEfF";
+		}
+		return [base, digits];
+	};
+	ss.prototype.getBase = function(verb) { return this.go$val.getBase(verb); };
+	ss.Ptr.prototype.scanNumber = function(digits, haveDigits) {
+		var s;
+		s = this;
+		if (!haveDigits) {
+			s.notEOF();
+			if (!s.accept(digits)) {
+				s.errorString("expected integer");
+			}
+		}
+		while (s.accept(digits)) {
+		}
+		return go$bytesToString(s.buf);
+	};
+	ss.prototype.scanNumber = function(digits, haveDigits) { return this.go$val.scanNumber(digits, haveDigits); };
+	ss.Ptr.prototype.scanRune = function(bitSize) {
+		var s, r, n, x;
+		s = this;
+		s.notEOF();
+		r = new Go$Int64(0, s.getRune());
+		n = (bitSize >>> 0);
+		x = go$shiftRightInt64((go$shiftLeft64(r, ((64 - n >>> 0)))), ((64 - n >>> 0)));
+		if (!((x.high === r.high && x.low === r.low))) {
+			s.errorString("overflow on character value " + go$encodeRune(r.low));
+		}
+		return r;
+	};
+	ss.prototype.scanRune = function(bitSize) { return this.go$val.scanRune(bitSize); };
+	ss.Ptr.prototype.scanBasePrefix = function() {
+		var base, digits, found, s, _tuple, _tuple$1, _tuple$2;
+		base = 0;
+		digits = "";
+		found = false;
+		s = this;
+		if (!s.peek("0")) {
+			_tuple = [10, "0123456789", false]; base = _tuple[0]; digits = _tuple[1]; found = _tuple[2];
+			return [base, digits, found];
+		}
+		s.accept("0");
+		found = true;
+		_tuple$1 = [8, "01234567"]; base = _tuple$1[0]; digits = _tuple$1[1];
+		if (s.peek("xX")) {
+			s.consume("xX", false);
+			_tuple$2 = [16, "0123456789aAbBcCdDeEfF"]; base = _tuple$2[0]; digits = _tuple$2[1];
+		}
+		return [base, digits, found];
+	};
+	ss.prototype.scanBasePrefix = function() { return this.go$val.scanBasePrefix(); };
+	ss.Ptr.prototype.scanInt = function(verb, bitSize) {
+		var s, _tuple, base, digits, haveDigits, _tuple$1, tok, _tuple$2, i, err, n, x;
+		s = this;
+		if (verb === 99) {
+			return s.scanRune(bitSize);
+		}
+		s.skipSpace(false);
+		s.notEOF();
+		_tuple = s.getBase(verb); base = _tuple[0]; digits = _tuple[1];
+		haveDigits = false;
+		if (verb === 85) {
+			if (!s.consume("U", false) || !s.consume("+", false)) {
+				s.errorString("bad unicode format ");
+			}
+		} else {
+			s.accept("+-");
+			if (verb === 118) {
+				_tuple$1 = s.scanBasePrefix(); base = _tuple$1[0]; digits = _tuple$1[1]; haveDigits = _tuple$1[2];
+			}
+		}
+		tok = s.scanNumber(digits, haveDigits);
+		_tuple$2 = strconv.ParseInt(tok, base, 64); i = _tuple$2[0]; err = _tuple$2[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			s.error(err);
+		}
+		n = (bitSize >>> 0);
+		x = go$shiftRightInt64((go$shiftLeft64(i, ((64 - n >>> 0)))), ((64 - n >>> 0)));
+		if (!((x.high === i.high && x.low === i.low))) {
+			s.errorString("integer overflow on token " + tok);
+		}
+		return i;
+	};
+	ss.prototype.scanInt = function(verb, bitSize) { return this.go$val.scanInt(verb, bitSize); };
+	ss.Ptr.prototype.scanUint = function(verb, bitSize) {
+		var s, x, _tuple, base, digits, haveDigits, _tuple$1, tok, _tuple$2, i, err, n, x$1;
+		s = this;
+		if (verb === 99) {
+			return (x = s.scanRune(bitSize), new Go$Uint64(x.high, x.low));
+		}
+		s.skipSpace(false);
+		s.notEOF();
+		_tuple = s.getBase(verb); base = _tuple[0]; digits = _tuple[1];
+		haveDigits = false;
+		if (verb === 85) {
+			if (!s.consume("U", false) || !s.consume("+", false)) {
+				s.errorString("bad unicode format ");
+			}
+		} else if (verb === 118) {
+			_tuple$1 = s.scanBasePrefix(); base = _tuple$1[0]; digits = _tuple$1[1]; haveDigits = _tuple$1[2];
+		}
+		tok = s.scanNumber(digits, haveDigits);
+		_tuple$2 = strconv.ParseUint(tok, base, 64); i = _tuple$2[0]; err = _tuple$2[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			s.error(err);
+		}
+		n = (bitSize >>> 0);
+		x$1 = go$shiftRightUint64((go$shiftLeft64(i, ((64 - n >>> 0)))), ((64 - n >>> 0)));
+		if (!((x$1.high === i.high && x$1.low === i.low))) {
+			s.errorString("unsigned integer overflow on token " + tok);
+		}
+		return i;
+	};
+	ss.prototype.scanUint = function(verb, bitSize) { return this.go$val.scanUint(verb, bitSize); };
+	ss.Ptr.prototype.floatToken = function() {
+		var s;
+		s = this;
+		s.buf = go$subslice(s.buf, 0, 0);
+		if (s.accept("nN") && s.accept("aA") && s.accept("nN")) {
+			return go$bytesToString(s.buf);
+		}
+		s.accept("+-");
+		if (s.accept("iI") && s.accept("nN") && s.accept("fF")) {
+			return go$bytesToString(s.buf);
+		}
+		while (s.accept("0123456789")) {
+		}
+		if (s.accept(".")) {
+			while (s.accept("0123456789")) {
+			}
+		}
+		if (s.accept("eEp")) {
+			s.accept("+-");
+			while (s.accept("0123456789")) {
+			}
+		}
+		return go$bytesToString(s.buf);
+	};
+	ss.prototype.floatToken = function() { return this.go$val.floatToken(); };
+	ss.Ptr.prototype.complexTokens = function() {
+		var real, imag, s, parens, imagSign, _tuple;
+		real = "";
+		imag = "";
+		s = this;
+		parens = s.accept("(");
+		real = s.floatToken();
+		s.buf = go$subslice(s.buf, 0, 0);
+		if (!s.accept("+-")) {
+			s.error(complexError);
+		}
+		imagSign = go$bytesToString(s.buf);
+		imag = s.floatToken();
+		if (!s.accept("i")) {
+			s.error(complexError);
+		}
+		if (parens && !s.accept(")")) {
+			s.error(complexError);
+		}
+		_tuple = [real, imagSign + imag]; real = _tuple[0]; imag = _tuple[1];
+		return [real, imag];
+	};
+	ss.prototype.complexTokens = function() { return this.go$val.complexTokens(); };
+	ss.Ptr.prototype.convertFloat = function(str, n) {
+		var s, p, _tuple, f, err, _tuple$1, e, ok, _tuple$2, m, _tuple$3, e$1, ok$1, _tuple$4, f$1, err$1;
+		s = this;
+		p = indexRune(str, 112);
+		if (p >= 0) {
+			_tuple = strconv.ParseFloat(str.substring(0, p), n); f = _tuple[0]; err = _tuple[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				_tuple$1 = (err !== null && err.constructor === (go$ptrType(strconv.NumError)) ? [err.go$val, true] : [(go$ptrType(strconv.NumError)).nil, false]); e = _tuple$1[0]; ok = _tuple$1[1];
+				if (ok) {
+					e.Num = str;
+				}
+				s.error(err);
+			}
+			_tuple$2 = strconv.Atoi(str.substring((p + 1 >> 0))); m = _tuple$2[0]; err = _tuple$2[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				_tuple$3 = (err !== null && err.constructor === (go$ptrType(strconv.NumError)) ? [err.go$val, true] : [(go$ptrType(strconv.NumError)).nil, false]); e$1 = _tuple$3[0]; ok$1 = _tuple$3[1];
+				if (ok$1) {
+					e$1.Num = str;
+				}
+				s.error(err);
+			}
+			return math.Ldexp(f, m);
+		}
+		_tuple$4 = strconv.ParseFloat(str, n); f$1 = _tuple$4[0]; err$1 = _tuple$4[1];
+		if (!(go$interfaceIsEqual(err$1, null))) {
+			s.error(err$1);
+		}
+		return f$1;
+	};
+	ss.prototype.convertFloat = function(str, n) { return this.go$val.convertFloat(str, n); };
+	ss.Ptr.prototype.scanComplex = function(verb, n) {
+		var s, _tuple, sreal, simag, _q, real, _q$1, imag;
+		s = this;
+		if (!s.okVerb(verb, "beEfFgGv", "complex")) {
+			return new Go$Complex128(0, 0);
+		}
+		s.skipSpace(false);
+		s.notEOF();
+		_tuple = s.complexTokens(); sreal = _tuple[0]; simag = _tuple[1];
+		real = s.convertFloat(sreal, (_q = n / 2, (_q === _q && _q !== 1/0 && _q !== -1/0) ? _q >> 0 : go$throwRuntimeError("integer divide by zero")));
+		imag = s.convertFloat(simag, (_q$1 = n / 2, (_q$1 === _q$1 && _q$1 !== 1/0 && _q$1 !== -1/0) ? _q$1 >> 0 : go$throwRuntimeError("integer divide by zero")));
+		return new Go$Complex128(real, imag);
+	};
+	ss.prototype.scanComplex = function(verb, n) { return this.go$val.scanComplex(verb, n); };
+	ss.Ptr.prototype.convertString = function(verb) {
+		var str, s, _ref;
+		str = "";
+		s = this;
+		if (!s.okVerb(verb, "svqx", "string")) {
+			str = "";
+			return str;
+		}
+		s.skipSpace(false);
+		s.notEOF();
+		_ref = verb;
+		if (_ref === 113) {
+			str = s.quotedString();
+		} else if (_ref === 120) {
+			str = s.hexString();
+		} else {
+			str = go$bytesToString(s.token(true, notSpace));
+		}
+		return str;
+	};
+	ss.prototype.convertString = function(verb) { return this.go$val.convertString(verb); };
+	ss.Ptr.prototype.quotedString = function() {
+		var s, quote, _ref, r, v, v$1, r$1, v$2, v$3, _tuple, result, err;
+		s = this;
+		s.notEOF();
+		quote = s.getRune();
+		_ref = quote;
+		if (_ref === 96) {
+			while (true) {
+				r = s.mustReadRune();
+				if (r === quote) {
+					break;
+				}
+				(new (go$ptrType(buffer))(function() { return s.buf; }, function(v) { s.buf = v; })).WriteRune(r);
+			}
+			return go$bytesToString(s.buf);
+		} else if (_ref === 34) {
+			(new (go$ptrType(buffer))(function() { return s.buf; }, function(v$1) { s.buf = v$1; })).WriteRune(quote);
+			while (true) {
+				r$1 = s.mustReadRune();
+				(new (go$ptrType(buffer))(function() { return s.buf; }, function(v$2) { s.buf = v$2; })).WriteRune(r$1);
+				if (r$1 === 92) {
+					(new (go$ptrType(buffer))(function() { return s.buf; }, function(v$3) { s.buf = v$3; })).WriteRune(s.mustReadRune());
+				} else if (r$1 === 34) {
+					break;
+				}
+			}
+			_tuple = strconv.Unquote(go$bytesToString(s.buf)); result = _tuple[0]; err = _tuple[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				s.error(err);
+			}
+			return result;
+		} else {
+			s.errorString("expected quoted string");
+		}
+		return "";
+	};
+	ss.prototype.quotedString = function() { return this.go$val.quotedString(); };
+	ss.Ptr.prototype.hexDigit = function(d) {
+		var s, digit, _ref;
+		s = this;
+		digit = (d >> 0);
+		_ref = digit;
+		if (_ref === 48 || _ref === 49 || _ref === 50 || _ref === 51 || _ref === 52 || _ref === 53 || _ref === 54 || _ref === 55 || _ref === 56 || _ref === 57) {
+			return digit - 48 >> 0;
+		} else if (_ref === 97 || _ref === 98 || _ref === 99 || _ref === 100 || _ref === 101 || _ref === 102) {
+			return (10 + digit >> 0) - 97 >> 0;
+		} else if (_ref === 65 || _ref === 66 || _ref === 67 || _ref === 68 || _ref === 69 || _ref === 70) {
+			return (10 + digit >> 0) - 65 >> 0;
+		}
+		s.errorString("illegal hex digit");
+		return 0;
+	};
+	ss.prototype.hexDigit = function(d) { return this.go$val.hexDigit(d); };
+	ss.Ptr.prototype.hexByte = function() {
+		var b, ok, s, rune1, rune2, _tuple;
+		b = 0;
+		ok = false;
+		s = this;
+		rune1 = s.getRune();
+		if (rune1 === -1) {
+			return [b, ok];
+		}
+		if (isSpace(rune1)) {
+			s.UnreadRune();
+			return [b, ok];
+		}
+		rune2 = s.mustReadRune();
+		_tuple = [(((s.hexDigit(rune1) << 4 >> 0) | s.hexDigit(rune2)) << 24 >>> 24), true]; b = _tuple[0]; ok = _tuple[1];
+		return [b, ok];
+	};
+	ss.prototype.hexByte = function() { return this.go$val.hexByte(); };
+	ss.Ptr.prototype.hexString = function() {
+		var s, _tuple, b, ok, v;
+		s = this;
+		s.notEOF();
+		while (true) {
+			_tuple = s.hexByte(); b = _tuple[0]; ok = _tuple[1];
+			if (!ok) {
+				break;
+			}
+			(new (go$ptrType(buffer))(function() { return s.buf; }, function(v) { s.buf = v; })).WriteByte(b);
+		}
+		if (s.buf.length === 0) {
+			s.errorString("no hex data for %x string");
+			return "";
+		}
+		return go$bytesToString(s.buf);
+	};
+	ss.prototype.hexString = function() { return this.go$val.hexString(); };
+	ss.Ptr.prototype.scanOne = function(verb, arg) {
+		var s, err, _tuple, v, ok, v$1, _ref, _type, x, x$1, x$2, x$3, x$4, _struct, val, _struct$1, ptr, _struct$2, v$2, _ref$1, typ, str, _struct$3, i;
+		s = this;
+		s.buf = go$subslice(s.buf, 0, 0);
+		err = null;
+		_tuple = (arg !== null && Scanner.implementedBy.indexOf(arg.constructor) !== -1 ? [arg, true] : [null, false]); v = _tuple[0]; ok = _tuple[1];
+		if (ok) {
+			err = v.Scan(s, verb);
+			if (!(go$interfaceIsEqual(err, null))) {
+				if (go$interfaceIsEqual(err, io.EOF)) {
+					err = io.ErrUnexpectedEOF;
+				}
+				s.error(err);
+			}
+			return;
+		}
+		_ref = arg;
+		_type = _ref !== null ? _ref.constructor : null;
+		if (_type === (go$ptrType(Go$Bool))) {
+			v$1 = _ref.go$val;
+			v$1.go$set(s.scanBool(verb));
+		} else if (_type === (go$ptrType(Go$Complex64))) {
+			v$1 = _ref.go$val;
+			v$1.go$set((x = s.scanComplex(verb, 64), new Go$Complex64(x.real, x.imag)));
+		} else if (_type === (go$ptrType(Go$Complex128))) {
+			v$1 = _ref.go$val;
+			v$1.go$set(s.scanComplex(verb, 128));
+		} else if (_type === (go$ptrType(Go$Int))) {
+			v$1 = _ref.go$val;
+			v$1.go$set(((x$1 = s.scanInt(verb, intBits), x$1.low + ((x$1.high >> 31) * 4294967296)) >> 0));
+		} else if (_type === (go$ptrType(Go$Int8))) {
+			v$1 = _ref.go$val;
+			v$1.go$set(((x$2 = s.scanInt(verb, 8), x$2.low + ((x$2.high >> 31) * 4294967296)) << 24 >> 24));
+		} else if (_type === (go$ptrType(Go$Int16))) {
+			v$1 = _ref.go$val;
+			v$1.go$set(((x$3 = s.scanInt(verb, 16), x$3.low + ((x$3.high >> 31) * 4294967296)) << 16 >> 16));
+		} else if (_type === (go$ptrType(Go$Int32))) {
+			v$1 = _ref.go$val;
+			v$1.go$set(((x$4 = s.scanInt(verb, 32), x$4.low + ((x$4.high >> 31) * 4294967296)) >> 0));
+		} else if (_type === (go$ptrType(Go$Int64))) {
+			v$1 = _ref.go$val;
+			v$1.go$set(s.scanInt(verb, 64));
+		} else if (_type === (go$ptrType(Go$Uint))) {
+			v$1 = _ref.go$val;
+			v$1.go$set((s.scanUint(verb, intBits).low >>> 0));
+		} else if (_type === (go$ptrType(Go$Uint8))) {
+			v$1 = _ref.go$val;
+			v$1.go$set((s.scanUint(verb, 8).low << 24 >>> 24));
+		} else if (_type === (go$ptrType(Go$Uint16))) {
+			v$1 = _ref.go$val;
+			v$1.go$set((s.scanUint(verb, 16).low << 16 >>> 16));
+		} else if (_type === (go$ptrType(Go$Uint32))) {
+			v$1 = _ref.go$val;
+			v$1.go$set((s.scanUint(verb, 32).low >>> 0));
+		} else if (_type === (go$ptrType(Go$Uint64))) {
+			v$1 = _ref.go$val;
+			v$1.go$set(s.scanUint(verb, 64));
+		} else if (_type === (go$ptrType(Go$Uintptr))) {
+			v$1 = _ref.go$val;
+			v$1.go$set((s.scanUint(verb, uintptrBits).low >>> 0));
+		} else if (_type === (go$ptrType(Go$Float32))) {
+			v$1 = _ref.go$val;
+			if (s.okVerb(verb, "beEfFgGv", "float32")) {
+				s.skipSpace(false);
+				s.notEOF();
+				v$1.go$set(s.convertFloat(s.floatToken(), 32));
+			}
+		} else if (_type === (go$ptrType(Go$Float64))) {
+			v$1 = _ref.go$val;
+			if (s.okVerb(verb, "beEfFgGv", "float64")) {
+				s.skipSpace(false);
+				s.notEOF();
+				v$1.go$set(s.convertFloat(s.floatToken(), 64));
+			}
+		} else if (_type === (go$ptrType(Go$String))) {
+			v$1 = _ref.go$val;
+			v$1.go$set(s.convertString(verb));
+		} else if (_type === (go$ptrType((go$sliceType(Go$Uint8))))) {
+			v$1 = _ref.go$val;
+			v$1.go$set(new (go$sliceType(Go$Uint8))(go$stringToBytes(s.convertString(verb))));
+		} else {
+			v$1 = _ref;
+			val = (_struct = reflect.ValueOf(v$1), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+			ptr = (_struct$1 = val, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+			if (!((ptr.Kind() === 22))) {
+				s.errorString("type not a pointer: " + val.Type().String());
+				return;
+			}
+			v$2 = (_struct$2 = ptr.Elem(), new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
+			_ref$1 = v$2.Kind();
+			if (_ref$1 === 1) {
+				v$2.SetBool(s.scanBool(verb));
+			} else if (_ref$1 === 2 || _ref$1 === 3 || _ref$1 === 4 || _ref$1 === 5 || _ref$1 === 6) {
+				v$2.SetInt(s.scanInt(verb, v$2.Type().Bits()));
+			} else if (_ref$1 === 7 || _ref$1 === 8 || _ref$1 === 9 || _ref$1 === 10 || _ref$1 === 11 || _ref$1 === 12) {
+				v$2.SetUint(s.scanUint(verb, v$2.Type().Bits()));
+			} else if (_ref$1 === 24) {
+				v$2.SetString(s.convertString(verb));
+			} else if (_ref$1 === 23) {
+				typ = v$2.Type();
+				if (!((typ.Elem().Kind() === 8))) {
+					s.errorString("can't scan type: " + val.Type().String());
+				}
+				str = s.convertString(verb);
+				v$2.Set((_struct$3 = reflect.MakeSlice(typ, str.length, str.length), new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag)));
+				i = 0;
+				while (i < str.length) {
+					v$2.Index(i).SetUint(new Go$Uint64(0, str.charCodeAt(i)));
+					i = i + 1 >> 0;
+				}
+			} else if (_ref$1 === 13 || _ref$1 === 14) {
+				s.skipSpace(false);
+				s.notEOF();
+				v$2.SetFloat(s.convertFloat(s.floatToken(), v$2.Type().Bits()));
+			} else if (_ref$1 === 15 || _ref$1 === 16) {
+				v$2.SetComplex(s.scanComplex(verb, v$2.Type().Bits()));
+			} else {
+				s.errorString("can't scan type: " + val.Type().String());
+			}
+		}
+	};
+	ss.prototype.scanOne = function(verb, arg) { return this.go$val.scanOne(verb, arg); };
+	errorHandler = function(errp) {
+		var e, _tuple, _struct, se, ok, _tuple$1, eof, ok$1;
+		e = go$recover();
+		if (!(go$interfaceIsEqual(e, null))) {
+			_tuple = (e !== null && e.constructor === scanError ? [e.go$val, true] : [new scanError.Ptr(), false]); se = (_struct = _tuple[0], new scanError.Ptr(_struct.err)); ok = _tuple[1];
+			if (ok) {
+				errp.go$set(se.err);
+			} else {
+				_tuple$1 = (e !== null && go$error.implementedBy.indexOf(e.constructor) !== -1 ? [e, true] : [null, false]); eof = _tuple$1[0]; ok$1 = _tuple$1[1];
+				if (ok$1 && go$interfaceIsEqual(eof, io.EOF)) {
+					errp.go$set(eof);
+				} else {
+					throw go$panic(e);
+				}
+			}
+		}
+	};
+	ss.Ptr.prototype.doScan = function(a) {
+		var numProcessed, err, s, v, _ref, _i, _slice, _index, arg, r;
+		numProcessed = 0;
+		err = null;
+		var go$deferred = [];
+		try {
+			s = this;
+			go$deferred.push({ fun: errorHandler, args: [new (go$ptrType(go$error))(function() { return err; }, function(v) { err = v;; })] });
+			_ref = a;
+			_i = 0;
+			while (_i < _ref.length) {
+				arg = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+				s.scanOne(118, arg);
+				numProcessed = numProcessed + 1 >> 0;
+				_i++;
+			}
+			if (!s.ssave.nlIsSpace) {
+				while (true) {
+					r = s.getRune();
+					if ((r === 10) || (r === -1)) {
+						break;
+					}
+					if (!isSpace(r)) {
+						s.errorString("expected newline");
+						break;
+					}
+				}
+			}
+			return [numProcessed, err];
+		} catch(go$err) {
+			go$pushErr(go$err);
+		} finally {
+			go$callDeferred(go$deferred);
+			return [numProcessed, err];
+		}
+	};
+	ss.prototype.doScan = function(a) { return this.go$val.doScan(a); };
 	go$pkg.init = function() {
 		(go$ptrType(fmt)).methods = [["clearflags", "fmt", [], [], false, -1], ["computePadding", "fmt", [Go$Int], [(go$sliceType(Go$Uint8)), Go$Int, Go$Int], false, -1], ["fmt_E32", "fmt", [Go$Float32], [], false, -1], ["fmt_E64", "fmt", [Go$Float64], [], false, -1], ["fmt_G32", "fmt", [Go$Float32], [], false, -1], ["fmt_G64", "fmt", [Go$Float64], [], false, -1], ["fmt_boolean", "fmt", [Go$Bool], [], false, -1], ["fmt_bx", "fmt", [(go$sliceType(Go$Uint8)), Go$String], [], false, -1], ["fmt_c128", "fmt", [Go$Complex128, Go$Int32], [], false, -1], ["fmt_c64", "fmt", [Go$Complex64, Go$Int32], [], false, -1], ["fmt_e32", "fmt", [Go$Float32], [], false, -1], ["fmt_e64", "fmt", [Go$Float64], [], false, -1], ["fmt_f32", "fmt", [Go$Float32], [], false, -1], ["fmt_f64", "fmt", [Go$Float64], [], false, -1], ["fmt_fb32", "fmt", [Go$Float32], [], false, -1], ["fmt_fb64", "fmt", [Go$Float64], [], false, -1], ["fmt_g32", "fmt", [Go$Float32], [], false, -1], ["fmt_g64", "fmt", [Go$Float64], [], false, -1], ["fmt_q", "fmt", [Go$String], [], false, -1], ["fmt_qc", "fmt", [Go$Int64], [], false, -1], ["fmt_s", "fmt", [Go$String], [], false, -1], ["fmt_sbx", "fmt", [Go$String, (go$sliceType(Go$Uint8)), Go$String], [], false, -1], ["fmt_sx", "fmt", [Go$String, Go$String], [], false, -1], ["formatFloat", "fmt", [Go$Float64, Go$Uint8, Go$Int, Go$Int], [], false, -1], ["init", "fmt", [(go$ptrType(buffer))], [], false, -1], ["integer", "fmt", [Go$Int64, Go$Uint64, Go$Bool, Go$String], [], false, -1], ["pad", "fmt", [(go$sliceType(Go$Uint8))], [], false, -1], ["padString", "fmt", [Go$String], [], false, -1], ["truncate", "fmt", [Go$String], [Go$String], false, -1], ["writePadding", "fmt", [Go$Int, (go$sliceType(Go$Uint8))], [], false, -1]];
 		fmt.init([["intbuf", "intbuf", "fmt", (go$arrayType(Go$Uint8, 65)), ""], ["buf", "buf", "fmt", (go$ptrType(buffer)), ""], ["wid", "wid", "fmt", Go$Int, ""], ["prec", "prec", "fmt", Go$Int, ""], ["widPresent", "widPresent", "fmt", Go$Bool, ""], ["precPresent", "precPresent", "fmt", Go$Bool, ""], ["minus", "minus", "fmt", Go$Bool, ""], ["plus", "plus", "fmt", Go$Bool, ""], ["sharp", "sharp", "fmt", Go$Bool, ""], ["space", "space", "fmt", Go$Bool, ""], ["unicode", "unicode", "fmt", Go$Bool, ""], ["uniQuote", "uniQuote", "fmt", Go$Bool, ""], ["zero", "zero", "fmt", Go$Bool, ""]]);
@@ -15711,10 +16970,15 @@ go$packages["fmt"] = (function() {
 		(go$ptrType(cache)).methods = [["get", "fmt", [], [go$emptyInterface], false, -1], ["put", "fmt", [go$emptyInterface], [], false, -1]];
 		cache.init([["mu", "mu", "fmt", sync.Mutex, ""], ["saved", "saved", "fmt", (go$sliceType(go$emptyInterface)), ""], ["new$2", "new", "fmt", (go$funcType([], [go$emptyInterface], false)), ""]]);
 		runeUnreader.init([["UnreadRune", "", (go$funcType([], [go$error], false))]]);
+		ScanState.init([["Read", "", (go$funcType([(go$sliceType(Go$Uint8))], [Go$Int, go$error], false))], ["ReadRune", "", (go$funcType([], [Go$Int32, Go$Int, go$error], false))], ["SkipSpace", "", (go$funcType([], [], false))], ["Token", "", (go$funcType([Go$Bool, (go$funcType([Go$Int32], [Go$Bool], false))], [(go$sliceType(Go$Uint8)), go$error], false))], ["UnreadRune", "", (go$funcType([], [go$error], false))], ["Width", "", (go$funcType([], [Go$Int, Go$Bool], false))]]);
+		Scanner.init([["Scan", "", (go$funcType([ScanState, Go$Int32], [go$error], false))]]);
+		(go$ptrType(stringReader)).methods = [["Read", "", [(go$sliceType(Go$Uint8))], [Go$Int, go$error], false, -1]];
 		scanError.init([["err", "err", "fmt", go$error, ""]]);
 		(go$ptrType(ss)).methods = [["Read", "", [(go$sliceType(Go$Uint8))], [Go$Int, go$error], false, -1], ["ReadRune", "", [], [Go$Int32, Go$Int, go$error], false, -1], ["SkipSpace", "", [], [], false, -1], ["Token", "", [Go$Bool, (go$funcType([Go$Int32], [Go$Bool], false))], [(go$sliceType(Go$Uint8)), go$error], false, -1], ["UnreadRune", "", [], [go$error], false, -1], ["Width", "", [], [Go$Int, Go$Bool], false, -1], ["accept", "fmt", [Go$String], [Go$Bool], false, -1], ["advance", "fmt", [Go$String], [Go$Int], false, -1], ["complexTokens", "fmt", [], [Go$String, Go$String], false, -1], ["consume", "fmt", [Go$String, Go$Bool], [Go$Bool], false, -1], ["convertFloat", "fmt", [Go$String, Go$Int], [Go$Float64], false, -1], ["convertString", "fmt", [Go$Int32], [Go$String], false, -1], ["doScan", "fmt", [(go$sliceType(go$emptyInterface))], [Go$Int, go$error], false, -1], ["doScanf", "fmt", [Go$String, (go$sliceType(go$emptyInterface))], [Go$Int, go$error], false, -1], ["error", "fmt", [go$error], [], false, -1], ["errorString", "fmt", [Go$String], [], false, -1], ["floatToken", "fmt", [], [Go$String], false, -1], ["free", "fmt", [ssave], [], false, -1], ["getBase", "fmt", [Go$Int32], [Go$Int, Go$String], false, -1], ["getRune", "fmt", [], [Go$Int32], false, -1], ["hexByte", "fmt", [], [Go$Uint8, Go$Bool], false, -1], ["hexDigit", "fmt", [Go$Int32], [Go$Int], false, -1], ["hexString", "fmt", [], [Go$String], false, -1], ["mustReadRune", "fmt", [], [Go$Int32], false, -1], ["notEOF", "fmt", [], [], false, -1], ["okVerb", "fmt", [Go$Int32, Go$String, Go$String], [Go$Bool], false, -1], ["peek", "fmt", [Go$String], [Go$Bool], false, -1], ["quotedString", "fmt", [], [Go$String], false, -1], ["scanBasePrefix", "fmt", [], [Go$Int, Go$String, Go$Bool], false, -1], ["scanBool", "fmt", [Go$Int32], [Go$Bool], false, -1], ["scanComplex", "fmt", [Go$Int32, Go$Int], [Go$Complex128], false, -1], ["scanInt", "fmt", [Go$Int32, Go$Int], [Go$Int64], false, -1], ["scanNumber", "fmt", [Go$String, Go$Bool], [Go$String], false, -1], ["scanOne", "fmt", [Go$Int32, go$emptyInterface], [], false, -1], ["scanRune", "fmt", [Go$Int], [Go$Int64], false, -1], ["scanUint", "fmt", [Go$Int32, Go$Int], [Go$Uint64], false, -1], ["skipSpace", "fmt", [Go$Bool], [], false, -1], ["token", "fmt", [Go$Bool, (go$funcType([Go$Int32], [Go$Bool], false))], [(go$sliceType(Go$Uint8))], false, -1]];
 		ss.init([["rr", "rr", "fmt", io.RuneReader, ""], ["buf", "buf", "fmt", buffer, ""], ["peekRune", "peekRune", "fmt", Go$Int32, ""], ["prevRune", "prevRune", "fmt", Go$Int32, ""], ["count", "count", "fmt", Go$Int, ""], ["atEOF", "atEOF", "fmt", Go$Bool, ""], ["ssave", "", "fmt", ssave, ""]]);
 		ssave.init([["validSave", "validSave", "fmt", Go$Bool, ""], ["nlIsEnd", "nlIsEnd", "fmt", Go$Bool, ""], ["nlIsSpace", "nlIsSpace", "fmt", Go$Bool, ""], ["argLimit", "argLimit", "fmt", Go$Int, ""], ["limit", "limit", "fmt", Go$Int, ""], ["maxWid", "maxWid", "fmt", Go$Int, ""]]);
+		(go$ptrType(readRune)).methods = [["ReadRune", "", [], [Go$Int32, Go$Int, go$error], false, -1], ["readByte", "fmt", [], [Go$Uint8, go$error], false, -1], ["unread", "fmt", [(go$sliceType(Go$Uint8))], [], false, -1]];
+		readRune.init([["reader", "reader", "fmt", io.Reader, ""], ["buf", "buf", "fmt", (go$arrayType(Go$Uint8, 4)), ""], ["pending", "pending", "fmt", Go$Int, ""], ["pendBuf", "pendBuf", "fmt", (go$arrayType(Go$Uint8, 4)), ""]]);
 		padZeroBytes = (go$sliceType(Go$Uint8)).make(65, 0, function() { return 0; });
 		padSpaceBytes = (go$sliceType(Go$Uint8)).make(65, 0, function() { return 0; });
 		trueBytes = new (go$sliceType(Go$Uint8))(go$stringToBytes("true"));
@@ -15756,7 +17020,33 @@ go$packages["fmt"] = (function() {
 	return go$pkg;
 })();
 go$packages["sort"] = (function() {
-	var go$pkg = {}, min, insertionSort, siftDown, heapSort, medianOfThree, swapRange, doPivot, quickSort, Sort;
+	var go$pkg = {}, StringSlice, Search, SearchStrings, min, insertionSort, siftDown, heapSort, medianOfThree, swapRange, doPivot, quickSort, Sort, Strings;
+	StringSlice = go$pkg.StringSlice = go$newType(0, "Slice", "sort.StringSlice", "StringSlice", "sort", null);
+	Search = go$pkg.Search = function(n, f) {
+		var _tuple, i, j, _q, h;
+		_tuple = [0, n]; i = _tuple[0]; j = _tuple[1];
+		while (i < j) {
+			h = i + (_q = ((j - i >> 0)) / 2, (_q === _q && _q !== 1/0 && _q !== -1/0) ? _q >> 0 : go$throwRuntimeError("integer divide by zero")) >> 0;
+			if (!f(h)) {
+				i = h + 1 >> 0;
+			} else {
+				j = h;
+			}
+		}
+		return i;
+	};
+	SearchStrings = go$pkg.SearchStrings = function(a, x) {
+		return Search(a.length, (function(i) {
+			var _slice, _index;
+			return (_slice = a, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) >= x;
+		}));
+	};
+	StringSlice.prototype.Search = function(x) {
+		var p;
+		p = this;
+		return SearchStrings(go$subslice(new (go$sliceType(Go$String))(p.array), p.offset, p.offset + p.length), x);
+	};
+	go$ptrType(StringSlice).prototype.Search = function(x) { return this.go$get().Search(x); };
 	min = function(a, b) {
 		if (a < b) {
 			return a;
@@ -15917,7 +17207,37 @@ go$packages["sort"] = (function() {
 		maxDepth = (((maxDepth >>> 16 << 16) * 2 >> 0) + (maxDepth << 16 >>> 16) * 2) >> 0;
 		quickSort(data, 0, n, maxDepth);
 	};
+	StringSlice.prototype.Len = function() {
+		var p;
+		p = this;
+		return p.length;
+	};
+	go$ptrType(StringSlice).prototype.Len = function() { return this.go$get().Len(); };
+	StringSlice.prototype.Less = function(i, j) {
+		var p, _slice, _index, _slice$1, _index$1;
+		p = this;
+		return (_slice = p, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) < (_slice$1 = p, _index$1 = j, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
+	};
+	go$ptrType(StringSlice).prototype.Less = function(i, j) { return this.go$get().Less(i, j); };
+	StringSlice.prototype.Swap = function(i, j) {
+		var p, _slice, _index, _slice$1, _index$1, _tuple, _slice$2, _index$2, _slice$3, _index$3;
+		p = this;
+		_tuple = [(_slice = p, _index = j, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), (_slice$1 = p, _index$1 = i, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"))]; _slice$2 = p; _index$2 = i;(_index$2 >= 0 && _index$2 < _slice$2.length) ? (_slice$2.array[_slice$2.offset + _index$2] = _tuple[0]) : go$throwRuntimeError("index out of range"); _slice$3 = p; _index$3 = j;(_index$3 >= 0 && _index$3 < _slice$3.length) ? (_slice$3.array[_slice$3.offset + _index$3] = _tuple[1]) : go$throwRuntimeError("index out of range");
+	};
+	go$ptrType(StringSlice).prototype.Swap = function(i, j) { return this.go$get().Swap(i, j); };
+	StringSlice.prototype.Sort = function() {
+		var p;
+		p = this;
+		Sort(p);
+	};
+	go$ptrType(StringSlice).prototype.Sort = function() { return this.go$get().Sort(); };
+	Strings = go$pkg.Strings = function(a) {
+		Sort(go$subslice(new StringSlice(a.array), a.offset, a.offset + a.length));
+	};
 	go$pkg.init = function() {
+		StringSlice.methods = [["Len", "", [], [Go$Int], false, -1], ["Less", "", [Go$Int, Go$Int], [Go$Bool], false, -1], ["Search", "", [Go$String], [Go$Int], false, -1], ["Sort", "", [], [], false, -1], ["Swap", "", [Go$Int, Go$Int], [], false, -1]];
+		(go$ptrType(StringSlice)).methods = [["Len", "", [], [Go$Int], false, -1], ["Less", "", [Go$Int, Go$Int], [Go$Bool], false, -1], ["Search", "", [Go$String], [Go$Int], false, -1], ["Sort", "", [], [], false, -1], ["Swap", "", [Go$Int, Go$Int], [], false, -1]];
+		StringSlice.init(Go$String);
 	}
 	return go$pkg;
 })();
@@ -18377,7 +19697,7 @@ go$packages["math/rand"] = (function() {
 		while (true) {
 			j = r.Uint32();
 			i = (j & 255) >>> 0;
-			x = j * go$float32frombits(go$float32bits(we[i]));
+			x = j * go$coerceFloat32(we[i]);
 			if (j < ke[i]) {
 				return x;
 			}
@@ -18402,7 +19722,7 @@ go$packages["math/rand"] = (function() {
 		while (true) {
 			j = (r.Uint32() >> 0);
 			i = j & 127;
-			x = j * go$float32frombits(go$float32bits(wn[i]));
+			x = j * go$coerceFloat32(wn[i]);
 			if (absInt32(j) < kn[i]) {
 				return x;
 			}
@@ -18635,11 +19955,7 @@ go$packages["math/rand"] = (function() {
 	return go$pkg;
 })();
 go$packages["github.com/gopherjs/todomvc/utils"] = (function() {
-	var go$pkg = {}, json = go$packages["encoding/json"], fmt = go$packages["fmt"], js = go$packages["github.com/gopherjs/gopherjs/js"], rand = go$packages["math/rand"], time = go$packages["time"], Handlebar, Router, Store, Retrieve, Pluralize, Uuid, CompileHandlebar, RegisterHandlebarsHelper, NewRouter;
-	Handlebar = go$pkg.Handlebar = go$newType(0, "Struct", "utils.Handlebar", "Handlebar", "github.com/gopherjs/todomvc/utils", function(Object_) {
-		this.go$val = this;
-		this.Object = Object_ !== undefined ? Object_ : null;
-	});
+	var go$pkg = {}, json = go$packages["encoding/json"], fmt = go$packages["fmt"], js = go$packages["github.com/gopherjs/gopherjs/js"], rand = go$packages["math/rand"], time = go$packages["time"], Router, Store, Retrieve, Pluralize, Uuid, NewRouter;
 	Router = go$pkg.Router = go$newType(0, "Struct", "utils.Router", "Router", "github.com/gopherjs/todomvc/utils", function(Object_) {
 		this.go$val = this;
 		this.Object = Object_ !== undefined ? Object_ : null;
@@ -18689,22 +20005,6 @@ go$packages["github.com/gopherjs/todomvc/utils"] = (function() {
 		}
 		return uuid;
 	};
-	CompileHandlebar = go$pkg.CompileHandlebar = function(template) {
-		var h;
-		h = go$global.Handlebars.compile(go$externalize(template, Go$String));
-		return new Handlebar.Ptr(h);
-	};
-	RegisterHandlebarsHelper = go$pkg.RegisterHandlebarsHelper = function() {
-		var fn;
-		fn = (function(a, b, options) {
-			if (go$internalize(a, Go$String) === go$internalize(b, Go$String)) {
-				return options.fn(this);
-			} else {
-				return options.inverse(this);
-			}
-		});
-		go$global.Handlebars.registerHelper(go$externalize("eq", Go$String), go$externalize(fn, (go$funcType([js.Object, js.Object, js.Object], [js.Object], false))));
-	};
 	NewRouter = go$pkg.NewRouter = function() {
 		return new Router.Ptr(new (go$global.Router)());
 	};
@@ -18721,28 +20021,6935 @@ go$packages["github.com/gopherjs/todomvc/utils"] = (function() {
 	};
 	Router.prototype.Init = function(path) { return this.go$val.Init(path); };
 	go$pkg.init = function() {
-		Handlebar.methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [js.Object], false, 0], ["Index", "", [Go$Int], [js.Object], false, 0], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0]];
-		(go$ptrType(Handlebar)).methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [js.Object], false, 0], ["Index", "", [Go$Int], [js.Object], false, 0], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0]];
-		Handlebar.init([["Object", "", "", js.Object, ""]]);
 		Router.methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [js.Object], false, 0], ["Index", "", [Go$Int], [js.Object], false, 0], ["Init", "", [Go$String], [], false, -1], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["On", "", [Go$String, (go$funcType([Go$String], [], false))], [], false, -1], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0]];
 		(go$ptrType(Router)).methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [js.Object], false, 0], ["Index", "", [Go$Int], [js.Object], false, 0], ["Init", "", [Go$String], [], false, -1], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["On", "", [Go$String, (go$funcType([Go$String], [], false))], [], false, -1], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0]];
 		Router.init([["Object", "", "", js.Object, ""]]);
 	}
 	return go$pkg;
 })();
+go$packages["html"] = (function() {
+	var go$pkg = {}, bytes = go$packages["bytes"], strings = go$packages["strings"], utf8 = go$packages["unicode/utf8"], unescapeEntity, unescape, UnescapeString, entity, entity2, replacementTable;
+	unescapeEntity = function(b, dst, src, attribute) {
+		var dst1, src1, _tuple, i, s, _slice, _index, _slice$1, _index$1, _tuple$1, _slice$2, _index$2, _slice$3, _index$3, _slice$4, _index$4, _tuple$2, _slice$5, _index$5, c, hex, x, _slice$6, _index$6, _slice$7, _index$7, _slice$8, _index$8, _tuple$3, _tuple$4, _slice$9, _index$9, c$1, entityName, _slice$10, _index$10, _entry, x$1, _tuple$5, _entry$1, x$2, dst1$1, _tuple$6, maxLen, j, _entry$2, x$3, _tuple$7, _tuple$8, _tuple$9;
+		dst1 = 0;
+		src1 = 0;
+		_tuple = [1, go$subslice(b, src)]; i = _tuple[0]; s = _tuple[1];
+		if (s.length <= 1) {
+			_slice$1 = b; _index$1 = dst;(_index$1 >= 0 && _index$1 < _slice$1.length) ? (_slice$1.array[_slice$1.offset + _index$1] = (_slice = b, _index = src, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"))) : go$throwRuntimeError("index out of range");
+			_tuple$1 = [dst + 1 >> 0, src + 1 >> 0]; dst1 = _tuple$1[0]; src1 = _tuple$1[1];
+			return [dst1, src1];
+		}
+		if ((_slice$2 = s, _index$2 = i, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range")) === 35) {
+			if (s.length <= 3) {
+				_slice$4 = b; _index$4 = dst;(_index$4 >= 0 && _index$4 < _slice$4.length) ? (_slice$4.array[_slice$4.offset + _index$4] = (_slice$3 = b, _index$3 = src, (_index$3 >= 0 && _index$3 < _slice$3.length) ? _slice$3.array[_slice$3.offset + _index$3] : go$throwRuntimeError("index out of range"))) : go$throwRuntimeError("index out of range");
+				_tuple$2 = [dst + 1 >> 0, src + 1 >> 0]; dst1 = _tuple$2[0]; src1 = _tuple$2[1];
+				return [dst1, src1];
+			}
+			i = i + 1 >> 0;
+			c = (_slice$5 = s, _index$5 = i, (_index$5 >= 0 && _index$5 < _slice$5.length) ? _slice$5.array[_slice$5.offset + _index$5] : go$throwRuntimeError("index out of range"));
+			hex = false;
+			if ((c === 120) || (c === 88)) {
+				hex = true;
+				i = i + 1 >> 0;
+			}
+			x = 0;
+			while (i < s.length) {
+				c = (_slice$6 = s, _index$6 = i, (_index$6 >= 0 && _index$6 < _slice$6.length) ? _slice$6.array[_slice$6.offset + _index$6] : go$throwRuntimeError("index out of range"));
+				i = i + 1 >> 0;
+				if (hex) {
+					if (48 <= c && c <= 57) {
+						x = (((((16 >>> 16 << 16) * x >> 0) + (16 << 16 >>> 16) * x) >> 0) + (c >> 0) >> 0) - 48 >> 0;
+						continue;
+					} else if (97 <= c && c <= 102) {
+						x = ((((((16 >>> 16 << 16) * x >> 0) + (16 << 16 >>> 16) * x) >> 0) + (c >> 0) >> 0) - 97 >> 0) + 10 >> 0;
+						continue;
+					} else if (65 <= c && c <= 70) {
+						x = ((((((16 >>> 16 << 16) * x >> 0) + (16 << 16 >>> 16) * x) >> 0) + (c >> 0) >> 0) - 65 >> 0) + 10 >> 0;
+						continue;
+					}
+				} else if (48 <= c && c <= 57) {
+					x = (((((10 >>> 16 << 16) * x >> 0) + (10 << 16 >>> 16) * x) >> 0) + (c >> 0) >> 0) - 48 >> 0;
+					continue;
+				}
+				if (!((c === 59))) {
+					i = i - 1 >> 0;
+				}
+				break;
+			}
+			if (i <= 3) {
+				_slice$8 = b; _index$8 = dst;(_index$8 >= 0 && _index$8 < _slice$8.length) ? (_slice$8.array[_slice$8.offset + _index$8] = (_slice$7 = b, _index$7 = src, (_index$7 >= 0 && _index$7 < _slice$7.length) ? _slice$7.array[_slice$7.offset + _index$7] : go$throwRuntimeError("index out of range"))) : go$throwRuntimeError("index out of range");
+				_tuple$3 = [dst + 1 >> 0, src + 1 >> 0]; dst1 = _tuple$3[0]; src1 = _tuple$3[1];
+				return [dst1, src1];
+			}
+			if (128 <= x && x <= 159) {
+				x = replacementTable[(x - 128 >> 0)];
+			} else if ((x === 0) || (55296 <= x && x <= 57343) || x > 1114111) {
+				x = 65533;
+			}
+			_tuple$4 = [dst + utf8.EncodeRune(go$subslice(b, dst), x) >> 0, src + i >> 0]; dst1 = _tuple$4[0]; src1 = _tuple$4[1];
+			return [dst1, src1];
+		}
+		while (i < s.length) {
+			c$1 = (_slice$9 = s, _index$9 = i, (_index$9 >= 0 && _index$9 < _slice$9.length) ? _slice$9.array[_slice$9.offset + _index$9] : go$throwRuntimeError("index out of range"));
+			i = i + 1 >> 0;
+			if (97 <= c$1 && c$1 <= 122 || 65 <= c$1 && c$1 <= 90 || 48 <= c$1 && c$1 <= 57) {
+				continue;
+			}
+			if (!((c$1 === 59))) {
+				i = i - 1 >> 0;
+			}
+			break;
+		}
+		entityName = go$bytesToString(go$subslice(s, 1, i));
+		if (entityName === "") {
+		} else if (attribute && !((entityName.charCodeAt((entityName.length - 1 >> 0)) === 59)) && s.length > i && ((_slice$10 = s, _index$10 = i, (_index$10 >= 0 && _index$10 < _slice$10.length) ? _slice$10.array[_slice$10.offset + _index$10] : go$throwRuntimeError("index out of range")) === 61)) {
+		} else {
+			x$1 = (_entry = entity[entityName], _entry !== undefined ? _entry.v : 0);
+			if (!((x$1 === 0))) {
+				_tuple$5 = [dst + utf8.EncodeRune(go$subslice(b, dst), x$1) >> 0, src + i >> 0]; dst1 = _tuple$5[0]; src1 = _tuple$5[1];
+				return [dst1, src1];
+			} else {
+				x$2 = go$mapArray((_entry$1 = entity2[entityName], _entry$1 !== undefined ? _entry$1.v : go$makeNativeArray("Int32", 2, function() { return 0; })), function(entry) { return entry; });
+				if (!((x$2[0] === 0))) {
+					dst1$1 = dst + utf8.EncodeRune(go$subslice(b, dst), x$2[0]) >> 0;
+					_tuple$6 = [dst1$1 + utf8.EncodeRune(go$subslice(b, dst1$1), x$2[1]) >> 0, src + i >> 0]; dst1 = _tuple$6[0]; src1 = _tuple$6[1];
+					return [dst1, src1];
+				} else if (!attribute) {
+					maxLen = entityName.length - 1 >> 0;
+					if (maxLen > 6) {
+						maxLen = 6;
+					}
+					j = maxLen;
+					while (j > 1) {
+						x$3 = (_entry$2 = entity[entityName.substring(0, j)], _entry$2 !== undefined ? _entry$2.v : 0);
+						if (!((x$3 === 0))) {
+							_tuple$7 = [dst + utf8.EncodeRune(go$subslice(b, dst), x$3) >> 0, (src + j >> 0) + 1 >> 0]; dst1 = _tuple$7[0]; src1 = _tuple$7[1];
+							return [dst1, src1];
+						}
+						j = j - 1 >> 0;
+					}
+				}
+			}
+		}
+		_tuple$8 = [dst + i >> 0, src + i >> 0]; dst1 = _tuple$8[0]; src1 = _tuple$8[1];
+		go$copySlice(go$subslice(b, dst, dst1), go$subslice(b, src, src1));
+		_tuple$9 = [dst1, src1]; dst1 = _tuple$9[0]; src1 = _tuple$9[1];
+		return [dst1, src1];
+	};
+	unescape = function(b) {
+		var _ref, _i, _slice, _index, c, i, _tuple, dst, src, _slice$1, _index$1, c$1, _tuple$1, _slice$2, _index$2, _tuple$2;
+		_ref = b;
+		_i = 0;
+		while (_i < _ref.length) {
+			c = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			i = _i;
+			if (c === 38) {
+				_tuple = unescapeEntity(b, i, i, false); dst = _tuple[0]; src = _tuple[1];
+				while (src < b.length) {
+					c$1 = (_slice$1 = b, _index$1 = src, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
+					if (c$1 === 38) {
+						_tuple$1 = unescapeEntity(b, dst, src, false); dst = _tuple$1[0]; src = _tuple$1[1];
+					} else {
+						_slice$2 = b; _index$2 = dst;(_index$2 >= 0 && _index$2 < _slice$2.length) ? (_slice$2.array[_slice$2.offset + _index$2] = c$1) : go$throwRuntimeError("index out of range");
+						_tuple$2 = [dst + 1 >> 0, src + 1 >> 0]; dst = _tuple$2[0]; src = _tuple$2[1];
+					}
+				}
+				return go$subslice(b, 0, dst);
+			}
+			_i++;
+		}
+		return b;
+	};
+	UnescapeString = go$pkg.UnescapeString = function(s) {
+		var _ref, _i, _rune, c;
+		_ref = s;
+		_i = 0;
+		while (_i < _ref.length) {
+			_rune = go$decodeRune(_ref, _i);
+			c = _rune[0];
+			if (c === 38) {
+				return go$bytesToString(unescape(new (go$sliceType(Go$Uint8))(go$stringToBytes(s))));
+			}
+			_i += _rune[1];
+		}
+		return s;
+	};
+	go$pkg.init = function() {
+		var _map, _key;
+		entity = (_map = new Go$Map(), _key = "AElig;", _map[_key] = { k: _key, v: 198 }, _key = "AMP;", _map[_key] = { k: _key, v: 38 }, _key = "Aacute;", _map[_key] = { k: _key, v: 193 }, _key = "Abreve;", _map[_key] = { k: _key, v: 258 }, _key = "Acirc;", _map[_key] = { k: _key, v: 194 }, _key = "Acy;", _map[_key] = { k: _key, v: 1040 }, _key = "Afr;", _map[_key] = { k: _key, v: 120068 }, _key = "Agrave;", _map[_key] = { k: _key, v: 192 }, _key = "Alpha;", _map[_key] = { k: _key, v: 913 }, _key = "Amacr;", _map[_key] = { k: _key, v: 256 }, _key = "And;", _map[_key] = { k: _key, v: 10835 }, _key = "Aogon;", _map[_key] = { k: _key, v: 260 }, _key = "Aopf;", _map[_key] = { k: _key, v: 120120 }, _key = "ApplyFunction;", _map[_key] = { k: _key, v: 8289 }, _key = "Aring;", _map[_key] = { k: _key, v: 197 }, _key = "Ascr;", _map[_key] = { k: _key, v: 119964 }, _key = "Assign;", _map[_key] = { k: _key, v: 8788 }, _key = "Atilde;", _map[_key] = { k: _key, v: 195 }, _key = "Auml;", _map[_key] = { k: _key, v: 196 }, _key = "Backslash;", _map[_key] = { k: _key, v: 8726 }, _key = "Barv;", _map[_key] = { k: _key, v: 10983 }, _key = "Barwed;", _map[_key] = { k: _key, v: 8966 }, _key = "Bcy;", _map[_key] = { k: _key, v: 1041 }, _key = "Because;", _map[_key] = { k: _key, v: 8757 }, _key = "Bernoullis;", _map[_key] = { k: _key, v: 8492 }, _key = "Beta;", _map[_key] = { k: _key, v: 914 }, _key = "Bfr;", _map[_key] = { k: _key, v: 120069 }, _key = "Bopf;", _map[_key] = { k: _key, v: 120121 }, _key = "Breve;", _map[_key] = { k: _key, v: 728 }, _key = "Bscr;", _map[_key] = { k: _key, v: 8492 }, _key = "Bumpeq;", _map[_key] = { k: _key, v: 8782 }, _key = "CHcy;", _map[_key] = { k: _key, v: 1063 }, _key = "COPY;", _map[_key] = { k: _key, v: 169 }, _key = "Cacute;", _map[_key] = { k: _key, v: 262 }, _key = "Cap;", _map[_key] = { k: _key, v: 8914 }, _key = "CapitalDifferentialD;", _map[_key] = { k: _key, v: 8517 }, _key = "Cayleys;", _map[_key] = { k: _key, v: 8493 }, _key = "Ccaron;", _map[_key] = { k: _key, v: 268 }, _key = "Ccedil;", _map[_key] = { k: _key, v: 199 }, _key = "Ccirc;", _map[_key] = { k: _key, v: 264 }, _key = "Cconint;", _map[_key] = { k: _key, v: 8752 }, _key = "Cdot;", _map[_key] = { k: _key, v: 266 }, _key = "Cedilla;", _map[_key] = { k: _key, v: 184 }, _key = "CenterDot;", _map[_key] = { k: _key, v: 183 }, _key = "Cfr;", _map[_key] = { k: _key, v: 8493 }, _key = "Chi;", _map[_key] = { k: _key, v: 935 }, _key = "CircleDot;", _map[_key] = { k: _key, v: 8857 }, _key = "CircleMinus;", _map[_key] = { k: _key, v: 8854 }, _key = "CirclePlus;", _map[_key] = { k: _key, v: 8853 }, _key = "CircleTimes;", _map[_key] = { k: _key, v: 8855 }, _key = "ClockwiseContourIntegral;", _map[_key] = { k: _key, v: 8754 }, _key = "CloseCurlyDoubleQuote;", _map[_key] = { k: _key, v: 8221 }, _key = "CloseCurlyQuote;", _map[_key] = { k: _key, v: 8217 }, _key = "Colon;", _map[_key] = { k: _key, v: 8759 }, _key = "Colone;", _map[_key] = { k: _key, v: 10868 }, _key = "Congruent;", _map[_key] = { k: _key, v: 8801 }, _key = "Conint;", _map[_key] = { k: _key, v: 8751 }, _key = "ContourIntegral;", _map[_key] = { k: _key, v: 8750 }, _key = "Copf;", _map[_key] = { k: _key, v: 8450 }, _key = "Coproduct;", _map[_key] = { k: _key, v: 8720 }, _key = "CounterClockwiseContourIntegral;", _map[_key] = { k: _key, v: 8755 }, _key = "Cross;", _map[_key] = { k: _key, v: 10799 }, _key = "Cscr;", _map[_key] = { k: _key, v: 119966 }, _key = "Cup;", _map[_key] = { k: _key, v: 8915 }, _key = "CupCap;", _map[_key] = { k: _key, v: 8781 }, _key = "DD;", _map[_key] = { k: _key, v: 8517 }, _key = "DDotrahd;", _map[_key] = { k: _key, v: 10513 }, _key = "DJcy;", _map[_key] = { k: _key, v: 1026 }, _key = "DScy;", _map[_key] = { k: _key, v: 1029 }, _key = "DZcy;", _map[_key] = { k: _key, v: 1039 }, _key = "Dagger;", _map[_key] = { k: _key, v: 8225 }, _key = "Darr;", _map[_key] = { k: _key, v: 8609 }, _key = "Dashv;", _map[_key] = { k: _key, v: 10980 }, _key = "Dcaron;", _map[_key] = { k: _key, v: 270 }, _key = "Dcy;", _map[_key] = { k: _key, v: 1044 }, _key = "Del;", _map[_key] = { k: _key, v: 8711 }, _key = "Delta;", _map[_key] = { k: _key, v: 916 }, _key = "Dfr;", _map[_key] = { k: _key, v: 120071 }, _key = "DiacriticalAcute;", _map[_key] = { k: _key, v: 180 }, _key = "DiacriticalDot;", _map[_key] = { k: _key, v: 729 }, _key = "DiacriticalDoubleAcute;", _map[_key] = { k: _key, v: 733 }, _key = "DiacriticalGrave;", _map[_key] = { k: _key, v: 96 }, _key = "DiacriticalTilde;", _map[_key] = { k: _key, v: 732 }, _key = "Diamond;", _map[_key] = { k: _key, v: 8900 }, _key = "DifferentialD;", _map[_key] = { k: _key, v: 8518 }, _key = "Dopf;", _map[_key] = { k: _key, v: 120123 }, _key = "Dot;", _map[_key] = { k: _key, v: 168 }, _key = "DotDot;", _map[_key] = { k: _key, v: 8412 }, _key = "DotEqual;", _map[_key] = { k: _key, v: 8784 }, _key = "DoubleContourIntegral;", _map[_key] = { k: _key, v: 8751 }, _key = "DoubleDot;", _map[_key] = { k: _key, v: 168 }, _key = "DoubleDownArrow;", _map[_key] = { k: _key, v: 8659 }, _key = "DoubleLeftArrow;", _map[_key] = { k: _key, v: 8656 }, _key = "DoubleLeftRightArrow;", _map[_key] = { k: _key, v: 8660 }, _key = "DoubleLeftTee;", _map[_key] = { k: _key, v: 10980 }, _key = "DoubleLongLeftArrow;", _map[_key] = { k: _key, v: 10232 }, _key = "DoubleLongLeftRightArrow;", _map[_key] = { k: _key, v: 10234 }, _key = "DoubleLongRightArrow;", _map[_key] = { k: _key, v: 10233 }, _key = "DoubleRightArrow;", _map[_key] = { k: _key, v: 8658 }, _key = "DoubleRightTee;", _map[_key] = { k: _key, v: 8872 }, _key = "DoubleUpArrow;", _map[_key] = { k: _key, v: 8657 }, _key = "DoubleUpDownArrow;", _map[_key] = { k: _key, v: 8661 }, _key = "DoubleVerticalBar;", _map[_key] = { k: _key, v: 8741 }, _key = "DownArrow;", _map[_key] = { k: _key, v: 8595 }, _key = "DownArrowBar;", _map[_key] = { k: _key, v: 10515 }, _key = "DownArrowUpArrow;", _map[_key] = { k: _key, v: 8693 }, _key = "DownBreve;", _map[_key] = { k: _key, v: 785 }, _key = "DownLeftRightVector;", _map[_key] = { k: _key, v: 10576 }, _key = "DownLeftTeeVector;", _map[_key] = { k: _key, v: 10590 }, _key = "DownLeftVector;", _map[_key] = { k: _key, v: 8637 }, _key = "DownLeftVectorBar;", _map[_key] = { k: _key, v: 10582 }, _key = "DownRightTeeVector;", _map[_key] = { k: _key, v: 10591 }, _key = "DownRightVector;", _map[_key] = { k: _key, v: 8641 }, _key = "DownRightVectorBar;", _map[_key] = { k: _key, v: 10583 }, _key = "DownTee;", _map[_key] = { k: _key, v: 8868 }, _key = "DownTeeArrow;", _map[_key] = { k: _key, v: 8615 }, _key = "Downarrow;", _map[_key] = { k: _key, v: 8659 }, _key = "Dscr;", _map[_key] = { k: _key, v: 119967 }, _key = "Dstrok;", _map[_key] = { k: _key, v: 272 }, _key = "ENG;", _map[_key] = { k: _key, v: 330 }, _key = "ETH;", _map[_key] = { k: _key, v: 208 }, _key = "Eacute;", _map[_key] = { k: _key, v: 201 }, _key = "Ecaron;", _map[_key] = { k: _key, v: 282 }, _key = "Ecirc;", _map[_key] = { k: _key, v: 202 }, _key = "Ecy;", _map[_key] = { k: _key, v: 1069 }, _key = "Edot;", _map[_key] = { k: _key, v: 278 }, _key = "Efr;", _map[_key] = { k: _key, v: 120072 }, _key = "Egrave;", _map[_key] = { k: _key, v: 200 }, _key = "Element;", _map[_key] = { k: _key, v: 8712 }, _key = "Emacr;", _map[_key] = { k: _key, v: 274 }, _key = "EmptySmallSquare;", _map[_key] = { k: _key, v: 9723 }, _key = "EmptyVerySmallSquare;", _map[_key] = { k: _key, v: 9643 }, _key = "Eogon;", _map[_key] = { k: _key, v: 280 }, _key = "Eopf;", _map[_key] = { k: _key, v: 120124 }, _key = "Epsilon;", _map[_key] = { k: _key, v: 917 }, _key = "Equal;", _map[_key] = { k: _key, v: 10869 }, _key = "EqualTilde;", _map[_key] = { k: _key, v: 8770 }, _key = "Equilibrium;", _map[_key] = { k: _key, v: 8652 }, _key = "Escr;", _map[_key] = { k: _key, v: 8496 }, _key = "Esim;", _map[_key] = { k: _key, v: 10867 }, _key = "Eta;", _map[_key] = { k: _key, v: 919 }, _key = "Euml;", _map[_key] = { k: _key, v: 203 }, _key = "Exists;", _map[_key] = { k: _key, v: 8707 }, _key = "ExponentialE;", _map[_key] = { k: _key, v: 8519 }, _key = "Fcy;", _map[_key] = { k: _key, v: 1060 }, _key = "Ffr;", _map[_key] = { k: _key, v: 120073 }, _key = "FilledSmallSquare;", _map[_key] = { k: _key, v: 9724 }, _key = "FilledVerySmallSquare;", _map[_key] = { k: _key, v: 9642 }, _key = "Fopf;", _map[_key] = { k: _key, v: 120125 }, _key = "ForAll;", _map[_key] = { k: _key, v: 8704 }, _key = "Fouriertrf;", _map[_key] = { k: _key, v: 8497 }, _key = "Fscr;", _map[_key] = { k: _key, v: 8497 }, _key = "GJcy;", _map[_key] = { k: _key, v: 1027 }, _key = "GT;", _map[_key] = { k: _key, v: 62 }, _key = "Gamma;", _map[_key] = { k: _key, v: 915 }, _key = "Gammad;", _map[_key] = { k: _key, v: 988 }, _key = "Gbreve;", _map[_key] = { k: _key, v: 286 }, _key = "Gcedil;", _map[_key] = { k: _key, v: 290 }, _key = "Gcirc;", _map[_key] = { k: _key, v: 284 }, _key = "Gcy;", _map[_key] = { k: _key, v: 1043 }, _key = "Gdot;", _map[_key] = { k: _key, v: 288 }, _key = "Gfr;", _map[_key] = { k: _key, v: 120074 }, _key = "Gg;", _map[_key] = { k: _key, v: 8921 }, _key = "Gopf;", _map[_key] = { k: _key, v: 120126 }, _key = "GreaterEqual;", _map[_key] = { k: _key, v: 8805 }, _key = "GreaterEqualLess;", _map[_key] = { k: _key, v: 8923 }, _key = "GreaterFullEqual;", _map[_key] = { k: _key, v: 8807 }, _key = "GreaterGreater;", _map[_key] = { k: _key, v: 10914 }, _key = "GreaterLess;", _map[_key] = { k: _key, v: 8823 }, _key = "GreaterSlantEqual;", _map[_key] = { k: _key, v: 10878 }, _key = "GreaterTilde;", _map[_key] = { k: _key, v: 8819 }, _key = "Gscr;", _map[_key] = { k: _key, v: 119970 }, _key = "Gt;", _map[_key] = { k: _key, v: 8811 }, _key = "HARDcy;", _map[_key] = { k: _key, v: 1066 }, _key = "Hacek;", _map[_key] = { k: _key, v: 711 }, _key = "Hat;", _map[_key] = { k: _key, v: 94 }, _key = "Hcirc;", _map[_key] = { k: _key, v: 292 }, _key = "Hfr;", _map[_key] = { k: _key, v: 8460 }, _key = "HilbertSpace;", _map[_key] = { k: _key, v: 8459 }, _key = "Hopf;", _map[_key] = { k: _key, v: 8461 }, _key = "HorizontalLine;", _map[_key] = { k: _key, v: 9472 }, _key = "Hscr;", _map[_key] = { k: _key, v: 8459 }, _key = "Hstrok;", _map[_key] = { k: _key, v: 294 }, _key = "HumpDownHump;", _map[_key] = { k: _key, v: 8782 }, _key = "HumpEqual;", _map[_key] = { k: _key, v: 8783 }, _key = "IEcy;", _map[_key] = { k: _key, v: 1045 }, _key = "IJlig;", _map[_key] = { k: _key, v: 306 }, _key = "IOcy;", _map[_key] = { k: _key, v: 1025 }, _key = "Iacute;", _map[_key] = { k: _key, v: 205 }, _key = "Icirc;", _map[_key] = { k: _key, v: 206 }, _key = "Icy;", _map[_key] = { k: _key, v: 1048 }, _key = "Idot;", _map[_key] = { k: _key, v: 304 }, _key = "Ifr;", _map[_key] = { k: _key, v: 8465 }, _key = "Igrave;", _map[_key] = { k: _key, v: 204 }, _key = "Im;", _map[_key] = { k: _key, v: 8465 }, _key = "Imacr;", _map[_key] = { k: _key, v: 298 }, _key = "ImaginaryI;", _map[_key] = { k: _key, v: 8520 }, _key = "Implies;", _map[_key] = { k: _key, v: 8658 }, _key = "Int;", _map[_key] = { k: _key, v: 8748 }, _key = "Integral;", _map[_key] = { k: _key, v: 8747 }, _key = "Intersection;", _map[_key] = { k: _key, v: 8898 }, _key = "InvisibleComma;", _map[_key] = { k: _key, v: 8291 }, _key = "InvisibleTimes;", _map[_key] = { k: _key, v: 8290 }, _key = "Iogon;", _map[_key] = { k: _key, v: 302 }, _key = "Iopf;", _map[_key] = { k: _key, v: 120128 }, _key = "Iota;", _map[_key] = { k: _key, v: 921 }, _key = "Iscr;", _map[_key] = { k: _key, v: 8464 }, _key = "Itilde;", _map[_key] = { k: _key, v: 296 }, _key = "Iukcy;", _map[_key] = { k: _key, v: 1030 }, _key = "Iuml;", _map[_key] = { k: _key, v: 207 }, _key = "Jcirc;", _map[_key] = { k: _key, v: 308 }, _key = "Jcy;", _map[_key] = { k: _key, v: 1049 }, _key = "Jfr;", _map[_key] = { k: _key, v: 120077 }, _key = "Jopf;", _map[_key] = { k: _key, v: 120129 }, _key = "Jscr;", _map[_key] = { k: _key, v: 119973 }, _key = "Jsercy;", _map[_key] = { k: _key, v: 1032 }, _key = "Jukcy;", _map[_key] = { k: _key, v: 1028 }, _key = "KHcy;", _map[_key] = { k: _key, v: 1061 }, _key = "KJcy;", _map[_key] = { k: _key, v: 1036 }, _key = "Kappa;", _map[_key] = { k: _key, v: 922 }, _key = "Kcedil;", _map[_key] = { k: _key, v: 310 }, _key = "Kcy;", _map[_key] = { k: _key, v: 1050 }, _key = "Kfr;", _map[_key] = { k: _key, v: 120078 }, _key = "Kopf;", _map[_key] = { k: _key, v: 120130 }, _key = "Kscr;", _map[_key] = { k: _key, v: 119974 }, _key = "LJcy;", _map[_key] = { k: _key, v: 1033 }, _key = "LT;", _map[_key] = { k: _key, v: 60 }, _key = "Lacute;", _map[_key] = { k: _key, v: 313 }, _key = "Lambda;", _map[_key] = { k: _key, v: 923 }, _key = "Lang;", _map[_key] = { k: _key, v: 10218 }, _key = "Laplacetrf;", _map[_key] = { k: _key, v: 8466 }, _key = "Larr;", _map[_key] = { k: _key, v: 8606 }, _key = "Lcaron;", _map[_key] = { k: _key, v: 317 }, _key = "Lcedil;", _map[_key] = { k: _key, v: 315 }, _key = "Lcy;", _map[_key] = { k: _key, v: 1051 }, _key = "LeftAngleBracket;", _map[_key] = { k: _key, v: 10216 }, _key = "LeftArrow;", _map[_key] = { k: _key, v: 8592 }, _key = "LeftArrowBar;", _map[_key] = { k: _key, v: 8676 }, _key = "LeftArrowRightArrow;", _map[_key] = { k: _key, v: 8646 }, _key = "LeftCeiling;", _map[_key] = { k: _key, v: 8968 }, _key = "LeftDoubleBracket;", _map[_key] = { k: _key, v: 10214 }, _key = "LeftDownTeeVector;", _map[_key] = { k: _key, v: 10593 }, _key = "LeftDownVector;", _map[_key] = { k: _key, v: 8643 }, _key = "LeftDownVectorBar;", _map[_key] = { k: _key, v: 10585 }, _key = "LeftFloor;", _map[_key] = { k: _key, v: 8970 }, _key = "LeftRightArrow;", _map[_key] = { k: _key, v: 8596 }, _key = "LeftRightVector;", _map[_key] = { k: _key, v: 10574 }, _key = "LeftTee;", _map[_key] = { k: _key, v: 8867 }, _key = "LeftTeeArrow;", _map[_key] = { k: _key, v: 8612 }, _key = "LeftTeeVector;", _map[_key] = { k: _key, v: 10586 }, _key = "LeftTriangle;", _map[_key] = { k: _key, v: 8882 }, _key = "LeftTriangleBar;", _map[_key] = { k: _key, v: 10703 }, _key = "LeftTriangleEqual;", _map[_key] = { k: _key, v: 8884 }, _key = "LeftUpDownVector;", _map[_key] = { k: _key, v: 10577 }, _key = "LeftUpTeeVector;", _map[_key] = { k: _key, v: 10592 }, _key = "LeftUpVector;", _map[_key] = { k: _key, v: 8639 }, _key = "LeftUpVectorBar;", _map[_key] = { k: _key, v: 10584 }, _key = "LeftVector;", _map[_key] = { k: _key, v: 8636 }, _key = "LeftVectorBar;", _map[_key] = { k: _key, v: 10578 }, _key = "Leftarrow;", _map[_key] = { k: _key, v: 8656 }, _key = "Leftrightarrow;", _map[_key] = { k: _key, v: 8660 }, _key = "LessEqualGreater;", _map[_key] = { k: _key, v: 8922 }, _key = "LessFullEqual;", _map[_key] = { k: _key, v: 8806 }, _key = "LessGreater;", _map[_key] = { k: _key, v: 8822 }, _key = "LessLess;", _map[_key] = { k: _key, v: 10913 }, _key = "LessSlantEqual;", _map[_key] = { k: _key, v: 10877 }, _key = "LessTilde;", _map[_key] = { k: _key, v: 8818 }, _key = "Lfr;", _map[_key] = { k: _key, v: 120079 }, _key = "Ll;", _map[_key] = { k: _key, v: 8920 }, _key = "Lleftarrow;", _map[_key] = { k: _key, v: 8666 }, _key = "Lmidot;", _map[_key] = { k: _key, v: 319 }, _key = "LongLeftArrow;", _map[_key] = { k: _key, v: 10229 }, _key = "LongLeftRightArrow;", _map[_key] = { k: _key, v: 10231 }, _key = "LongRightArrow;", _map[_key] = { k: _key, v: 10230 }, _key = "Longleftarrow;", _map[_key] = { k: _key, v: 10232 }, _key = "Longleftrightarrow;", _map[_key] = { k: _key, v: 10234 }, _key = "Longrightarrow;", _map[_key] = { k: _key, v: 10233 }, _key = "Lopf;", _map[_key] = { k: _key, v: 120131 }, _key = "LowerLeftArrow;", _map[_key] = { k: _key, v: 8601 }, _key = "LowerRightArrow;", _map[_key] = { k: _key, v: 8600 }, _key = "Lscr;", _map[_key] = { k: _key, v: 8466 }, _key = "Lsh;", _map[_key] = { k: _key, v: 8624 }, _key = "Lstrok;", _map[_key] = { k: _key, v: 321 }, _key = "Lt;", _map[_key] = { k: _key, v: 8810 }, _key = "Map;", _map[_key] = { k: _key, v: 10501 }, _key = "Mcy;", _map[_key] = { k: _key, v: 1052 }, _key = "MediumSpace;", _map[_key] = { k: _key, v: 8287 }, _key = "Mellintrf;", _map[_key] = { k: _key, v: 8499 }, _key = "Mfr;", _map[_key] = { k: _key, v: 120080 }, _key = "MinusPlus;", _map[_key] = { k: _key, v: 8723 }, _key = "Mopf;", _map[_key] = { k: _key, v: 120132 }, _key = "Mscr;", _map[_key] = { k: _key, v: 8499 }, _key = "Mu;", _map[_key] = { k: _key, v: 924 }, _key = "NJcy;", _map[_key] = { k: _key, v: 1034 }, _key = "Nacute;", _map[_key] = { k: _key, v: 323 }, _key = "Ncaron;", _map[_key] = { k: _key, v: 327 }, _key = "Ncedil;", _map[_key] = { k: _key, v: 325 }, _key = "Ncy;", _map[_key] = { k: _key, v: 1053 }, _key = "NegativeMediumSpace;", _map[_key] = { k: _key, v: 8203 }, _key = "NegativeThickSpace;", _map[_key] = { k: _key, v: 8203 }, _key = "NegativeThinSpace;", _map[_key] = { k: _key, v: 8203 }, _key = "NegativeVeryThinSpace;", _map[_key] = { k: _key, v: 8203 }, _key = "NestedGreaterGreater;", _map[_key] = { k: _key, v: 8811 }, _key = "NestedLessLess;", _map[_key] = { k: _key, v: 8810 }, _key = "NewLine;", _map[_key] = { k: _key, v: 10 }, _key = "Nfr;", _map[_key] = { k: _key, v: 120081 }, _key = "NoBreak;", _map[_key] = { k: _key, v: 8288 }, _key = "NonBreakingSpace;", _map[_key] = { k: _key, v: 160 }, _key = "Nopf;", _map[_key] = { k: _key, v: 8469 }, _key = "Not;", _map[_key] = { k: _key, v: 10988 }, _key = "NotCongruent;", _map[_key] = { k: _key, v: 8802 }, _key = "NotCupCap;", _map[_key] = { k: _key, v: 8813 }, _key = "NotDoubleVerticalBar;", _map[_key] = { k: _key, v: 8742 }, _key = "NotElement;", _map[_key] = { k: _key, v: 8713 }, _key = "NotEqual;", _map[_key] = { k: _key, v: 8800 }, _key = "NotExists;", _map[_key] = { k: _key, v: 8708 }, _key = "NotGreater;", _map[_key] = { k: _key, v: 8815 }, _key = "NotGreaterEqual;", _map[_key] = { k: _key, v: 8817 }, _key = "NotGreaterLess;", _map[_key] = { k: _key, v: 8825 }, _key = "NotGreaterTilde;", _map[_key] = { k: _key, v: 8821 }, _key = "NotLeftTriangle;", _map[_key] = { k: _key, v: 8938 }, _key = "NotLeftTriangleEqual;", _map[_key] = { k: _key, v: 8940 }, _key = "NotLess;", _map[_key] = { k: _key, v: 8814 }, _key = "NotLessEqual;", _map[_key] = { k: _key, v: 8816 }, _key = "NotLessGreater;", _map[_key] = { k: _key, v: 8824 }, _key = "NotLessTilde;", _map[_key] = { k: _key, v: 8820 }, _key = "NotPrecedes;", _map[_key] = { k: _key, v: 8832 }, _key = "NotPrecedesSlantEqual;", _map[_key] = { k: _key, v: 8928 }, _key = "NotReverseElement;", _map[_key] = { k: _key, v: 8716 }, _key = "NotRightTriangle;", _map[_key] = { k: _key, v: 8939 }, _key = "NotRightTriangleEqual;", _map[_key] = { k: _key, v: 8941 }, _key = "NotSquareSubsetEqual;", _map[_key] = { k: _key, v: 8930 }, _key = "NotSquareSupersetEqual;", _map[_key] = { k: _key, v: 8931 }, _key = "NotSubsetEqual;", _map[_key] = { k: _key, v: 8840 }, _key = "NotSucceeds;", _map[_key] = { k: _key, v: 8833 }, _key = "NotSucceedsSlantEqual;", _map[_key] = { k: _key, v: 8929 }, _key = "NotSupersetEqual;", _map[_key] = { k: _key, v: 8841 }, _key = "NotTilde;", _map[_key] = { k: _key, v: 8769 }, _key = "NotTildeEqual;", _map[_key] = { k: _key, v: 8772 }, _key = "NotTildeFullEqual;", _map[_key] = { k: _key, v: 8775 }, _key = "NotTildeTilde;", _map[_key] = { k: _key, v: 8777 }, _key = "NotVerticalBar;", _map[_key] = { k: _key, v: 8740 }, _key = "Nscr;", _map[_key] = { k: _key, v: 119977 }, _key = "Ntilde;", _map[_key] = { k: _key, v: 209 }, _key = "Nu;", _map[_key] = { k: _key, v: 925 }, _key = "OElig;", _map[_key] = { k: _key, v: 338 }, _key = "Oacute;", _map[_key] = { k: _key, v: 211 }, _key = "Ocirc;", _map[_key] = { k: _key, v: 212 }, _key = "Ocy;", _map[_key] = { k: _key, v: 1054 }, _key = "Odblac;", _map[_key] = { k: _key, v: 336 }, _key = "Ofr;", _map[_key] = { k: _key, v: 120082 }, _key = "Ograve;", _map[_key] = { k: _key, v: 210 }, _key = "Omacr;", _map[_key] = { k: _key, v: 332 }, _key = "Omega;", _map[_key] = { k: _key, v: 937 }, _key = "Omicron;", _map[_key] = { k: _key, v: 927 }, _key = "Oopf;", _map[_key] = { k: _key, v: 120134 }, _key = "OpenCurlyDoubleQuote;", _map[_key] = { k: _key, v: 8220 }, _key = "OpenCurlyQuote;", _map[_key] = { k: _key, v: 8216 }, _key = "Or;", _map[_key] = { k: _key, v: 10836 }, _key = "Oscr;", _map[_key] = { k: _key, v: 119978 }, _key = "Oslash;", _map[_key] = { k: _key, v: 216 }, _key = "Otilde;", _map[_key] = { k: _key, v: 213 }, _key = "Otimes;", _map[_key] = { k: _key, v: 10807 }, _key = "Ouml;", _map[_key] = { k: _key, v: 214 }, _key = "OverBar;", _map[_key] = { k: _key, v: 8254 }, _key = "OverBrace;", _map[_key] = { k: _key, v: 9182 }, _key = "OverBracket;", _map[_key] = { k: _key, v: 9140 }, _key = "OverParenthesis;", _map[_key] = { k: _key, v: 9180 }, _key = "PartialD;", _map[_key] = { k: _key, v: 8706 }, _key = "Pcy;", _map[_key] = { k: _key, v: 1055 }, _key = "Pfr;", _map[_key] = { k: _key, v: 120083 }, _key = "Phi;", _map[_key] = { k: _key, v: 934 }, _key = "Pi;", _map[_key] = { k: _key, v: 928 }, _key = "PlusMinus;", _map[_key] = { k: _key, v: 177 }, _key = "Poincareplane;", _map[_key] = { k: _key, v: 8460 }, _key = "Popf;", _map[_key] = { k: _key, v: 8473 }, _key = "Pr;", _map[_key] = { k: _key, v: 10939 }, _key = "Precedes;", _map[_key] = { k: _key, v: 8826 }, _key = "PrecedesEqual;", _map[_key] = { k: _key, v: 10927 }, _key = "PrecedesSlantEqual;", _map[_key] = { k: _key, v: 8828 }, _key = "PrecedesTilde;", _map[_key] = { k: _key, v: 8830 }, _key = "Prime;", _map[_key] = { k: _key, v: 8243 }, _key = "Product;", _map[_key] = { k: _key, v: 8719 }, _key = "Proportion;", _map[_key] = { k: _key, v: 8759 }, _key = "Proportional;", _map[_key] = { k: _key, v: 8733 }, _key = "Pscr;", _map[_key] = { k: _key, v: 119979 }, _key = "Psi;", _map[_key] = { k: _key, v: 936 }, _key = "QUOT;", _map[_key] = { k: _key, v: 34 }, _key = "Qfr;", _map[_key] = { k: _key, v: 120084 }, _key = "Qopf;", _map[_key] = { k: _key, v: 8474 }, _key = "Qscr;", _map[_key] = { k: _key, v: 119980 }, _key = "RBarr;", _map[_key] = { k: _key, v: 10512 }, _key = "REG;", _map[_key] = { k: _key, v: 174 }, _key = "Racute;", _map[_key] = { k: _key, v: 340 }, _key = "Rang;", _map[_key] = { k: _key, v: 10219 }, _key = "Rarr;", _map[_key] = { k: _key, v: 8608 }, _key = "Rarrtl;", _map[_key] = { k: _key, v: 10518 }, _key = "Rcaron;", _map[_key] = { k: _key, v: 344 }, _key = "Rcedil;", _map[_key] = { k: _key, v: 342 }, _key = "Rcy;", _map[_key] = { k: _key, v: 1056 }, _key = "Re;", _map[_key] = { k: _key, v: 8476 }, _key = "ReverseElement;", _map[_key] = { k: _key, v: 8715 }, _key = "ReverseEquilibrium;", _map[_key] = { k: _key, v: 8651 }, _key = "ReverseUpEquilibrium;", _map[_key] = { k: _key, v: 10607 }, _key = "Rfr;", _map[_key] = { k: _key, v: 8476 }, _key = "Rho;", _map[_key] = { k: _key, v: 929 }, _key = "RightAngleBracket;", _map[_key] = { k: _key, v: 10217 }, _key = "RightArrow;", _map[_key] = { k: _key, v: 8594 }, _key = "RightArrowBar;", _map[_key] = { k: _key, v: 8677 }, _key = "RightArrowLeftArrow;", _map[_key] = { k: _key, v: 8644 }, _key = "RightCeiling;", _map[_key] = { k: _key, v: 8969 }, _key = "RightDoubleBracket;", _map[_key] = { k: _key, v: 10215 }, _key = "RightDownTeeVector;", _map[_key] = { k: _key, v: 10589 }, _key = "RightDownVector;", _map[_key] = { k: _key, v: 8642 }, _key = "RightDownVectorBar;", _map[_key] = { k: _key, v: 10581 }, _key = "RightFloor;", _map[_key] = { k: _key, v: 8971 }, _key = "RightTee;", _map[_key] = { k: _key, v: 8866 }, _key = "RightTeeArrow;", _map[_key] = { k: _key, v: 8614 }, _key = "RightTeeVector;", _map[_key] = { k: _key, v: 10587 }, _key = "RightTriangle;", _map[_key] = { k: _key, v: 8883 }, _key = "RightTriangleBar;", _map[_key] = { k: _key, v: 10704 }, _key = "RightTriangleEqual;", _map[_key] = { k: _key, v: 8885 }, _key = "RightUpDownVector;", _map[_key] = { k: _key, v: 10575 }, _key = "RightUpTeeVector;", _map[_key] = { k: _key, v: 10588 }, _key = "RightUpVector;", _map[_key] = { k: _key, v: 8638 }, _key = "RightUpVectorBar;", _map[_key] = { k: _key, v: 10580 }, _key = "RightVector;", _map[_key] = { k: _key, v: 8640 }, _key = "RightVectorBar;", _map[_key] = { k: _key, v: 10579 }, _key = "Rightarrow;", _map[_key] = { k: _key, v: 8658 }, _key = "Ropf;", _map[_key] = { k: _key, v: 8477 }, _key = "RoundImplies;", _map[_key] = { k: _key, v: 10608 }, _key = "Rrightarrow;", _map[_key] = { k: _key, v: 8667 }, _key = "Rscr;", _map[_key] = { k: _key, v: 8475 }, _key = "Rsh;", _map[_key] = { k: _key, v: 8625 }, _key = "RuleDelayed;", _map[_key] = { k: _key, v: 10740 }, _key = "SHCHcy;", _map[_key] = { k: _key, v: 1065 }, _key = "SHcy;", _map[_key] = { k: _key, v: 1064 }, _key = "SOFTcy;", _map[_key] = { k: _key, v: 1068 }, _key = "Sacute;", _map[_key] = { k: _key, v: 346 }, _key = "Sc;", _map[_key] = { k: _key, v: 10940 }, _key = "Scaron;", _map[_key] = { k: _key, v: 352 }, _key = "Scedil;", _map[_key] = { k: _key, v: 350 }, _key = "Scirc;", _map[_key] = { k: _key, v: 348 }, _key = "Scy;", _map[_key] = { k: _key, v: 1057 }, _key = "Sfr;", _map[_key] = { k: _key, v: 120086 }, _key = "ShortDownArrow;", _map[_key] = { k: _key, v: 8595 }, _key = "ShortLeftArrow;", _map[_key] = { k: _key, v: 8592 }, _key = "ShortRightArrow;", _map[_key] = { k: _key, v: 8594 }, _key = "ShortUpArrow;", _map[_key] = { k: _key, v: 8593 }, _key = "Sigma;", _map[_key] = { k: _key, v: 931 }, _key = "SmallCircle;", _map[_key] = { k: _key, v: 8728 }, _key = "Sopf;", _map[_key] = { k: _key, v: 120138 }, _key = "Sqrt;", _map[_key] = { k: _key, v: 8730 }, _key = "Square;", _map[_key] = { k: _key, v: 9633 }, _key = "SquareIntersection;", _map[_key] = { k: _key, v: 8851 }, _key = "SquareSubset;", _map[_key] = { k: _key, v: 8847 }, _key = "SquareSubsetEqual;", _map[_key] = { k: _key, v: 8849 }, _key = "SquareSuperset;", _map[_key] = { k: _key, v: 8848 }, _key = "SquareSupersetEqual;", _map[_key] = { k: _key, v: 8850 }, _key = "SquareUnion;", _map[_key] = { k: _key, v: 8852 }, _key = "Sscr;", _map[_key] = { k: _key, v: 119982 }, _key = "Star;", _map[_key] = { k: _key, v: 8902 }, _key = "Sub;", _map[_key] = { k: _key, v: 8912 }, _key = "Subset;", _map[_key] = { k: _key, v: 8912 }, _key = "SubsetEqual;", _map[_key] = { k: _key, v: 8838 }, _key = "Succeeds;", _map[_key] = { k: _key, v: 8827 }, _key = "SucceedsEqual;", _map[_key] = { k: _key, v: 10928 }, _key = "SucceedsSlantEqual;", _map[_key] = { k: _key, v: 8829 }, _key = "SucceedsTilde;", _map[_key] = { k: _key, v: 8831 }, _key = "SuchThat;", _map[_key] = { k: _key, v: 8715 }, _key = "Sum;", _map[_key] = { k: _key, v: 8721 }, _key = "Sup;", _map[_key] = { k: _key, v: 8913 }, _key = "Superset;", _map[_key] = { k: _key, v: 8835 }, _key = "SupersetEqual;", _map[_key] = { k: _key, v: 8839 }, _key = "Supset;", _map[_key] = { k: _key, v: 8913 }, _key = "THORN;", _map[_key] = { k: _key, v: 222 }, _key = "TRADE;", _map[_key] = { k: _key, v: 8482 }, _key = "TSHcy;", _map[_key] = { k: _key, v: 1035 }, _key = "TScy;", _map[_key] = { k: _key, v: 1062 }, _key = "Tab;", _map[_key] = { k: _key, v: 9 }, _key = "Tau;", _map[_key] = { k: _key, v: 932 }, _key = "Tcaron;", _map[_key] = { k: _key, v: 356 }, _key = "Tcedil;", _map[_key] = { k: _key, v: 354 }, _key = "Tcy;", _map[_key] = { k: _key, v: 1058 }, _key = "Tfr;", _map[_key] = { k: _key, v: 120087 }, _key = "Therefore;", _map[_key] = { k: _key, v: 8756 }, _key = "Theta;", _map[_key] = { k: _key, v: 920 }, _key = "ThinSpace;", _map[_key] = { k: _key, v: 8201 }, _key = "Tilde;", _map[_key] = { k: _key, v: 8764 }, _key = "TildeEqual;", _map[_key] = { k: _key, v: 8771 }, _key = "TildeFullEqual;", _map[_key] = { k: _key, v: 8773 }, _key = "TildeTilde;", _map[_key] = { k: _key, v: 8776 }, _key = "Topf;", _map[_key] = { k: _key, v: 120139 }, _key = "TripleDot;", _map[_key] = { k: _key, v: 8411 }, _key = "Tscr;", _map[_key] = { k: _key, v: 119983 }, _key = "Tstrok;", _map[_key] = { k: _key, v: 358 }, _key = "Uacute;", _map[_key] = { k: _key, v: 218 }, _key = "Uarr;", _map[_key] = { k: _key, v: 8607 }, _key = "Uarrocir;", _map[_key] = { k: _key, v: 10569 }, _key = "Ubrcy;", _map[_key] = { k: _key, v: 1038 }, _key = "Ubreve;", _map[_key] = { k: _key, v: 364 }, _key = "Ucirc;", _map[_key] = { k: _key, v: 219 }, _key = "Ucy;", _map[_key] = { k: _key, v: 1059 }, _key = "Udblac;", _map[_key] = { k: _key, v: 368 }, _key = "Ufr;", _map[_key] = { k: _key, v: 120088 }, _key = "Ugrave;", _map[_key] = { k: _key, v: 217 }, _key = "Umacr;", _map[_key] = { k: _key, v: 362 }, _key = "UnderBar;", _map[_key] = { k: _key, v: 95 }, _key = "UnderBrace;", _map[_key] = { k: _key, v: 9183 }, _key = "UnderBracket;", _map[_key] = { k: _key, v: 9141 }, _key = "UnderParenthesis;", _map[_key] = { k: _key, v: 9181 }, _key = "Union;", _map[_key] = { k: _key, v: 8899 }, _key = "UnionPlus;", _map[_key] = { k: _key, v: 8846 }, _key = "Uogon;", _map[_key] = { k: _key, v: 370 }, _key = "Uopf;", _map[_key] = { k: _key, v: 120140 }, _key = "UpArrow;", _map[_key] = { k: _key, v: 8593 }, _key = "UpArrowBar;", _map[_key] = { k: _key, v: 10514 }, _key = "UpArrowDownArrow;", _map[_key] = { k: _key, v: 8645 }, _key = "UpDownArrow;", _map[_key] = { k: _key, v: 8597 }, _key = "UpEquilibrium;", _map[_key] = { k: _key, v: 10606 }, _key = "UpTee;", _map[_key] = { k: _key, v: 8869 }, _key = "UpTeeArrow;", _map[_key] = { k: _key, v: 8613 }, _key = "Uparrow;", _map[_key] = { k: _key, v: 8657 }, _key = "Updownarrow;", _map[_key] = { k: _key, v: 8661 }, _key = "UpperLeftArrow;", _map[_key] = { k: _key, v: 8598 }, _key = "UpperRightArrow;", _map[_key] = { k: _key, v: 8599 }, _key = "Upsi;", _map[_key] = { k: _key, v: 978 }, _key = "Upsilon;", _map[_key] = { k: _key, v: 933 }, _key = "Uring;", _map[_key] = { k: _key, v: 366 }, _key = "Uscr;", _map[_key] = { k: _key, v: 119984 }, _key = "Utilde;", _map[_key] = { k: _key, v: 360 }, _key = "Uuml;", _map[_key] = { k: _key, v: 220 }, _key = "VDash;", _map[_key] = { k: _key, v: 8875 }, _key = "Vbar;", _map[_key] = { k: _key, v: 10987 }, _key = "Vcy;", _map[_key] = { k: _key, v: 1042 }, _key = "Vdash;", _map[_key] = { k: _key, v: 8873 }, _key = "Vdashl;", _map[_key] = { k: _key, v: 10982 }, _key = "Vee;", _map[_key] = { k: _key, v: 8897 }, _key = "Verbar;", _map[_key] = { k: _key, v: 8214 }, _key = "Vert;", _map[_key] = { k: _key, v: 8214 }, _key = "VerticalBar;", _map[_key] = { k: _key, v: 8739 }, _key = "VerticalLine;", _map[_key] = { k: _key, v: 124 }, _key = "VerticalSeparator;", _map[_key] = { k: _key, v: 10072 }, _key = "VerticalTilde;", _map[_key] = { k: _key, v: 8768 }, _key = "VeryThinSpace;", _map[_key] = { k: _key, v: 8202 }, _key = "Vfr;", _map[_key] = { k: _key, v: 120089 }, _key = "Vopf;", _map[_key] = { k: _key, v: 120141 }, _key = "Vscr;", _map[_key] = { k: _key, v: 119985 }, _key = "Vvdash;", _map[_key] = { k: _key, v: 8874 }, _key = "Wcirc;", _map[_key] = { k: _key, v: 372 }, _key = "Wedge;", _map[_key] = { k: _key, v: 8896 }, _key = "Wfr;", _map[_key] = { k: _key, v: 120090 }, _key = "Wopf;", _map[_key] = { k: _key, v: 120142 }, _key = "Wscr;", _map[_key] = { k: _key, v: 119986 }, _key = "Xfr;", _map[_key] = { k: _key, v: 120091 }, _key = "Xi;", _map[_key] = { k: _key, v: 926 }, _key = "Xopf;", _map[_key] = { k: _key, v: 120143 }, _key = "Xscr;", _map[_key] = { k: _key, v: 119987 }, _key = "YAcy;", _map[_key] = { k: _key, v: 1071 }, _key = "YIcy;", _map[_key] = { k: _key, v: 1031 }, _key = "YUcy;", _map[_key] = { k: _key, v: 1070 }, _key = "Yacute;", _map[_key] = { k: _key, v: 221 }, _key = "Ycirc;", _map[_key] = { k: _key, v: 374 }, _key = "Ycy;", _map[_key] = { k: _key, v: 1067 }, _key = "Yfr;", _map[_key] = { k: _key, v: 120092 }, _key = "Yopf;", _map[_key] = { k: _key, v: 120144 }, _key = "Yscr;", _map[_key] = { k: _key, v: 119988 }, _key = "Yuml;", _map[_key] = { k: _key, v: 376 }, _key = "ZHcy;", _map[_key] = { k: _key, v: 1046 }, _key = "Zacute;", _map[_key] = { k: _key, v: 377 }, _key = "Zcaron;", _map[_key] = { k: _key, v: 381 }, _key = "Zcy;", _map[_key] = { k: _key, v: 1047 }, _key = "Zdot;", _map[_key] = { k: _key, v: 379 }, _key = "ZeroWidthSpace;", _map[_key] = { k: _key, v: 8203 }, _key = "Zeta;", _map[_key] = { k: _key, v: 918 }, _key = "Zfr;", _map[_key] = { k: _key, v: 8488 }, _key = "Zopf;", _map[_key] = { k: _key, v: 8484 }, _key = "Zscr;", _map[_key] = { k: _key, v: 119989 }, _key = "aacute;", _map[_key] = { k: _key, v: 225 }, _key = "abreve;", _map[_key] = { k: _key, v: 259 }, _key = "ac;", _map[_key] = { k: _key, v: 8766 }, _key = "acd;", _map[_key] = { k: _key, v: 8767 }, _key = "acirc;", _map[_key] = { k: _key, v: 226 }, _key = "acute;", _map[_key] = { k: _key, v: 180 }, _key = "acy;", _map[_key] = { k: _key, v: 1072 }, _key = "aelig;", _map[_key] = { k: _key, v: 230 }, _key = "af;", _map[_key] = { k: _key, v: 8289 }, _key = "afr;", _map[_key] = { k: _key, v: 120094 }, _key = "agrave;", _map[_key] = { k: _key, v: 224 }, _key = "alefsym;", _map[_key] = { k: _key, v: 8501 }, _key = "aleph;", _map[_key] = { k: _key, v: 8501 }, _key = "alpha;", _map[_key] = { k: _key, v: 945 }, _key = "amacr;", _map[_key] = { k: _key, v: 257 }, _key = "amalg;", _map[_key] = { k: _key, v: 10815 }, _key = "amp;", _map[_key] = { k: _key, v: 38 }, _key = "and;", _map[_key] = { k: _key, v: 8743 }, _key = "andand;", _map[_key] = { k: _key, v: 10837 }, _key = "andd;", _map[_key] = { k: _key, v: 10844 }, _key = "andslope;", _map[_key] = { k: _key, v: 10840 }, _key = "andv;", _map[_key] = { k: _key, v: 10842 }, _key = "ang;", _map[_key] = { k: _key, v: 8736 }, _key = "ange;", _map[_key] = { k: _key, v: 10660 }, _key = "angle;", _map[_key] = { k: _key, v: 8736 }, _key = "angmsd;", _map[_key] = { k: _key, v: 8737 }, _key = "angmsdaa;", _map[_key] = { k: _key, v: 10664 }, _key = "angmsdab;", _map[_key] = { k: _key, v: 10665 }, _key = "angmsdac;", _map[_key] = { k: _key, v: 10666 }, _key = "angmsdad;", _map[_key] = { k: _key, v: 10667 }, _key = "angmsdae;", _map[_key] = { k: _key, v: 10668 }, _key = "angmsdaf;", _map[_key] = { k: _key, v: 10669 }, _key = "angmsdag;", _map[_key] = { k: _key, v: 10670 }, _key = "angmsdah;", _map[_key] = { k: _key, v: 10671 }, _key = "angrt;", _map[_key] = { k: _key, v: 8735 }, _key = "angrtvb;", _map[_key] = { k: _key, v: 8894 }, _key = "angrtvbd;", _map[_key] = { k: _key, v: 10653 }, _key = "angsph;", _map[_key] = { k: _key, v: 8738 }, _key = "angst;", _map[_key] = { k: _key, v: 197 }, _key = "angzarr;", _map[_key] = { k: _key, v: 9084 }, _key = "aogon;", _map[_key] = { k: _key, v: 261 }, _key = "aopf;", _map[_key] = { k: _key, v: 120146 }, _key = "ap;", _map[_key] = { k: _key, v: 8776 }, _key = "apE;", _map[_key] = { k: _key, v: 10864 }, _key = "apacir;", _map[_key] = { k: _key, v: 10863 }, _key = "ape;", _map[_key] = { k: _key, v: 8778 }, _key = "apid;", _map[_key] = { k: _key, v: 8779 }, _key = "apos;", _map[_key] = { k: _key, v: 39 }, _key = "approx;", _map[_key] = { k: _key, v: 8776 }, _key = "approxeq;", _map[_key] = { k: _key, v: 8778 }, _key = "aring;", _map[_key] = { k: _key, v: 229 }, _key = "ascr;", _map[_key] = { k: _key, v: 119990 }, _key = "ast;", _map[_key] = { k: _key, v: 42 }, _key = "asymp;", _map[_key] = { k: _key, v: 8776 }, _key = "asympeq;", _map[_key] = { k: _key, v: 8781 }, _key = "atilde;", _map[_key] = { k: _key, v: 227 }, _key = "auml;", _map[_key] = { k: _key, v: 228 }, _key = "awconint;", _map[_key] = { k: _key, v: 8755 }, _key = "awint;", _map[_key] = { k: _key, v: 10769 }, _key = "bNot;", _map[_key] = { k: _key, v: 10989 }, _key = "backcong;", _map[_key] = { k: _key, v: 8780 }, _key = "backepsilon;", _map[_key] = { k: _key, v: 1014 }, _key = "backprime;", _map[_key] = { k: _key, v: 8245 }, _key = "backsim;", _map[_key] = { k: _key, v: 8765 }, _key = "backsimeq;", _map[_key] = { k: _key, v: 8909 }, _key = "barvee;", _map[_key] = { k: _key, v: 8893 }, _key = "barwed;", _map[_key] = { k: _key, v: 8965 }, _key = "barwedge;", _map[_key] = { k: _key, v: 8965 }, _key = "bbrk;", _map[_key] = { k: _key, v: 9141 }, _key = "bbrktbrk;", _map[_key] = { k: _key, v: 9142 }, _key = "bcong;", _map[_key] = { k: _key, v: 8780 }, _key = "bcy;", _map[_key] = { k: _key, v: 1073 }, _key = "bdquo;", _map[_key] = { k: _key, v: 8222 }, _key = "becaus;", _map[_key] = { k: _key, v: 8757 }, _key = "because;", _map[_key] = { k: _key, v: 8757 }, _key = "bemptyv;", _map[_key] = { k: _key, v: 10672 }, _key = "bepsi;", _map[_key] = { k: _key, v: 1014 }, _key = "bernou;", _map[_key] = { k: _key, v: 8492 }, _key = "beta;", _map[_key] = { k: _key, v: 946 }, _key = "beth;", _map[_key] = { k: _key, v: 8502 }, _key = "between;", _map[_key] = { k: _key, v: 8812 }, _key = "bfr;", _map[_key] = { k: _key, v: 120095 }, _key = "bigcap;", _map[_key] = { k: _key, v: 8898 }, _key = "bigcirc;", _map[_key] = { k: _key, v: 9711 }, _key = "bigcup;", _map[_key] = { k: _key, v: 8899 }, _key = "bigodot;", _map[_key] = { k: _key, v: 10752 }, _key = "bigoplus;", _map[_key] = { k: _key, v: 10753 }, _key = "bigotimes;", _map[_key] = { k: _key, v: 10754 }, _key = "bigsqcup;", _map[_key] = { k: _key, v: 10758 }, _key = "bigstar;", _map[_key] = { k: _key, v: 9733 }, _key = "bigtriangledown;", _map[_key] = { k: _key, v: 9661 }, _key = "bigtriangleup;", _map[_key] = { k: _key, v: 9651 }, _key = "biguplus;", _map[_key] = { k: _key, v: 10756 }, _key = "bigvee;", _map[_key] = { k: _key, v: 8897 }, _key = "bigwedge;", _map[_key] = { k: _key, v: 8896 }, _key = "bkarow;", _map[_key] = { k: _key, v: 10509 }, _key = "blacklozenge;", _map[_key] = { k: _key, v: 10731 }, _key = "blacksquare;", _map[_key] = { k: _key, v: 9642 }, _key = "blacktriangle;", _map[_key] = { k: _key, v: 9652 }, _key = "blacktriangledown;", _map[_key] = { k: _key, v: 9662 }, _key = "blacktriangleleft;", _map[_key] = { k: _key, v: 9666 }, _key = "blacktriangleright;", _map[_key] = { k: _key, v: 9656 }, _key = "blank;", _map[_key] = { k: _key, v: 9251 }, _key = "blk12;", _map[_key] = { k: _key, v: 9618 }, _key = "blk14;", _map[_key] = { k: _key, v: 9617 }, _key = "blk34;", _map[_key] = { k: _key, v: 9619 }, _key = "block;", _map[_key] = { k: _key, v: 9608 }, _key = "bnot;", _map[_key] = { k: _key, v: 8976 }, _key = "bopf;", _map[_key] = { k: _key, v: 120147 }, _key = "bot;", _map[_key] = { k: _key, v: 8869 }, _key = "bottom;", _map[_key] = { k: _key, v: 8869 }, _key = "bowtie;", _map[_key] = { k: _key, v: 8904 }, _key = "boxDL;", _map[_key] = { k: _key, v: 9559 }, _key = "boxDR;", _map[_key] = { k: _key, v: 9556 }, _key = "boxDl;", _map[_key] = { k: _key, v: 9558 }, _key = "boxDr;", _map[_key] = { k: _key, v: 9555 }, _key = "boxH;", _map[_key] = { k: _key, v: 9552 }, _key = "boxHD;", _map[_key] = { k: _key, v: 9574 }, _key = "boxHU;", _map[_key] = { k: _key, v: 9577 }, _key = "boxHd;", _map[_key] = { k: _key, v: 9572 }, _key = "boxHu;", _map[_key] = { k: _key, v: 9575 }, _key = "boxUL;", _map[_key] = { k: _key, v: 9565 }, _key = "boxUR;", _map[_key] = { k: _key, v: 9562 }, _key = "boxUl;", _map[_key] = { k: _key, v: 9564 }, _key = "boxUr;", _map[_key] = { k: _key, v: 9561 }, _key = "boxV;", _map[_key] = { k: _key, v: 9553 }, _key = "boxVH;", _map[_key] = { k: _key, v: 9580 }, _key = "boxVL;", _map[_key] = { k: _key, v: 9571 }, _key = "boxVR;", _map[_key] = { k: _key, v: 9568 }, _key = "boxVh;", _map[_key] = { k: _key, v: 9579 }, _key = "boxVl;", _map[_key] = { k: _key, v: 9570 }, _key = "boxVr;", _map[_key] = { k: _key, v: 9567 }, _key = "boxbox;", _map[_key] = { k: _key, v: 10697 }, _key = "boxdL;", _map[_key] = { k: _key, v: 9557 }, _key = "boxdR;", _map[_key] = { k: _key, v: 9554 }, _key = "boxdl;", _map[_key] = { k: _key, v: 9488 }, _key = "boxdr;", _map[_key] = { k: _key, v: 9484 }, _key = "boxh;", _map[_key] = { k: _key, v: 9472 }, _key = "boxhD;", _map[_key] = { k: _key, v: 9573 }, _key = "boxhU;", _map[_key] = { k: _key, v: 9576 }, _key = "boxhd;", _map[_key] = { k: _key, v: 9516 }, _key = "boxhu;", _map[_key] = { k: _key, v: 9524 }, _key = "boxminus;", _map[_key] = { k: _key, v: 8863 }, _key = "boxplus;", _map[_key] = { k: _key, v: 8862 }, _key = "boxtimes;", _map[_key] = { k: _key, v: 8864 }, _key = "boxuL;", _map[_key] = { k: _key, v: 9563 }, _key = "boxuR;", _map[_key] = { k: _key, v: 9560 }, _key = "boxul;", _map[_key] = { k: _key, v: 9496 }, _key = "boxur;", _map[_key] = { k: _key, v: 9492 }, _key = "boxv;", _map[_key] = { k: _key, v: 9474 }, _key = "boxvH;", _map[_key] = { k: _key, v: 9578 }, _key = "boxvL;", _map[_key] = { k: _key, v: 9569 }, _key = "boxvR;", _map[_key] = { k: _key, v: 9566 }, _key = "boxvh;", _map[_key] = { k: _key, v: 9532 }, _key = "boxvl;", _map[_key] = { k: _key, v: 9508 }, _key = "boxvr;", _map[_key] = { k: _key, v: 9500 }, _key = "bprime;", _map[_key] = { k: _key, v: 8245 }, _key = "breve;", _map[_key] = { k: _key, v: 728 }, _key = "brvbar;", _map[_key] = { k: _key, v: 166 }, _key = "bscr;", _map[_key] = { k: _key, v: 119991 }, _key = "bsemi;", _map[_key] = { k: _key, v: 8271 }, _key = "bsim;", _map[_key] = { k: _key, v: 8765 }, _key = "bsime;", _map[_key] = { k: _key, v: 8909 }, _key = "bsol;", _map[_key] = { k: _key, v: 92 }, _key = "bsolb;", _map[_key] = { k: _key, v: 10693 }, _key = "bsolhsub;", _map[_key] = { k: _key, v: 10184 }, _key = "bull;", _map[_key] = { k: _key, v: 8226 }, _key = "bullet;", _map[_key] = { k: _key, v: 8226 }, _key = "bump;", _map[_key] = { k: _key, v: 8782 }, _key = "bumpE;", _map[_key] = { k: _key, v: 10926 }, _key = "bumpe;", _map[_key] = { k: _key, v: 8783 }, _key = "bumpeq;", _map[_key] = { k: _key, v: 8783 }, _key = "cacute;", _map[_key] = { k: _key, v: 263 }, _key = "cap;", _map[_key] = { k: _key, v: 8745 }, _key = "capand;", _map[_key] = { k: _key, v: 10820 }, _key = "capbrcup;", _map[_key] = { k: _key, v: 10825 }, _key = "capcap;", _map[_key] = { k: _key, v: 10827 }, _key = "capcup;", _map[_key] = { k: _key, v: 10823 }, _key = "capdot;", _map[_key] = { k: _key, v: 10816 }, _key = "caret;", _map[_key] = { k: _key, v: 8257 }, _key = "caron;", _map[_key] = { k: _key, v: 711 }, _key = "ccaps;", _map[_key] = { k: _key, v: 10829 }, _key = "ccaron;", _map[_key] = { k: _key, v: 269 }, _key = "ccedil;", _map[_key] = { k: _key, v: 231 }, _key = "ccirc;", _map[_key] = { k: _key, v: 265 }, _key = "ccups;", _map[_key] = { k: _key, v: 10828 }, _key = "ccupssm;", _map[_key] = { k: _key, v: 10832 }, _key = "cdot;", _map[_key] = { k: _key, v: 267 }, _key = "cedil;", _map[_key] = { k: _key, v: 184 }, _key = "cemptyv;", _map[_key] = { k: _key, v: 10674 }, _key = "cent;", _map[_key] = { k: _key, v: 162 }, _key = "centerdot;", _map[_key] = { k: _key, v: 183 }, _key = "cfr;", _map[_key] = { k: _key, v: 120096 }, _key = "chcy;", _map[_key] = { k: _key, v: 1095 }, _key = "check;", _map[_key] = { k: _key, v: 10003 }, _key = "checkmark;", _map[_key] = { k: _key, v: 10003 }, _key = "chi;", _map[_key] = { k: _key, v: 967 }, _key = "cir;", _map[_key] = { k: _key, v: 9675 }, _key = "cirE;", _map[_key] = { k: _key, v: 10691 }, _key = "circ;", _map[_key] = { k: _key, v: 710 }, _key = "circeq;", _map[_key] = { k: _key, v: 8791 }, _key = "circlearrowleft;", _map[_key] = { k: _key, v: 8634 }, _key = "circlearrowright;", _map[_key] = { k: _key, v: 8635 }, _key = "circledR;", _map[_key] = { k: _key, v: 174 }, _key = "circledS;", _map[_key] = { k: _key, v: 9416 }, _key = "circledast;", _map[_key] = { k: _key, v: 8859 }, _key = "circledcirc;", _map[_key] = { k: _key, v: 8858 }, _key = "circleddash;", _map[_key] = { k: _key, v: 8861 }, _key = "cire;", _map[_key] = { k: _key, v: 8791 }, _key = "cirfnint;", _map[_key] = { k: _key, v: 10768 }, _key = "cirmid;", _map[_key] = { k: _key, v: 10991 }, _key = "cirscir;", _map[_key] = { k: _key, v: 10690 }, _key = "clubs;", _map[_key] = { k: _key, v: 9827 }, _key = "clubsuit;", _map[_key] = { k: _key, v: 9827 }, _key = "colon;", _map[_key] = { k: _key, v: 58 }, _key = "colone;", _map[_key] = { k: _key, v: 8788 }, _key = "coloneq;", _map[_key] = { k: _key, v: 8788 }, _key = "comma;", _map[_key] = { k: _key, v: 44 }, _key = "commat;", _map[_key] = { k: _key, v: 64 }, _key = "comp;", _map[_key] = { k: _key, v: 8705 }, _key = "compfn;", _map[_key] = { k: _key, v: 8728 }, _key = "complement;", _map[_key] = { k: _key, v: 8705 }, _key = "complexes;", _map[_key] = { k: _key, v: 8450 }, _key = "cong;", _map[_key] = { k: _key, v: 8773 }, _key = "congdot;", _map[_key] = { k: _key, v: 10861 }, _key = "conint;", _map[_key] = { k: _key, v: 8750 }, _key = "copf;", _map[_key] = { k: _key, v: 120148 }, _key = "coprod;", _map[_key] = { k: _key, v: 8720 }, _key = "copy;", _map[_key] = { k: _key, v: 169 }, _key = "copysr;", _map[_key] = { k: _key, v: 8471 }, _key = "crarr;", _map[_key] = { k: _key, v: 8629 }, _key = "cross;", _map[_key] = { k: _key, v: 10007 }, _key = "cscr;", _map[_key] = { k: _key, v: 119992 }, _key = "csub;", _map[_key] = { k: _key, v: 10959 }, _key = "csube;", _map[_key] = { k: _key, v: 10961 }, _key = "csup;", _map[_key] = { k: _key, v: 10960 }, _key = "csupe;", _map[_key] = { k: _key, v: 10962 }, _key = "ctdot;", _map[_key] = { k: _key, v: 8943 }, _key = "cudarrl;", _map[_key] = { k: _key, v: 10552 }, _key = "cudarrr;", _map[_key] = { k: _key, v: 10549 }, _key = "cuepr;", _map[_key] = { k: _key, v: 8926 }, _key = "cuesc;", _map[_key] = { k: _key, v: 8927 }, _key = "cularr;", _map[_key] = { k: _key, v: 8630 }, _key = "cularrp;", _map[_key] = { k: _key, v: 10557 }, _key = "cup;", _map[_key] = { k: _key, v: 8746 }, _key = "cupbrcap;", _map[_key] = { k: _key, v: 10824 }, _key = "cupcap;", _map[_key] = { k: _key, v: 10822 }, _key = "cupcup;", _map[_key] = { k: _key, v: 10826 }, _key = "cupdot;", _map[_key] = { k: _key, v: 8845 }, _key = "cupor;", _map[_key] = { k: _key, v: 10821 }, _key = "curarr;", _map[_key] = { k: _key, v: 8631 }, _key = "curarrm;", _map[_key] = { k: _key, v: 10556 }, _key = "curlyeqprec;", _map[_key] = { k: _key, v: 8926 }, _key = "curlyeqsucc;", _map[_key] = { k: _key, v: 8927 }, _key = "curlyvee;", _map[_key] = { k: _key, v: 8910 }, _key = "curlywedge;", _map[_key] = { k: _key, v: 8911 }, _key = "curren;", _map[_key] = { k: _key, v: 164 }, _key = "curvearrowleft;", _map[_key] = { k: _key, v: 8630 }, _key = "curvearrowright;", _map[_key] = { k: _key, v: 8631 }, _key = "cuvee;", _map[_key] = { k: _key, v: 8910 }, _key = "cuwed;", _map[_key] = { k: _key, v: 8911 }, _key = "cwconint;", _map[_key] = { k: _key, v: 8754 }, _key = "cwint;", _map[_key] = { k: _key, v: 8753 }, _key = "cylcty;", _map[_key] = { k: _key, v: 9005 }, _key = "dArr;", _map[_key] = { k: _key, v: 8659 }, _key = "dHar;", _map[_key] = { k: _key, v: 10597 }, _key = "dagger;", _map[_key] = { k: _key, v: 8224 }, _key = "daleth;", _map[_key] = { k: _key, v: 8504 }, _key = "darr;", _map[_key] = { k: _key, v: 8595 }, _key = "dash;", _map[_key] = { k: _key, v: 8208 }, _key = "dashv;", _map[_key] = { k: _key, v: 8867 }, _key = "dbkarow;", _map[_key] = { k: _key, v: 10511 }, _key = "dblac;", _map[_key] = { k: _key, v: 733 }, _key = "dcaron;", _map[_key] = { k: _key, v: 271 }, _key = "dcy;", _map[_key] = { k: _key, v: 1076 }, _key = "dd;", _map[_key] = { k: _key, v: 8518 }, _key = "ddagger;", _map[_key] = { k: _key, v: 8225 }, _key = "ddarr;", _map[_key] = { k: _key, v: 8650 }, _key = "ddotseq;", _map[_key] = { k: _key, v: 10871 }, _key = "deg;", _map[_key] = { k: _key, v: 176 }, _key = "delta;", _map[_key] = { k: _key, v: 948 }, _key = "demptyv;", _map[_key] = { k: _key, v: 10673 }, _key = "dfisht;", _map[_key] = { k: _key, v: 10623 }, _key = "dfr;", _map[_key] = { k: _key, v: 120097 }, _key = "dharl;", _map[_key] = { k: _key, v: 8643 }, _key = "dharr;", _map[_key] = { k: _key, v: 8642 }, _key = "diam;", _map[_key] = { k: _key, v: 8900 }, _key = "diamond;", _map[_key] = { k: _key, v: 8900 }, _key = "diamondsuit;", _map[_key] = { k: _key, v: 9830 }, _key = "diams;", _map[_key] = { k: _key, v: 9830 }, _key = "die;", _map[_key] = { k: _key, v: 168 }, _key = "digamma;", _map[_key] = { k: _key, v: 989 }, _key = "disin;", _map[_key] = { k: _key, v: 8946 }, _key = "div;", _map[_key] = { k: _key, v: 247 }, _key = "divide;", _map[_key] = { k: _key, v: 247 }, _key = "divideontimes;", _map[_key] = { k: _key, v: 8903 }, _key = "divonx;", _map[_key] = { k: _key, v: 8903 }, _key = "djcy;", _map[_key] = { k: _key, v: 1106 }, _key = "dlcorn;", _map[_key] = { k: _key, v: 8990 }, _key = "dlcrop;", _map[_key] = { k: _key, v: 8973 }, _key = "dollar;", _map[_key] = { k: _key, v: 36 }, _key = "dopf;", _map[_key] = { k: _key, v: 120149 }, _key = "dot;", _map[_key] = { k: _key, v: 729 }, _key = "doteq;", _map[_key] = { k: _key, v: 8784 }, _key = "doteqdot;", _map[_key] = { k: _key, v: 8785 }, _key = "dotminus;", _map[_key] = { k: _key, v: 8760 }, _key = "dotplus;", _map[_key] = { k: _key, v: 8724 }, _key = "dotsquare;", _map[_key] = { k: _key, v: 8865 }, _key = "doublebarwedge;", _map[_key] = { k: _key, v: 8966 }, _key = "downarrow;", _map[_key] = { k: _key, v: 8595 }, _key = "downdownarrows;", _map[_key] = { k: _key, v: 8650 }, _key = "downharpoonleft;", _map[_key] = { k: _key, v: 8643 }, _key = "downharpoonright;", _map[_key] = { k: _key, v: 8642 }, _key = "drbkarow;", _map[_key] = { k: _key, v: 10512 }, _key = "drcorn;", _map[_key] = { k: _key, v: 8991 }, _key = "drcrop;", _map[_key] = { k: _key, v: 8972 }, _key = "dscr;", _map[_key] = { k: _key, v: 119993 }, _key = "dscy;", _map[_key] = { k: _key, v: 1109 }, _key = "dsol;", _map[_key] = { k: _key, v: 10742 }, _key = "dstrok;", _map[_key] = { k: _key, v: 273 }, _key = "dtdot;", _map[_key] = { k: _key, v: 8945 }, _key = "dtri;", _map[_key] = { k: _key, v: 9663 }, _key = "dtrif;", _map[_key] = { k: _key, v: 9662 }, _key = "duarr;", _map[_key] = { k: _key, v: 8693 }, _key = "duhar;", _map[_key] = { k: _key, v: 10607 }, _key = "dwangle;", _map[_key] = { k: _key, v: 10662 }, _key = "dzcy;", _map[_key] = { k: _key, v: 1119 }, _key = "dzigrarr;", _map[_key] = { k: _key, v: 10239 }, _key = "eDDot;", _map[_key] = { k: _key, v: 10871 }, _key = "eDot;", _map[_key] = { k: _key, v: 8785 }, _key = "eacute;", _map[_key] = { k: _key, v: 233 }, _key = "easter;", _map[_key] = { k: _key, v: 10862 }, _key = "ecaron;", _map[_key] = { k: _key, v: 283 }, _key = "ecir;", _map[_key] = { k: _key, v: 8790 }, _key = "ecirc;", _map[_key] = { k: _key, v: 234 }, _key = "ecolon;", _map[_key] = { k: _key, v: 8789 }, _key = "ecy;", _map[_key] = { k: _key, v: 1101 }, _key = "edot;", _map[_key] = { k: _key, v: 279 }, _key = "ee;", _map[_key] = { k: _key, v: 8519 }, _key = "efDot;", _map[_key] = { k: _key, v: 8786 }, _key = "efr;", _map[_key] = { k: _key, v: 120098 }, _key = "eg;", _map[_key] = { k: _key, v: 10906 }, _key = "egrave;", _map[_key] = { k: _key, v: 232 }, _key = "egs;", _map[_key] = { k: _key, v: 10902 }, _key = "egsdot;", _map[_key] = { k: _key, v: 10904 }, _key = "el;", _map[_key] = { k: _key, v: 10905 }, _key = "elinters;", _map[_key] = { k: _key, v: 9191 }, _key = "ell;", _map[_key] = { k: _key, v: 8467 }, _key = "els;", _map[_key] = { k: _key, v: 10901 }, _key = "elsdot;", _map[_key] = { k: _key, v: 10903 }, _key = "emacr;", _map[_key] = { k: _key, v: 275 }, _key = "empty;", _map[_key] = { k: _key, v: 8709 }, _key = "emptyset;", _map[_key] = { k: _key, v: 8709 }, _key = "emptyv;", _map[_key] = { k: _key, v: 8709 }, _key = "emsp;", _map[_key] = { k: _key, v: 8195 }, _key = "emsp13;", _map[_key] = { k: _key, v: 8196 }, _key = "emsp14;", _map[_key] = { k: _key, v: 8197 }, _key = "eng;", _map[_key] = { k: _key, v: 331 }, _key = "ensp;", _map[_key] = { k: _key, v: 8194 }, _key = "eogon;", _map[_key] = { k: _key, v: 281 }, _key = "eopf;", _map[_key] = { k: _key, v: 120150 }, _key = "epar;", _map[_key] = { k: _key, v: 8917 }, _key = "eparsl;", _map[_key] = { k: _key, v: 10723 }, _key = "eplus;", _map[_key] = { k: _key, v: 10865 }, _key = "epsi;", _map[_key] = { k: _key, v: 949 }, _key = "epsilon;", _map[_key] = { k: _key, v: 949 }, _key = "epsiv;", _map[_key] = { k: _key, v: 1013 }, _key = "eqcirc;", _map[_key] = { k: _key, v: 8790 }, _key = "eqcolon;", _map[_key] = { k: _key, v: 8789 }, _key = "eqsim;", _map[_key] = { k: _key, v: 8770 }, _key = "eqslantgtr;", _map[_key] = { k: _key, v: 10902 }, _key = "eqslantless;", _map[_key] = { k: _key, v: 10901 }, _key = "equals;", _map[_key] = { k: _key, v: 61 }, _key = "equest;", _map[_key] = { k: _key, v: 8799 }, _key = "equiv;", _map[_key] = { k: _key, v: 8801 }, _key = "equivDD;", _map[_key] = { k: _key, v: 10872 }, _key = "eqvparsl;", _map[_key] = { k: _key, v: 10725 }, _key = "erDot;", _map[_key] = { k: _key, v: 8787 }, _key = "erarr;", _map[_key] = { k: _key, v: 10609 }, _key = "escr;", _map[_key] = { k: _key, v: 8495 }, _key = "esdot;", _map[_key] = { k: _key, v: 8784 }, _key = "esim;", _map[_key] = { k: _key, v: 8770 }, _key = "eta;", _map[_key] = { k: _key, v: 951 }, _key = "eth;", _map[_key] = { k: _key, v: 240 }, _key = "euml;", _map[_key] = { k: _key, v: 235 }, _key = "euro;", _map[_key] = { k: _key, v: 8364 }, _key = "excl;", _map[_key] = { k: _key, v: 33 }, _key = "exist;", _map[_key] = { k: _key, v: 8707 }, _key = "expectation;", _map[_key] = { k: _key, v: 8496 }, _key = "exponentiale;", _map[_key] = { k: _key, v: 8519 }, _key = "fallingdotseq;", _map[_key] = { k: _key, v: 8786 }, _key = "fcy;", _map[_key] = { k: _key, v: 1092 }, _key = "female;", _map[_key] = { k: _key, v: 9792 }, _key = "ffilig;", _map[_key] = { k: _key, v: 64259 }, _key = "fflig;", _map[_key] = { k: _key, v: 64256 }, _key = "ffllig;", _map[_key] = { k: _key, v: 64260 }, _key = "ffr;", _map[_key] = { k: _key, v: 120099 }, _key = "filig;", _map[_key] = { k: _key, v: 64257 }, _key = "flat;", _map[_key] = { k: _key, v: 9837 }, _key = "fllig;", _map[_key] = { k: _key, v: 64258 }, _key = "fltns;", _map[_key] = { k: _key, v: 9649 }, _key = "fnof;", _map[_key] = { k: _key, v: 402 }, _key = "fopf;", _map[_key] = { k: _key, v: 120151 }, _key = "forall;", _map[_key] = { k: _key, v: 8704 }, _key = "fork;", _map[_key] = { k: _key, v: 8916 }, _key = "forkv;", _map[_key] = { k: _key, v: 10969 }, _key = "fpartint;", _map[_key] = { k: _key, v: 10765 }, _key = "frac12;", _map[_key] = { k: _key, v: 189 }, _key = "frac13;", _map[_key] = { k: _key, v: 8531 }, _key = "frac14;", _map[_key] = { k: _key, v: 188 }, _key = "frac15;", _map[_key] = { k: _key, v: 8533 }, _key = "frac16;", _map[_key] = { k: _key, v: 8537 }, _key = "frac18;", _map[_key] = { k: _key, v: 8539 }, _key = "frac23;", _map[_key] = { k: _key, v: 8532 }, _key = "frac25;", _map[_key] = { k: _key, v: 8534 }, _key = "frac34;", _map[_key] = { k: _key, v: 190 }, _key = "frac35;", _map[_key] = { k: _key, v: 8535 }, _key = "frac38;", _map[_key] = { k: _key, v: 8540 }, _key = "frac45;", _map[_key] = { k: _key, v: 8536 }, _key = "frac56;", _map[_key] = { k: _key, v: 8538 }, _key = "frac58;", _map[_key] = { k: _key, v: 8541 }, _key = "frac78;", _map[_key] = { k: _key, v: 8542 }, _key = "frasl;", _map[_key] = { k: _key, v: 8260 }, _key = "frown;", _map[_key] = { k: _key, v: 8994 }, _key = "fscr;", _map[_key] = { k: _key, v: 119995 }, _key = "gE;", _map[_key] = { k: _key, v: 8807 }, _key = "gEl;", _map[_key] = { k: _key, v: 10892 }, _key = "gacute;", _map[_key] = { k: _key, v: 501 }, _key = "gamma;", _map[_key] = { k: _key, v: 947 }, _key = "gammad;", _map[_key] = { k: _key, v: 989 }, _key = "gap;", _map[_key] = { k: _key, v: 10886 }, _key = "gbreve;", _map[_key] = { k: _key, v: 287 }, _key = "gcirc;", _map[_key] = { k: _key, v: 285 }, _key = "gcy;", _map[_key] = { k: _key, v: 1075 }, _key = "gdot;", _map[_key] = { k: _key, v: 289 }, _key = "ge;", _map[_key] = { k: _key, v: 8805 }, _key = "gel;", _map[_key] = { k: _key, v: 8923 }, _key = "geq;", _map[_key] = { k: _key, v: 8805 }, _key = "geqq;", _map[_key] = { k: _key, v: 8807 }, _key = "geqslant;", _map[_key] = { k: _key, v: 10878 }, _key = "ges;", _map[_key] = { k: _key, v: 10878 }, _key = "gescc;", _map[_key] = { k: _key, v: 10921 }, _key = "gesdot;", _map[_key] = { k: _key, v: 10880 }, _key = "gesdoto;", _map[_key] = { k: _key, v: 10882 }, _key = "gesdotol;", _map[_key] = { k: _key, v: 10884 }, _key = "gesles;", _map[_key] = { k: _key, v: 10900 }, _key = "gfr;", _map[_key] = { k: _key, v: 120100 }, _key = "gg;", _map[_key] = { k: _key, v: 8811 }, _key = "ggg;", _map[_key] = { k: _key, v: 8921 }, _key = "gimel;", _map[_key] = { k: _key, v: 8503 }, _key = "gjcy;", _map[_key] = { k: _key, v: 1107 }, _key = "gl;", _map[_key] = { k: _key, v: 8823 }, _key = "glE;", _map[_key] = { k: _key, v: 10898 }, _key = "gla;", _map[_key] = { k: _key, v: 10917 }, _key = "glj;", _map[_key] = { k: _key, v: 10916 }, _key = "gnE;", _map[_key] = { k: _key, v: 8809 }, _key = "gnap;", _map[_key] = { k: _key, v: 10890 }, _key = "gnapprox;", _map[_key] = { k: _key, v: 10890 }, _key = "gne;", _map[_key] = { k: _key, v: 10888 }, _key = "gneq;", _map[_key] = { k: _key, v: 10888 }, _key = "gneqq;", _map[_key] = { k: _key, v: 8809 }, _key = "gnsim;", _map[_key] = { k: _key, v: 8935 }, _key = "gopf;", _map[_key] = { k: _key, v: 120152 }, _key = "grave;", _map[_key] = { k: _key, v: 96 }, _key = "gscr;", _map[_key] = { k: _key, v: 8458 }, _key = "gsim;", _map[_key] = { k: _key, v: 8819 }, _key = "gsime;", _map[_key] = { k: _key, v: 10894 }, _key = "gsiml;", _map[_key] = { k: _key, v: 10896 }, _key = "gt;", _map[_key] = { k: _key, v: 62 }, _key = "gtcc;", _map[_key] = { k: _key, v: 10919 }, _key = "gtcir;", _map[_key] = { k: _key, v: 10874 }, _key = "gtdot;", _map[_key] = { k: _key, v: 8919 }, _key = "gtlPar;", _map[_key] = { k: _key, v: 10645 }, _key = "gtquest;", _map[_key] = { k: _key, v: 10876 }, _key = "gtrapprox;", _map[_key] = { k: _key, v: 10886 }, _key = "gtrarr;", _map[_key] = { k: _key, v: 10616 }, _key = "gtrdot;", _map[_key] = { k: _key, v: 8919 }, _key = "gtreqless;", _map[_key] = { k: _key, v: 8923 }, _key = "gtreqqless;", _map[_key] = { k: _key, v: 10892 }, _key = "gtrless;", _map[_key] = { k: _key, v: 8823 }, _key = "gtrsim;", _map[_key] = { k: _key, v: 8819 }, _key = "hArr;", _map[_key] = { k: _key, v: 8660 }, _key = "hairsp;", _map[_key] = { k: _key, v: 8202 }, _key = "half;", _map[_key] = { k: _key, v: 189 }, _key = "hamilt;", _map[_key] = { k: _key, v: 8459 }, _key = "hardcy;", _map[_key] = { k: _key, v: 1098 }, _key = "harr;", _map[_key] = { k: _key, v: 8596 }, _key = "harrcir;", _map[_key] = { k: _key, v: 10568 }, _key = "harrw;", _map[_key] = { k: _key, v: 8621 }, _key = "hbar;", _map[_key] = { k: _key, v: 8463 }, _key = "hcirc;", _map[_key] = { k: _key, v: 293 }, _key = "hearts;", _map[_key] = { k: _key, v: 9829 }, _key = "heartsuit;", _map[_key] = { k: _key, v: 9829 }, _key = "hellip;", _map[_key] = { k: _key, v: 8230 }, _key = "hercon;", _map[_key] = { k: _key, v: 8889 }, _key = "hfr;", _map[_key] = { k: _key, v: 120101 }, _key = "hksearow;", _map[_key] = { k: _key, v: 10533 }, _key = "hkswarow;", _map[_key] = { k: _key, v: 10534 }, _key = "hoarr;", _map[_key] = { k: _key, v: 8703 }, _key = "homtht;", _map[_key] = { k: _key, v: 8763 }, _key = "hookleftarrow;", _map[_key] = { k: _key, v: 8617 }, _key = "hookrightarrow;", _map[_key] = { k: _key, v: 8618 }, _key = "hopf;", _map[_key] = { k: _key, v: 120153 }, _key = "horbar;", _map[_key] = { k: _key, v: 8213 }, _key = "hscr;", _map[_key] = { k: _key, v: 119997 }, _key = "hslash;", _map[_key] = { k: _key, v: 8463 }, _key = "hstrok;", _map[_key] = { k: _key, v: 295 }, _key = "hybull;", _map[_key] = { k: _key, v: 8259 }, _key = "hyphen;", _map[_key] = { k: _key, v: 8208 }, _key = "iacute;", _map[_key] = { k: _key, v: 237 }, _key = "ic;", _map[_key] = { k: _key, v: 8291 }, _key = "icirc;", _map[_key] = { k: _key, v: 238 }, _key = "icy;", _map[_key] = { k: _key, v: 1080 }, _key = "iecy;", _map[_key] = { k: _key, v: 1077 }, _key = "iexcl;", _map[_key] = { k: _key, v: 161 }, _key = "iff;", _map[_key] = { k: _key, v: 8660 }, _key = "ifr;", _map[_key] = { k: _key, v: 120102 }, _key = "igrave;", _map[_key] = { k: _key, v: 236 }, _key = "ii;", _map[_key] = { k: _key, v: 8520 }, _key = "iiiint;", _map[_key] = { k: _key, v: 10764 }, _key = "iiint;", _map[_key] = { k: _key, v: 8749 }, _key = "iinfin;", _map[_key] = { k: _key, v: 10716 }, _key = "iiota;", _map[_key] = { k: _key, v: 8489 }, _key = "ijlig;", _map[_key] = { k: _key, v: 307 }, _key = "imacr;", _map[_key] = { k: _key, v: 299 }, _key = "image;", _map[_key] = { k: _key, v: 8465 }, _key = "imagline;", _map[_key] = { k: _key, v: 8464 }, _key = "imagpart;", _map[_key] = { k: _key, v: 8465 }, _key = "imath;", _map[_key] = { k: _key, v: 305 }, _key = "imof;", _map[_key] = { k: _key, v: 8887 }, _key = "imped;", _map[_key] = { k: _key, v: 437 }, _key = "in;", _map[_key] = { k: _key, v: 8712 }, _key = "incare;", _map[_key] = { k: _key, v: 8453 }, _key = "infin;", _map[_key] = { k: _key, v: 8734 }, _key = "infintie;", _map[_key] = { k: _key, v: 10717 }, _key = "inodot;", _map[_key] = { k: _key, v: 305 }, _key = "int;", _map[_key] = { k: _key, v: 8747 }, _key = "intcal;", _map[_key] = { k: _key, v: 8890 }, _key = "integers;", _map[_key] = { k: _key, v: 8484 }, _key = "intercal;", _map[_key] = { k: _key, v: 8890 }, _key = "intlarhk;", _map[_key] = { k: _key, v: 10775 }, _key = "intprod;", _map[_key] = { k: _key, v: 10812 }, _key = "iocy;", _map[_key] = { k: _key, v: 1105 }, _key = "iogon;", _map[_key] = { k: _key, v: 303 }, _key = "iopf;", _map[_key] = { k: _key, v: 120154 }, _key = "iota;", _map[_key] = { k: _key, v: 953 }, _key = "iprod;", _map[_key] = { k: _key, v: 10812 }, _key = "iquest;", _map[_key] = { k: _key, v: 191 }, _key = "iscr;", _map[_key] = { k: _key, v: 119998 }, _key = "isin;", _map[_key] = { k: _key, v: 8712 }, _key = "isinE;", _map[_key] = { k: _key, v: 8953 }, _key = "isindot;", _map[_key] = { k: _key, v: 8949 }, _key = "isins;", _map[_key] = { k: _key, v: 8948 }, _key = "isinsv;", _map[_key] = { k: _key, v: 8947 }, _key = "isinv;", _map[_key] = { k: _key, v: 8712 }, _key = "it;", _map[_key] = { k: _key, v: 8290 }, _key = "itilde;", _map[_key] = { k: _key, v: 297 }, _key = "iukcy;", _map[_key] = { k: _key, v: 1110 }, _key = "iuml;", _map[_key] = { k: _key, v: 239 }, _key = "jcirc;", _map[_key] = { k: _key, v: 309 }, _key = "jcy;", _map[_key] = { k: _key, v: 1081 }, _key = "jfr;", _map[_key] = { k: _key, v: 120103 }, _key = "jmath;", _map[_key] = { k: _key, v: 567 }, _key = "jopf;", _map[_key] = { k: _key, v: 120155 }, _key = "jscr;", _map[_key] = { k: _key, v: 119999 }, _key = "jsercy;", _map[_key] = { k: _key, v: 1112 }, _key = "jukcy;", _map[_key] = { k: _key, v: 1108 }, _key = "kappa;", _map[_key] = { k: _key, v: 954 }, _key = "kappav;", _map[_key] = { k: _key, v: 1008 }, _key = "kcedil;", _map[_key] = { k: _key, v: 311 }, _key = "kcy;", _map[_key] = { k: _key, v: 1082 }, _key = "kfr;", _map[_key] = { k: _key, v: 120104 }, _key = "kgreen;", _map[_key] = { k: _key, v: 312 }, _key = "khcy;", _map[_key] = { k: _key, v: 1093 }, _key = "kjcy;", _map[_key] = { k: _key, v: 1116 }, _key = "kopf;", _map[_key] = { k: _key, v: 120156 }, _key = "kscr;", _map[_key] = { k: _key, v: 120000 }, _key = "lAarr;", _map[_key] = { k: _key, v: 8666 }, _key = "lArr;", _map[_key] = { k: _key, v: 8656 }, _key = "lAtail;", _map[_key] = { k: _key, v: 10523 }, _key = "lBarr;", _map[_key] = { k: _key, v: 10510 }, _key = "lE;", _map[_key] = { k: _key, v: 8806 }, _key = "lEg;", _map[_key] = { k: _key, v: 10891 }, _key = "lHar;", _map[_key] = { k: _key, v: 10594 }, _key = "lacute;", _map[_key] = { k: _key, v: 314 }, _key = "laemptyv;", _map[_key] = { k: _key, v: 10676 }, _key = "lagran;", _map[_key] = { k: _key, v: 8466 }, _key = "lambda;", _map[_key] = { k: _key, v: 955 }, _key = "lang;", _map[_key] = { k: _key, v: 10216 }, _key = "langd;", _map[_key] = { k: _key, v: 10641 }, _key = "langle;", _map[_key] = { k: _key, v: 10216 }, _key = "lap;", _map[_key] = { k: _key, v: 10885 }, _key = "laquo;", _map[_key] = { k: _key, v: 171 }, _key = "larr;", _map[_key] = { k: _key, v: 8592 }, _key = "larrb;", _map[_key] = { k: _key, v: 8676 }, _key = "larrbfs;", _map[_key] = { k: _key, v: 10527 }, _key = "larrfs;", _map[_key] = { k: _key, v: 10525 }, _key = "larrhk;", _map[_key] = { k: _key, v: 8617 }, _key = "larrlp;", _map[_key] = { k: _key, v: 8619 }, _key = "larrpl;", _map[_key] = { k: _key, v: 10553 }, _key = "larrsim;", _map[_key] = { k: _key, v: 10611 }, _key = "larrtl;", _map[_key] = { k: _key, v: 8610 }, _key = "lat;", _map[_key] = { k: _key, v: 10923 }, _key = "latail;", _map[_key] = { k: _key, v: 10521 }, _key = "late;", _map[_key] = { k: _key, v: 10925 }, _key = "lbarr;", _map[_key] = { k: _key, v: 10508 }, _key = "lbbrk;", _map[_key] = { k: _key, v: 10098 }, _key = "lbrace;", _map[_key] = { k: _key, v: 123 }, _key = "lbrack;", _map[_key] = { k: _key, v: 91 }, _key = "lbrke;", _map[_key] = { k: _key, v: 10635 }, _key = "lbrksld;", _map[_key] = { k: _key, v: 10639 }, _key = "lbrkslu;", _map[_key] = { k: _key, v: 10637 }, _key = "lcaron;", _map[_key] = { k: _key, v: 318 }, _key = "lcedil;", _map[_key] = { k: _key, v: 316 }, _key = "lceil;", _map[_key] = { k: _key, v: 8968 }, _key = "lcub;", _map[_key] = { k: _key, v: 123 }, _key = "lcy;", _map[_key] = { k: _key, v: 1083 }, _key = "ldca;", _map[_key] = { k: _key, v: 10550 }, _key = "ldquo;", _map[_key] = { k: _key, v: 8220 }, _key = "ldquor;", _map[_key] = { k: _key, v: 8222 }, _key = "ldrdhar;", _map[_key] = { k: _key, v: 10599 }, _key = "ldrushar;", _map[_key] = { k: _key, v: 10571 }, _key = "ldsh;", _map[_key] = { k: _key, v: 8626 }, _key = "le;", _map[_key] = { k: _key, v: 8804 }, _key = "leftarrow;", _map[_key] = { k: _key, v: 8592 }, _key = "leftarrowtail;", _map[_key] = { k: _key, v: 8610 }, _key = "leftharpoondown;", _map[_key] = { k: _key, v: 8637 }, _key = "leftharpoonup;", _map[_key] = { k: _key, v: 8636 }, _key = "leftleftarrows;", _map[_key] = { k: _key, v: 8647 }, _key = "leftrightarrow;", _map[_key] = { k: _key, v: 8596 }, _key = "leftrightarrows;", _map[_key] = { k: _key, v: 8646 }, _key = "leftrightharpoons;", _map[_key] = { k: _key, v: 8651 }, _key = "leftrightsquigarrow;", _map[_key] = { k: _key, v: 8621 }, _key = "leftthreetimes;", _map[_key] = { k: _key, v: 8907 }, _key = "leg;", _map[_key] = { k: _key, v: 8922 }, _key = "leq;", _map[_key] = { k: _key, v: 8804 }, _key = "leqq;", _map[_key] = { k: _key, v: 8806 }, _key = "leqslant;", _map[_key] = { k: _key, v: 10877 }, _key = "les;", _map[_key] = { k: _key, v: 10877 }, _key = "lescc;", _map[_key] = { k: _key, v: 10920 }, _key = "lesdot;", _map[_key] = { k: _key, v: 10879 }, _key = "lesdoto;", _map[_key] = { k: _key, v: 10881 }, _key = "lesdotor;", _map[_key] = { k: _key, v: 10883 }, _key = "lesges;", _map[_key] = { k: _key, v: 10899 }, _key = "lessapprox;", _map[_key] = { k: _key, v: 10885 }, _key = "lessdot;", _map[_key] = { k: _key, v: 8918 }, _key = "lesseqgtr;", _map[_key] = { k: _key, v: 8922 }, _key = "lesseqqgtr;", _map[_key] = { k: _key, v: 10891 }, _key = "lessgtr;", _map[_key] = { k: _key, v: 8822 }, _key = "lesssim;", _map[_key] = { k: _key, v: 8818 }, _key = "lfisht;", _map[_key] = { k: _key, v: 10620 }, _key = "lfloor;", _map[_key] = { k: _key, v: 8970 }, _key = "lfr;", _map[_key] = { k: _key, v: 120105 }, _key = "lg;", _map[_key] = { k: _key, v: 8822 }, _key = "lgE;", _map[_key] = { k: _key, v: 10897 }, _key = "lhard;", _map[_key] = { k: _key, v: 8637 }, _key = "lharu;", _map[_key] = { k: _key, v: 8636 }, _key = "lharul;", _map[_key] = { k: _key, v: 10602 }, _key = "lhblk;", _map[_key] = { k: _key, v: 9604 }, _key = "ljcy;", _map[_key] = { k: _key, v: 1113 }, _key = "ll;", _map[_key] = { k: _key, v: 8810 }, _key = "llarr;", _map[_key] = { k: _key, v: 8647 }, _key = "llcorner;", _map[_key] = { k: _key, v: 8990 }, _key = "llhard;", _map[_key] = { k: _key, v: 10603 }, _key = "lltri;", _map[_key] = { k: _key, v: 9722 }, _key = "lmidot;", _map[_key] = { k: _key, v: 320 }, _key = "lmoust;", _map[_key] = { k: _key, v: 9136 }, _key = "lmoustache;", _map[_key] = { k: _key, v: 9136 }, _key = "lnE;", _map[_key] = { k: _key, v: 8808 }, _key = "lnap;", _map[_key] = { k: _key, v: 10889 }, _key = "lnapprox;", _map[_key] = { k: _key, v: 10889 }, _key = "lne;", _map[_key] = { k: _key, v: 10887 }, _key = "lneq;", _map[_key] = { k: _key, v: 10887 }, _key = "lneqq;", _map[_key] = { k: _key, v: 8808 }, _key = "lnsim;", _map[_key] = { k: _key, v: 8934 }, _key = "loang;", _map[_key] = { k: _key, v: 10220 }, _key = "loarr;", _map[_key] = { k: _key, v: 8701 }, _key = "lobrk;", _map[_key] = { k: _key, v: 10214 }, _key = "longleftarrow;", _map[_key] = { k: _key, v: 10229 }, _key = "longleftrightarrow;", _map[_key] = { k: _key, v: 10231 }, _key = "longmapsto;", _map[_key] = { k: _key, v: 10236 }, _key = "longrightarrow;", _map[_key] = { k: _key, v: 10230 }, _key = "looparrowleft;", _map[_key] = { k: _key, v: 8619 }, _key = "looparrowright;", _map[_key] = { k: _key, v: 8620 }, _key = "lopar;", _map[_key] = { k: _key, v: 10629 }, _key = "lopf;", _map[_key] = { k: _key, v: 120157 }, _key = "loplus;", _map[_key] = { k: _key, v: 10797 }, _key = "lotimes;", _map[_key] = { k: _key, v: 10804 }, _key = "lowast;", _map[_key] = { k: _key, v: 8727 }, _key = "lowbar;", _map[_key] = { k: _key, v: 95 }, _key = "loz;", _map[_key] = { k: _key, v: 9674 }, _key = "lozenge;", _map[_key] = { k: _key, v: 9674 }, _key = "lozf;", _map[_key] = { k: _key, v: 10731 }, _key = "lpar;", _map[_key] = { k: _key, v: 40 }, _key = "lparlt;", _map[_key] = { k: _key, v: 10643 }, _key = "lrarr;", _map[_key] = { k: _key, v: 8646 }, _key = "lrcorner;", _map[_key] = { k: _key, v: 8991 }, _key = "lrhar;", _map[_key] = { k: _key, v: 8651 }, _key = "lrhard;", _map[_key] = { k: _key, v: 10605 }, _key = "lrm;", _map[_key] = { k: _key, v: 8206 }, _key = "lrtri;", _map[_key] = { k: _key, v: 8895 }, _key = "lsaquo;", _map[_key] = { k: _key, v: 8249 }, _key = "lscr;", _map[_key] = { k: _key, v: 120001 }, _key = "lsh;", _map[_key] = { k: _key, v: 8624 }, _key = "lsim;", _map[_key] = { k: _key, v: 8818 }, _key = "lsime;", _map[_key] = { k: _key, v: 10893 }, _key = "lsimg;", _map[_key] = { k: _key, v: 10895 }, _key = "lsqb;", _map[_key] = { k: _key, v: 91 }, _key = "lsquo;", _map[_key] = { k: _key, v: 8216 }, _key = "lsquor;", _map[_key] = { k: _key, v: 8218 }, _key = "lstrok;", _map[_key] = { k: _key, v: 322 }, _key = "lt;", _map[_key] = { k: _key, v: 60 }, _key = "ltcc;", _map[_key] = { k: _key, v: 10918 }, _key = "ltcir;", _map[_key] = { k: _key, v: 10873 }, _key = "ltdot;", _map[_key] = { k: _key, v: 8918 }, _key = "lthree;", _map[_key] = { k: _key, v: 8907 }, _key = "ltimes;", _map[_key] = { k: _key, v: 8905 }, _key = "ltlarr;", _map[_key] = { k: _key, v: 10614 }, _key = "ltquest;", _map[_key] = { k: _key, v: 10875 }, _key = "ltrPar;", _map[_key] = { k: _key, v: 10646 }, _key = "ltri;", _map[_key] = { k: _key, v: 9667 }, _key = "ltrie;", _map[_key] = { k: _key, v: 8884 }, _key = "ltrif;", _map[_key] = { k: _key, v: 9666 }, _key = "lurdshar;", _map[_key] = { k: _key, v: 10570 }, _key = "luruhar;", _map[_key] = { k: _key, v: 10598 }, _key = "mDDot;", _map[_key] = { k: _key, v: 8762 }, _key = "macr;", _map[_key] = { k: _key, v: 175 }, _key = "male;", _map[_key] = { k: _key, v: 9794 }, _key = "malt;", _map[_key] = { k: _key, v: 10016 }, _key = "maltese;", _map[_key] = { k: _key, v: 10016 }, _key = "map;", _map[_key] = { k: _key, v: 8614 }, _key = "mapsto;", _map[_key] = { k: _key, v: 8614 }, _key = "mapstodown;", _map[_key] = { k: _key, v: 8615 }, _key = "mapstoleft;", _map[_key] = { k: _key, v: 8612 }, _key = "mapstoup;", _map[_key] = { k: _key, v: 8613 }, _key = "marker;", _map[_key] = { k: _key, v: 9646 }, _key = "mcomma;", _map[_key] = { k: _key, v: 10793 }, _key = "mcy;", _map[_key] = { k: _key, v: 1084 }, _key = "mdash;", _map[_key] = { k: _key, v: 8212 }, _key = "measuredangle;", _map[_key] = { k: _key, v: 8737 }, _key = "mfr;", _map[_key] = { k: _key, v: 120106 }, _key = "mho;", _map[_key] = { k: _key, v: 8487 }, _key = "micro;", _map[_key] = { k: _key, v: 181 }, _key = "mid;", _map[_key] = { k: _key, v: 8739 }, _key = "midast;", _map[_key] = { k: _key, v: 42 }, _key = "midcir;", _map[_key] = { k: _key, v: 10992 }, _key = "middot;", _map[_key] = { k: _key, v: 183 }, _key = "minus;", _map[_key] = { k: _key, v: 8722 }, _key = "minusb;", _map[_key] = { k: _key, v: 8863 }, _key = "minusd;", _map[_key] = { k: _key, v: 8760 }, _key = "minusdu;", _map[_key] = { k: _key, v: 10794 }, _key = "mlcp;", _map[_key] = { k: _key, v: 10971 }, _key = "mldr;", _map[_key] = { k: _key, v: 8230 }, _key = "mnplus;", _map[_key] = { k: _key, v: 8723 }, _key = "models;", _map[_key] = { k: _key, v: 8871 }, _key = "mopf;", _map[_key] = { k: _key, v: 120158 }, _key = "mp;", _map[_key] = { k: _key, v: 8723 }, _key = "mscr;", _map[_key] = { k: _key, v: 120002 }, _key = "mstpos;", _map[_key] = { k: _key, v: 8766 }, _key = "mu;", _map[_key] = { k: _key, v: 956 }, _key = "multimap;", _map[_key] = { k: _key, v: 8888 }, _key = "mumap;", _map[_key] = { k: _key, v: 8888 }, _key = "nLeftarrow;", _map[_key] = { k: _key, v: 8653 }, _key = "nLeftrightarrow;", _map[_key] = { k: _key, v: 8654 }, _key = "nRightarrow;", _map[_key] = { k: _key, v: 8655 }, _key = "nVDash;", _map[_key] = { k: _key, v: 8879 }, _key = "nVdash;", _map[_key] = { k: _key, v: 8878 }, _key = "nabla;", _map[_key] = { k: _key, v: 8711 }, _key = "nacute;", _map[_key] = { k: _key, v: 324 }, _key = "nap;", _map[_key] = { k: _key, v: 8777 }, _key = "napos;", _map[_key] = { k: _key, v: 329 }, _key = "napprox;", _map[_key] = { k: _key, v: 8777 }, _key = "natur;", _map[_key] = { k: _key, v: 9838 }, _key = "natural;", _map[_key] = { k: _key, v: 9838 }, _key = "naturals;", _map[_key] = { k: _key, v: 8469 }, _key = "nbsp;", _map[_key] = { k: _key, v: 160 }, _key = "ncap;", _map[_key] = { k: _key, v: 10819 }, _key = "ncaron;", _map[_key] = { k: _key, v: 328 }, _key = "ncedil;", _map[_key] = { k: _key, v: 326 }, _key = "ncong;", _map[_key] = { k: _key, v: 8775 }, _key = "ncup;", _map[_key] = { k: _key, v: 10818 }, _key = "ncy;", _map[_key] = { k: _key, v: 1085 }, _key = "ndash;", _map[_key] = { k: _key, v: 8211 }, _key = "ne;", _map[_key] = { k: _key, v: 8800 }, _key = "neArr;", _map[_key] = { k: _key, v: 8663 }, _key = "nearhk;", _map[_key] = { k: _key, v: 10532 }, _key = "nearr;", _map[_key] = { k: _key, v: 8599 }, _key = "nearrow;", _map[_key] = { k: _key, v: 8599 }, _key = "nequiv;", _map[_key] = { k: _key, v: 8802 }, _key = "nesear;", _map[_key] = { k: _key, v: 10536 }, _key = "nexist;", _map[_key] = { k: _key, v: 8708 }, _key = "nexists;", _map[_key] = { k: _key, v: 8708 }, _key = "nfr;", _map[_key] = { k: _key, v: 120107 }, _key = "nge;", _map[_key] = { k: _key, v: 8817 }, _key = "ngeq;", _map[_key] = { k: _key, v: 8817 }, _key = "ngsim;", _map[_key] = { k: _key, v: 8821 }, _key = "ngt;", _map[_key] = { k: _key, v: 8815 }, _key = "ngtr;", _map[_key] = { k: _key, v: 8815 }, _key = "nhArr;", _map[_key] = { k: _key, v: 8654 }, _key = "nharr;", _map[_key] = { k: _key, v: 8622 }, _key = "nhpar;", _map[_key] = { k: _key, v: 10994 }, _key = "ni;", _map[_key] = { k: _key, v: 8715 }, _key = "nis;", _map[_key] = { k: _key, v: 8956 }, _key = "nisd;", _map[_key] = { k: _key, v: 8954 }, _key = "niv;", _map[_key] = { k: _key, v: 8715 }, _key = "njcy;", _map[_key] = { k: _key, v: 1114 }, _key = "nlArr;", _map[_key] = { k: _key, v: 8653 }, _key = "nlarr;", _map[_key] = { k: _key, v: 8602 }, _key = "nldr;", _map[_key] = { k: _key, v: 8229 }, _key = "nle;", _map[_key] = { k: _key, v: 8816 }, _key = "nleftarrow;", _map[_key] = { k: _key, v: 8602 }, _key = "nleftrightarrow;", _map[_key] = { k: _key, v: 8622 }, _key = "nleq;", _map[_key] = { k: _key, v: 8816 }, _key = "nless;", _map[_key] = { k: _key, v: 8814 }, _key = "nlsim;", _map[_key] = { k: _key, v: 8820 }, _key = "nlt;", _map[_key] = { k: _key, v: 8814 }, _key = "nltri;", _map[_key] = { k: _key, v: 8938 }, _key = "nltrie;", _map[_key] = { k: _key, v: 8940 }, _key = "nmid;", _map[_key] = { k: _key, v: 8740 }, _key = "nopf;", _map[_key] = { k: _key, v: 120159 }, _key = "not;", _map[_key] = { k: _key, v: 172 }, _key = "notin;", _map[_key] = { k: _key, v: 8713 }, _key = "notinva;", _map[_key] = { k: _key, v: 8713 }, _key = "notinvb;", _map[_key] = { k: _key, v: 8951 }, _key = "notinvc;", _map[_key] = { k: _key, v: 8950 }, _key = "notni;", _map[_key] = { k: _key, v: 8716 }, _key = "notniva;", _map[_key] = { k: _key, v: 8716 }, _key = "notnivb;", _map[_key] = { k: _key, v: 8958 }, _key = "notnivc;", _map[_key] = { k: _key, v: 8957 }, _key = "npar;", _map[_key] = { k: _key, v: 8742 }, _key = "nparallel;", _map[_key] = { k: _key, v: 8742 }, _key = "npolint;", _map[_key] = { k: _key, v: 10772 }, _key = "npr;", _map[_key] = { k: _key, v: 8832 }, _key = "nprcue;", _map[_key] = { k: _key, v: 8928 }, _key = "nprec;", _map[_key] = { k: _key, v: 8832 }, _key = "nrArr;", _map[_key] = { k: _key, v: 8655 }, _key = "nrarr;", _map[_key] = { k: _key, v: 8603 }, _key = "nrightarrow;", _map[_key] = { k: _key, v: 8603 }, _key = "nrtri;", _map[_key] = { k: _key, v: 8939 }, _key = "nrtrie;", _map[_key] = { k: _key, v: 8941 }, _key = "nsc;", _map[_key] = { k: _key, v: 8833 }, _key = "nsccue;", _map[_key] = { k: _key, v: 8929 }, _key = "nscr;", _map[_key] = { k: _key, v: 120003 }, _key = "nshortmid;", _map[_key] = { k: _key, v: 8740 }, _key = "nshortparallel;", _map[_key] = { k: _key, v: 8742 }, _key = "nsim;", _map[_key] = { k: _key, v: 8769 }, _key = "nsime;", _map[_key] = { k: _key, v: 8772 }, _key = "nsimeq;", _map[_key] = { k: _key, v: 8772 }, _key = "nsmid;", _map[_key] = { k: _key, v: 8740 }, _key = "nspar;", _map[_key] = { k: _key, v: 8742 }, _key = "nsqsube;", _map[_key] = { k: _key, v: 8930 }, _key = "nsqsupe;", _map[_key] = { k: _key, v: 8931 }, _key = "nsub;", _map[_key] = { k: _key, v: 8836 }, _key = "nsube;", _map[_key] = { k: _key, v: 8840 }, _key = "nsubseteq;", _map[_key] = { k: _key, v: 8840 }, _key = "nsucc;", _map[_key] = { k: _key, v: 8833 }, _key = "nsup;", _map[_key] = { k: _key, v: 8837 }, _key = "nsupe;", _map[_key] = { k: _key, v: 8841 }, _key = "nsupseteq;", _map[_key] = { k: _key, v: 8841 }, _key = "ntgl;", _map[_key] = { k: _key, v: 8825 }, _key = "ntilde;", _map[_key] = { k: _key, v: 241 }, _key = "ntlg;", _map[_key] = { k: _key, v: 8824 }, _key = "ntriangleleft;", _map[_key] = { k: _key, v: 8938 }, _key = "ntrianglelefteq;", _map[_key] = { k: _key, v: 8940 }, _key = "ntriangleright;", _map[_key] = { k: _key, v: 8939 }, _key = "ntrianglerighteq;", _map[_key] = { k: _key, v: 8941 }, _key = "nu;", _map[_key] = { k: _key, v: 957 }, _key = "num;", _map[_key] = { k: _key, v: 35 }, _key = "numero;", _map[_key] = { k: _key, v: 8470 }, _key = "numsp;", _map[_key] = { k: _key, v: 8199 }, _key = "nvDash;", _map[_key] = { k: _key, v: 8877 }, _key = "nvHarr;", _map[_key] = { k: _key, v: 10500 }, _key = "nvdash;", _map[_key] = { k: _key, v: 8876 }, _key = "nvinfin;", _map[_key] = { k: _key, v: 10718 }, _key = "nvlArr;", _map[_key] = { k: _key, v: 10498 }, _key = "nvrArr;", _map[_key] = { k: _key, v: 10499 }, _key = "nwArr;", _map[_key] = { k: _key, v: 8662 }, _key = "nwarhk;", _map[_key] = { k: _key, v: 10531 }, _key = "nwarr;", _map[_key] = { k: _key, v: 8598 }, _key = "nwarrow;", _map[_key] = { k: _key, v: 8598 }, _key = "nwnear;", _map[_key] = { k: _key, v: 10535 }, _key = "oS;", _map[_key] = { k: _key, v: 9416 }, _key = "oacute;", _map[_key] = { k: _key, v: 243 }, _key = "oast;", _map[_key] = { k: _key, v: 8859 }, _key = "ocir;", _map[_key] = { k: _key, v: 8858 }, _key = "ocirc;", _map[_key] = { k: _key, v: 244 }, _key = "ocy;", _map[_key] = { k: _key, v: 1086 }, _key = "odash;", _map[_key] = { k: _key, v: 8861 }, _key = "odblac;", _map[_key] = { k: _key, v: 337 }, _key = "odiv;", _map[_key] = { k: _key, v: 10808 }, _key = "odot;", _map[_key] = { k: _key, v: 8857 }, _key = "odsold;", _map[_key] = { k: _key, v: 10684 }, _key = "oelig;", _map[_key] = { k: _key, v: 339 }, _key = "ofcir;", _map[_key] = { k: _key, v: 10687 }, _key = "ofr;", _map[_key] = { k: _key, v: 120108 }, _key = "ogon;", _map[_key] = { k: _key, v: 731 }, _key = "ograve;", _map[_key] = { k: _key, v: 242 }, _key = "ogt;", _map[_key] = { k: _key, v: 10689 }, _key = "ohbar;", _map[_key] = { k: _key, v: 10677 }, _key = "ohm;", _map[_key] = { k: _key, v: 937 }, _key = "oint;", _map[_key] = { k: _key, v: 8750 }, _key = "olarr;", _map[_key] = { k: _key, v: 8634 }, _key = "olcir;", _map[_key] = { k: _key, v: 10686 }, _key = "olcross;", _map[_key] = { k: _key, v: 10683 }, _key = "oline;", _map[_key] = { k: _key, v: 8254 }, _key = "olt;", _map[_key] = { k: _key, v: 10688 }, _key = "omacr;", _map[_key] = { k: _key, v: 333 }, _key = "omega;", _map[_key] = { k: _key, v: 969 }, _key = "omicron;", _map[_key] = { k: _key, v: 959 }, _key = "omid;", _map[_key] = { k: _key, v: 10678 }, _key = "ominus;", _map[_key] = { k: _key, v: 8854 }, _key = "oopf;", _map[_key] = { k: _key, v: 120160 }, _key = "opar;", _map[_key] = { k: _key, v: 10679 }, _key = "operp;", _map[_key] = { k: _key, v: 10681 }, _key = "oplus;", _map[_key] = { k: _key, v: 8853 }, _key = "or;", _map[_key] = { k: _key, v: 8744 }, _key = "orarr;", _map[_key] = { k: _key, v: 8635 }, _key = "ord;", _map[_key] = { k: _key, v: 10845 }, _key = "order;", _map[_key] = { k: _key, v: 8500 }, _key = "orderof;", _map[_key] = { k: _key, v: 8500 }, _key = "ordf;", _map[_key] = { k: _key, v: 170 }, _key = "ordm;", _map[_key] = { k: _key, v: 186 }, _key = "origof;", _map[_key] = { k: _key, v: 8886 }, _key = "oror;", _map[_key] = { k: _key, v: 10838 }, _key = "orslope;", _map[_key] = { k: _key, v: 10839 }, _key = "orv;", _map[_key] = { k: _key, v: 10843 }, _key = "oscr;", _map[_key] = { k: _key, v: 8500 }, _key = "oslash;", _map[_key] = { k: _key, v: 248 }, _key = "osol;", _map[_key] = { k: _key, v: 8856 }, _key = "otilde;", _map[_key] = { k: _key, v: 245 }, _key = "otimes;", _map[_key] = { k: _key, v: 8855 }, _key = "otimesas;", _map[_key] = { k: _key, v: 10806 }, _key = "ouml;", _map[_key] = { k: _key, v: 246 }, _key = "ovbar;", _map[_key] = { k: _key, v: 9021 }, _key = "par;", _map[_key] = { k: _key, v: 8741 }, _key = "para;", _map[_key] = { k: _key, v: 182 }, _key = "parallel;", _map[_key] = { k: _key, v: 8741 }, _key = "parsim;", _map[_key] = { k: _key, v: 10995 }, _key = "parsl;", _map[_key] = { k: _key, v: 11005 }, _key = "part;", _map[_key] = { k: _key, v: 8706 }, _key = "pcy;", _map[_key] = { k: _key, v: 1087 }, _key = "percnt;", _map[_key] = { k: _key, v: 37 }, _key = "period;", _map[_key] = { k: _key, v: 46 }, _key = "permil;", _map[_key] = { k: _key, v: 8240 }, _key = "perp;", _map[_key] = { k: _key, v: 8869 }, _key = "pertenk;", _map[_key] = { k: _key, v: 8241 }, _key = "pfr;", _map[_key] = { k: _key, v: 120109 }, _key = "phi;", _map[_key] = { k: _key, v: 966 }, _key = "phiv;", _map[_key] = { k: _key, v: 981 }, _key = "phmmat;", _map[_key] = { k: _key, v: 8499 }, _key = "phone;", _map[_key] = { k: _key, v: 9742 }, _key = "pi;", _map[_key] = { k: _key, v: 960 }, _key = "pitchfork;", _map[_key] = { k: _key, v: 8916 }, _key = "piv;", _map[_key] = { k: _key, v: 982 }, _key = "planck;", _map[_key] = { k: _key, v: 8463 }, _key = "planckh;", _map[_key] = { k: _key, v: 8462 }, _key = "plankv;", _map[_key] = { k: _key, v: 8463 }, _key = "plus;", _map[_key] = { k: _key, v: 43 }, _key = "plusacir;", _map[_key] = { k: _key, v: 10787 }, _key = "plusb;", _map[_key] = { k: _key, v: 8862 }, _key = "pluscir;", _map[_key] = { k: _key, v: 10786 }, _key = "plusdo;", _map[_key] = { k: _key, v: 8724 }, _key = "plusdu;", _map[_key] = { k: _key, v: 10789 }, _key = "pluse;", _map[_key] = { k: _key, v: 10866 }, _key = "plusmn;", _map[_key] = { k: _key, v: 177 }, _key = "plussim;", _map[_key] = { k: _key, v: 10790 }, _key = "plustwo;", _map[_key] = { k: _key, v: 10791 }, _key = "pm;", _map[_key] = { k: _key, v: 177 }, _key = "pointint;", _map[_key] = { k: _key, v: 10773 }, _key = "popf;", _map[_key] = { k: _key, v: 120161 }, _key = "pound;", _map[_key] = { k: _key, v: 163 }, _key = "pr;", _map[_key] = { k: _key, v: 8826 }, _key = "prE;", _map[_key] = { k: _key, v: 10931 }, _key = "prap;", _map[_key] = { k: _key, v: 10935 }, _key = "prcue;", _map[_key] = { k: _key, v: 8828 }, _key = "pre;", _map[_key] = { k: _key, v: 10927 }, _key = "prec;", _map[_key] = { k: _key, v: 8826 }, _key = "precapprox;", _map[_key] = { k: _key, v: 10935 }, _key = "preccurlyeq;", _map[_key] = { k: _key, v: 8828 }, _key = "preceq;", _map[_key] = { k: _key, v: 10927 }, _key = "precnapprox;", _map[_key] = { k: _key, v: 10937 }, _key = "precneqq;", _map[_key] = { k: _key, v: 10933 }, _key = "precnsim;", _map[_key] = { k: _key, v: 8936 }, _key = "precsim;", _map[_key] = { k: _key, v: 8830 }, _key = "prime;", _map[_key] = { k: _key, v: 8242 }, _key = "primes;", _map[_key] = { k: _key, v: 8473 }, _key = "prnE;", _map[_key] = { k: _key, v: 10933 }, _key = "prnap;", _map[_key] = { k: _key, v: 10937 }, _key = "prnsim;", _map[_key] = { k: _key, v: 8936 }, _key = "prod;", _map[_key] = { k: _key, v: 8719 }, _key = "profalar;", _map[_key] = { k: _key, v: 9006 }, _key = "profline;", _map[_key] = { k: _key, v: 8978 }, _key = "profsurf;", _map[_key] = { k: _key, v: 8979 }, _key = "prop;", _map[_key] = { k: _key, v: 8733 }, _key = "propto;", _map[_key] = { k: _key, v: 8733 }, _key = "prsim;", _map[_key] = { k: _key, v: 8830 }, _key = "prurel;", _map[_key] = { k: _key, v: 8880 }, _key = "pscr;", _map[_key] = { k: _key, v: 120005 }, _key = "psi;", _map[_key] = { k: _key, v: 968 }, _key = "puncsp;", _map[_key] = { k: _key, v: 8200 }, _key = "qfr;", _map[_key] = { k: _key, v: 120110 }, _key = "qint;", _map[_key] = { k: _key, v: 10764 }, _key = "qopf;", _map[_key] = { k: _key, v: 120162 }, _key = "qprime;", _map[_key] = { k: _key, v: 8279 }, _key = "qscr;", _map[_key] = { k: _key, v: 120006 }, _key = "quaternions;", _map[_key] = { k: _key, v: 8461 }, _key = "quatint;", _map[_key] = { k: _key, v: 10774 }, _key = "quest;", _map[_key] = { k: _key, v: 63 }, _key = "questeq;", _map[_key] = { k: _key, v: 8799 }, _key = "quot;", _map[_key] = { k: _key, v: 34 }, _key = "rAarr;", _map[_key] = { k: _key, v: 8667 }, _key = "rArr;", _map[_key] = { k: _key, v: 8658 }, _key = "rAtail;", _map[_key] = { k: _key, v: 10524 }, _key = "rBarr;", _map[_key] = { k: _key, v: 10511 }, _key = "rHar;", _map[_key] = { k: _key, v: 10596 }, _key = "racute;", _map[_key] = { k: _key, v: 341 }, _key = "radic;", _map[_key] = { k: _key, v: 8730 }, _key = "raemptyv;", _map[_key] = { k: _key, v: 10675 }, _key = "rang;", _map[_key] = { k: _key, v: 10217 }, _key = "rangd;", _map[_key] = { k: _key, v: 10642 }, _key = "range;", _map[_key] = { k: _key, v: 10661 }, _key = "rangle;", _map[_key] = { k: _key, v: 10217 }, _key = "raquo;", _map[_key] = { k: _key, v: 187 }, _key = "rarr;", _map[_key] = { k: _key, v: 8594 }, _key = "rarrap;", _map[_key] = { k: _key, v: 10613 }, _key = "rarrb;", _map[_key] = { k: _key, v: 8677 }, _key = "rarrbfs;", _map[_key] = { k: _key, v: 10528 }, _key = "rarrc;", _map[_key] = { k: _key, v: 10547 }, _key = "rarrfs;", _map[_key] = { k: _key, v: 10526 }, _key = "rarrhk;", _map[_key] = { k: _key, v: 8618 }, _key = "rarrlp;", _map[_key] = { k: _key, v: 8620 }, _key = "rarrpl;", _map[_key] = { k: _key, v: 10565 }, _key = "rarrsim;", _map[_key] = { k: _key, v: 10612 }, _key = "rarrtl;", _map[_key] = { k: _key, v: 8611 }, _key = "rarrw;", _map[_key] = { k: _key, v: 8605 }, _key = "ratail;", _map[_key] = { k: _key, v: 10522 }, _key = "ratio;", _map[_key] = { k: _key, v: 8758 }, _key = "rationals;", _map[_key] = { k: _key, v: 8474 }, _key = "rbarr;", _map[_key] = { k: _key, v: 10509 }, _key = "rbbrk;", _map[_key] = { k: _key, v: 10099 }, _key = "rbrace;", _map[_key] = { k: _key, v: 125 }, _key = "rbrack;", _map[_key] = { k: _key, v: 93 }, _key = "rbrke;", _map[_key] = { k: _key, v: 10636 }, _key = "rbrksld;", _map[_key] = { k: _key, v: 10638 }, _key = "rbrkslu;", _map[_key] = { k: _key, v: 10640 }, _key = "rcaron;", _map[_key] = { k: _key, v: 345 }, _key = "rcedil;", _map[_key] = { k: _key, v: 343 }, _key = "rceil;", _map[_key] = { k: _key, v: 8969 }, _key = "rcub;", _map[_key] = { k: _key, v: 125 }, _key = "rcy;", _map[_key] = { k: _key, v: 1088 }, _key = "rdca;", _map[_key] = { k: _key, v: 10551 }, _key = "rdldhar;", _map[_key] = { k: _key, v: 10601 }, _key = "rdquo;", _map[_key] = { k: _key, v: 8221 }, _key = "rdquor;", _map[_key] = { k: _key, v: 8221 }, _key = "rdsh;", _map[_key] = { k: _key, v: 8627 }, _key = "real;", _map[_key] = { k: _key, v: 8476 }, _key = "realine;", _map[_key] = { k: _key, v: 8475 }, _key = "realpart;", _map[_key] = { k: _key, v: 8476 }, _key = "reals;", _map[_key] = { k: _key, v: 8477 }, _key = "rect;", _map[_key] = { k: _key, v: 9645 }, _key = "reg;", _map[_key] = { k: _key, v: 174 }, _key = "rfisht;", _map[_key] = { k: _key, v: 10621 }, _key = "rfloor;", _map[_key] = { k: _key, v: 8971 }, _key = "rfr;", _map[_key] = { k: _key, v: 120111 }, _key = "rhard;", _map[_key] = { k: _key, v: 8641 }, _key = "rharu;", _map[_key] = { k: _key, v: 8640 }, _key = "rharul;", _map[_key] = { k: _key, v: 10604 }, _key = "rho;", _map[_key] = { k: _key, v: 961 }, _key = "rhov;", _map[_key] = { k: _key, v: 1009 }, _key = "rightarrow;", _map[_key] = { k: _key, v: 8594 }, _key = "rightarrowtail;", _map[_key] = { k: _key, v: 8611 }, _key = "rightharpoondown;", _map[_key] = { k: _key, v: 8641 }, _key = "rightharpoonup;", _map[_key] = { k: _key, v: 8640 }, _key = "rightleftarrows;", _map[_key] = { k: _key, v: 8644 }, _key = "rightleftharpoons;", _map[_key] = { k: _key, v: 8652 }, _key = "rightrightarrows;", _map[_key] = { k: _key, v: 8649 }, _key = "rightsquigarrow;", _map[_key] = { k: _key, v: 8605 }, _key = "rightthreetimes;", _map[_key] = { k: _key, v: 8908 }, _key = "ring;", _map[_key] = { k: _key, v: 730 }, _key = "risingdotseq;", _map[_key] = { k: _key, v: 8787 }, _key = "rlarr;", _map[_key] = { k: _key, v: 8644 }, _key = "rlhar;", _map[_key] = { k: _key, v: 8652 }, _key = "rlm;", _map[_key] = { k: _key, v: 8207 }, _key = "rmoust;", _map[_key] = { k: _key, v: 9137 }, _key = "rmoustache;", _map[_key] = { k: _key, v: 9137 }, _key = "rnmid;", _map[_key] = { k: _key, v: 10990 }, _key = "roang;", _map[_key] = { k: _key, v: 10221 }, _key = "roarr;", _map[_key] = { k: _key, v: 8702 }, _key = "robrk;", _map[_key] = { k: _key, v: 10215 }, _key = "ropar;", _map[_key] = { k: _key, v: 10630 }, _key = "ropf;", _map[_key] = { k: _key, v: 120163 }, _key = "roplus;", _map[_key] = { k: _key, v: 10798 }, _key = "rotimes;", _map[_key] = { k: _key, v: 10805 }, _key = "rpar;", _map[_key] = { k: _key, v: 41 }, _key = "rpargt;", _map[_key] = { k: _key, v: 10644 }, _key = "rppolint;", _map[_key] = { k: _key, v: 10770 }, _key = "rrarr;", _map[_key] = { k: _key, v: 8649 }, _key = "rsaquo;", _map[_key] = { k: _key, v: 8250 }, _key = "rscr;", _map[_key] = { k: _key, v: 120007 }, _key = "rsh;", _map[_key] = { k: _key, v: 8625 }, _key = "rsqb;", _map[_key] = { k: _key, v: 93 }, _key = "rsquo;", _map[_key] = { k: _key, v: 8217 }, _key = "rsquor;", _map[_key] = { k: _key, v: 8217 }, _key = "rthree;", _map[_key] = { k: _key, v: 8908 }, _key = "rtimes;", _map[_key] = { k: _key, v: 8906 }, _key = "rtri;", _map[_key] = { k: _key, v: 9657 }, _key = "rtrie;", _map[_key] = { k: _key, v: 8885 }, _key = "rtrif;", _map[_key] = { k: _key, v: 9656 }, _key = "rtriltri;", _map[_key] = { k: _key, v: 10702 }, _key = "ruluhar;", _map[_key] = { k: _key, v: 10600 }, _key = "rx;", _map[_key] = { k: _key, v: 8478 }, _key = "sacute;", _map[_key] = { k: _key, v: 347 }, _key = "sbquo;", _map[_key] = { k: _key, v: 8218 }, _key = "sc;", _map[_key] = { k: _key, v: 8827 }, _key = "scE;", _map[_key] = { k: _key, v: 10932 }, _key = "scap;", _map[_key] = { k: _key, v: 10936 }, _key = "scaron;", _map[_key] = { k: _key, v: 353 }, _key = "sccue;", _map[_key] = { k: _key, v: 8829 }, _key = "sce;", _map[_key] = { k: _key, v: 10928 }, _key = "scedil;", _map[_key] = { k: _key, v: 351 }, _key = "scirc;", _map[_key] = { k: _key, v: 349 }, _key = "scnE;", _map[_key] = { k: _key, v: 10934 }, _key = "scnap;", _map[_key] = { k: _key, v: 10938 }, _key = "scnsim;", _map[_key] = { k: _key, v: 8937 }, _key = "scpolint;", _map[_key] = { k: _key, v: 10771 }, _key = "scsim;", _map[_key] = { k: _key, v: 8831 }, _key = "scy;", _map[_key] = { k: _key, v: 1089 }, _key = "sdot;", _map[_key] = { k: _key, v: 8901 }, _key = "sdotb;", _map[_key] = { k: _key, v: 8865 }, _key = "sdote;", _map[_key] = { k: _key, v: 10854 }, _key = "seArr;", _map[_key] = { k: _key, v: 8664 }, _key = "searhk;", _map[_key] = { k: _key, v: 10533 }, _key = "searr;", _map[_key] = { k: _key, v: 8600 }, _key = "searrow;", _map[_key] = { k: _key, v: 8600 }, _key = "sect;", _map[_key] = { k: _key, v: 167 }, _key = "semi;", _map[_key] = { k: _key, v: 59 }, _key = "seswar;", _map[_key] = { k: _key, v: 10537 }, _key = "setminus;", _map[_key] = { k: _key, v: 8726 }, _key = "setmn;", _map[_key] = { k: _key, v: 8726 }, _key = "sext;", _map[_key] = { k: _key, v: 10038 }, _key = "sfr;", _map[_key] = { k: _key, v: 120112 }, _key = "sfrown;", _map[_key] = { k: _key, v: 8994 }, _key = "sharp;", _map[_key] = { k: _key, v: 9839 }, _key = "shchcy;", _map[_key] = { k: _key, v: 1097 }, _key = "shcy;", _map[_key] = { k: _key, v: 1096 }, _key = "shortmid;", _map[_key] = { k: _key, v: 8739 }, _key = "shortparallel;", _map[_key] = { k: _key, v: 8741 }, _key = "shy;", _map[_key] = { k: _key, v: 173 }, _key = "sigma;", _map[_key] = { k: _key, v: 963 }, _key = "sigmaf;", _map[_key] = { k: _key, v: 962 }, _key = "sigmav;", _map[_key] = { k: _key, v: 962 }, _key = "sim;", _map[_key] = { k: _key, v: 8764 }, _key = "simdot;", _map[_key] = { k: _key, v: 10858 }, _key = "sime;", _map[_key] = { k: _key, v: 8771 }, _key = "simeq;", _map[_key] = { k: _key, v: 8771 }, _key = "simg;", _map[_key] = { k: _key, v: 10910 }, _key = "simgE;", _map[_key] = { k: _key, v: 10912 }, _key = "siml;", _map[_key] = { k: _key, v: 10909 }, _key = "simlE;", _map[_key] = { k: _key, v: 10911 }, _key = "simne;", _map[_key] = { k: _key, v: 8774 }, _key = "simplus;", _map[_key] = { k: _key, v: 10788 }, _key = "simrarr;", _map[_key] = { k: _key, v: 10610 }, _key = "slarr;", _map[_key] = { k: _key, v: 8592 }, _key = "smallsetminus;", _map[_key] = { k: _key, v: 8726 }, _key = "smashp;", _map[_key] = { k: _key, v: 10803 }, _key = "smeparsl;", _map[_key] = { k: _key, v: 10724 }, _key = "smid;", _map[_key] = { k: _key, v: 8739 }, _key = "smile;", _map[_key] = { k: _key, v: 8995 }, _key = "smt;", _map[_key] = { k: _key, v: 10922 }, _key = "smte;", _map[_key] = { k: _key, v: 10924 }, _key = "softcy;", _map[_key] = { k: _key, v: 1100 }, _key = "sol;", _map[_key] = { k: _key, v: 47 }, _key = "solb;", _map[_key] = { k: _key, v: 10692 }, _key = "solbar;", _map[_key] = { k: _key, v: 9023 }, _key = "sopf;", _map[_key] = { k: _key, v: 120164 }, _key = "spades;", _map[_key] = { k: _key, v: 9824 }, _key = "spadesuit;", _map[_key] = { k: _key, v: 9824 }, _key = "spar;", _map[_key] = { k: _key, v: 8741 }, _key = "sqcap;", _map[_key] = { k: _key, v: 8851 }, _key = "sqcup;", _map[_key] = { k: _key, v: 8852 }, _key = "sqsub;", _map[_key] = { k: _key, v: 8847 }, _key = "sqsube;", _map[_key] = { k: _key, v: 8849 }, _key = "sqsubset;", _map[_key] = { k: _key, v: 8847 }, _key = "sqsubseteq;", _map[_key] = { k: _key, v: 8849 }, _key = "sqsup;", _map[_key] = { k: _key, v: 8848 }, _key = "sqsupe;", _map[_key] = { k: _key, v: 8850 }, _key = "sqsupset;", _map[_key] = { k: _key, v: 8848 }, _key = "sqsupseteq;", _map[_key] = { k: _key, v: 8850 }, _key = "squ;", _map[_key] = { k: _key, v: 9633 }, _key = "square;", _map[_key] = { k: _key, v: 9633 }, _key = "squarf;", _map[_key] = { k: _key, v: 9642 }, _key = "squf;", _map[_key] = { k: _key, v: 9642 }, _key = "srarr;", _map[_key] = { k: _key, v: 8594 }, _key = "sscr;", _map[_key] = { k: _key, v: 120008 }, _key = "ssetmn;", _map[_key] = { k: _key, v: 8726 }, _key = "ssmile;", _map[_key] = { k: _key, v: 8995 }, _key = "sstarf;", _map[_key] = { k: _key, v: 8902 }, _key = "star;", _map[_key] = { k: _key, v: 9734 }, _key = "starf;", _map[_key] = { k: _key, v: 9733 }, _key = "straightepsilon;", _map[_key] = { k: _key, v: 1013 }, _key = "straightphi;", _map[_key] = { k: _key, v: 981 }, _key = "strns;", _map[_key] = { k: _key, v: 175 }, _key = "sub;", _map[_key] = { k: _key, v: 8834 }, _key = "subE;", _map[_key] = { k: _key, v: 10949 }, _key = "subdot;", _map[_key] = { k: _key, v: 10941 }, _key = "sube;", _map[_key] = { k: _key, v: 8838 }, _key = "subedot;", _map[_key] = { k: _key, v: 10947 }, _key = "submult;", _map[_key] = { k: _key, v: 10945 }, _key = "subnE;", _map[_key] = { k: _key, v: 10955 }, _key = "subne;", _map[_key] = { k: _key, v: 8842 }, _key = "subplus;", _map[_key] = { k: _key, v: 10943 }, _key = "subrarr;", _map[_key] = { k: _key, v: 10617 }, _key = "subset;", _map[_key] = { k: _key, v: 8834 }, _key = "subseteq;", _map[_key] = { k: _key, v: 8838 }, _key = "subseteqq;", _map[_key] = { k: _key, v: 10949 }, _key = "subsetneq;", _map[_key] = { k: _key, v: 8842 }, _key = "subsetneqq;", _map[_key] = { k: _key, v: 10955 }, _key = "subsim;", _map[_key] = { k: _key, v: 10951 }, _key = "subsub;", _map[_key] = { k: _key, v: 10965 }, _key = "subsup;", _map[_key] = { k: _key, v: 10963 }, _key = "succ;", _map[_key] = { k: _key, v: 8827 }, _key = "succapprox;", _map[_key] = { k: _key, v: 10936 }, _key = "succcurlyeq;", _map[_key] = { k: _key, v: 8829 }, _key = "succeq;", _map[_key] = { k: _key, v: 10928 }, _key = "succnapprox;", _map[_key] = { k: _key, v: 10938 }, _key = "succneqq;", _map[_key] = { k: _key, v: 10934 }, _key = "succnsim;", _map[_key] = { k: _key, v: 8937 }, _key = "succsim;", _map[_key] = { k: _key, v: 8831 }, _key = "sum;", _map[_key] = { k: _key, v: 8721 }, _key = "sung;", _map[_key] = { k: _key, v: 9834 }, _key = "sup;", _map[_key] = { k: _key, v: 8835 }, _key = "sup1;", _map[_key] = { k: _key, v: 185 }, _key = "sup2;", _map[_key] = { k: _key, v: 178 }, _key = "sup3;", _map[_key] = { k: _key, v: 179 }, _key = "supE;", _map[_key] = { k: _key, v: 10950 }, _key = "supdot;", _map[_key] = { k: _key, v: 10942 }, _key = "supdsub;", _map[_key] = { k: _key, v: 10968 }, _key = "supe;", _map[_key] = { k: _key, v: 8839 }, _key = "supedot;", _map[_key] = { k: _key, v: 10948 }, _key = "suphsol;", _map[_key] = { k: _key, v: 10185 }, _key = "suphsub;", _map[_key] = { k: _key, v: 10967 }, _key = "suplarr;", _map[_key] = { k: _key, v: 10619 }, _key = "supmult;", _map[_key] = { k: _key, v: 10946 }, _key = "supnE;", _map[_key] = { k: _key, v: 10956 }, _key = "supne;", _map[_key] = { k: _key, v: 8843 }, _key = "supplus;", _map[_key] = { k: _key, v: 10944 }, _key = "supset;", _map[_key] = { k: _key, v: 8835 }, _key = "supseteq;", _map[_key] = { k: _key, v: 8839 }, _key = "supseteqq;", _map[_key] = { k: _key, v: 10950 }, _key = "supsetneq;", _map[_key] = { k: _key, v: 8843 }, _key = "supsetneqq;", _map[_key] = { k: _key, v: 10956 }, _key = "supsim;", _map[_key] = { k: _key, v: 10952 }, _key = "supsub;", _map[_key] = { k: _key, v: 10964 }, _key = "supsup;", _map[_key] = { k: _key, v: 10966 }, _key = "swArr;", _map[_key] = { k: _key, v: 8665 }, _key = "swarhk;", _map[_key] = { k: _key, v: 10534 }, _key = "swarr;", _map[_key] = { k: _key, v: 8601 }, _key = "swarrow;", _map[_key] = { k: _key, v: 8601 }, _key = "swnwar;", _map[_key] = { k: _key, v: 10538 }, _key = "szlig;", _map[_key] = { k: _key, v: 223 }, _key = "target;", _map[_key] = { k: _key, v: 8982 }, _key = "tau;", _map[_key] = { k: _key, v: 964 }, _key = "tbrk;", _map[_key] = { k: _key, v: 9140 }, _key = "tcaron;", _map[_key] = { k: _key, v: 357 }, _key = "tcedil;", _map[_key] = { k: _key, v: 355 }, _key = "tcy;", _map[_key] = { k: _key, v: 1090 }, _key = "tdot;", _map[_key] = { k: _key, v: 8411 }, _key = "telrec;", _map[_key] = { k: _key, v: 8981 }, _key = "tfr;", _map[_key] = { k: _key, v: 120113 }, _key = "there4;", _map[_key] = { k: _key, v: 8756 }, _key = "therefore;", _map[_key] = { k: _key, v: 8756 }, _key = "theta;", _map[_key] = { k: _key, v: 952 }, _key = "thetasym;", _map[_key] = { k: _key, v: 977 }, _key = "thetav;", _map[_key] = { k: _key, v: 977 }, _key = "thickapprox;", _map[_key] = { k: _key, v: 8776 }, _key = "thicksim;", _map[_key] = { k: _key, v: 8764 }, _key = "thinsp;", _map[_key] = { k: _key, v: 8201 }, _key = "thkap;", _map[_key] = { k: _key, v: 8776 }, _key = "thksim;", _map[_key] = { k: _key, v: 8764 }, _key = "thorn;", _map[_key] = { k: _key, v: 254 }, _key = "tilde;", _map[_key] = { k: _key, v: 732 }, _key = "times;", _map[_key] = { k: _key, v: 215 }, _key = "timesb;", _map[_key] = { k: _key, v: 8864 }, _key = "timesbar;", _map[_key] = { k: _key, v: 10801 }, _key = "timesd;", _map[_key] = { k: _key, v: 10800 }, _key = "tint;", _map[_key] = { k: _key, v: 8749 }, _key = "toea;", _map[_key] = { k: _key, v: 10536 }, _key = "top;", _map[_key] = { k: _key, v: 8868 }, _key = "topbot;", _map[_key] = { k: _key, v: 9014 }, _key = "topcir;", _map[_key] = { k: _key, v: 10993 }, _key = "topf;", _map[_key] = { k: _key, v: 120165 }, _key = "topfork;", _map[_key] = { k: _key, v: 10970 }, _key = "tosa;", _map[_key] = { k: _key, v: 10537 }, _key = "tprime;", _map[_key] = { k: _key, v: 8244 }, _key = "trade;", _map[_key] = { k: _key, v: 8482 }, _key = "triangle;", _map[_key] = { k: _key, v: 9653 }, _key = "triangledown;", _map[_key] = { k: _key, v: 9663 }, _key = "triangleleft;", _map[_key] = { k: _key, v: 9667 }, _key = "trianglelefteq;", _map[_key] = { k: _key, v: 8884 }, _key = "triangleq;", _map[_key] = { k: _key, v: 8796 }, _key = "triangleright;", _map[_key] = { k: _key, v: 9657 }, _key = "trianglerighteq;", _map[_key] = { k: _key, v: 8885 }, _key = "tridot;", _map[_key] = { k: _key, v: 9708 }, _key = "trie;", _map[_key] = { k: _key, v: 8796 }, _key = "triminus;", _map[_key] = { k: _key, v: 10810 }, _key = "triplus;", _map[_key] = { k: _key, v: 10809 }, _key = "trisb;", _map[_key] = { k: _key, v: 10701 }, _key = "tritime;", _map[_key] = { k: _key, v: 10811 }, _key = "trpezium;", _map[_key] = { k: _key, v: 9186 }, _key = "tscr;", _map[_key] = { k: _key, v: 120009 }, _key = "tscy;", _map[_key] = { k: _key, v: 1094 }, _key = "tshcy;", _map[_key] = { k: _key, v: 1115 }, _key = "tstrok;", _map[_key] = { k: _key, v: 359 }, _key = "twixt;", _map[_key] = { k: _key, v: 8812 }, _key = "twoheadleftarrow;", _map[_key] = { k: _key, v: 8606 }, _key = "twoheadrightarrow;", _map[_key] = { k: _key, v: 8608 }, _key = "uArr;", _map[_key] = { k: _key, v: 8657 }, _key = "uHar;", _map[_key] = { k: _key, v: 10595 }, _key = "uacute;", _map[_key] = { k: _key, v: 250 }, _key = "uarr;", _map[_key] = { k: _key, v: 8593 }, _key = "ubrcy;", _map[_key] = { k: _key, v: 1118 }, _key = "ubreve;", _map[_key] = { k: _key, v: 365 }, _key = "ucirc;", _map[_key] = { k: _key, v: 251 }, _key = "ucy;", _map[_key] = { k: _key, v: 1091 }, _key = "udarr;", _map[_key] = { k: _key, v: 8645 }, _key = "udblac;", _map[_key] = { k: _key, v: 369 }, _key = "udhar;", _map[_key] = { k: _key, v: 10606 }, _key = "ufisht;", _map[_key] = { k: _key, v: 10622 }, _key = "ufr;", _map[_key] = { k: _key, v: 120114 }, _key = "ugrave;", _map[_key] = { k: _key, v: 249 }, _key = "uharl;", _map[_key] = { k: _key, v: 8639 }, _key = "uharr;", _map[_key] = { k: _key, v: 8638 }, _key = "uhblk;", _map[_key] = { k: _key, v: 9600 }, _key = "ulcorn;", _map[_key] = { k: _key, v: 8988 }, _key = "ulcorner;", _map[_key] = { k: _key, v: 8988 }, _key = "ulcrop;", _map[_key] = { k: _key, v: 8975 }, _key = "ultri;", _map[_key] = { k: _key, v: 9720 }, _key = "umacr;", _map[_key] = { k: _key, v: 363 }, _key = "uml;", _map[_key] = { k: _key, v: 168 }, _key = "uogon;", _map[_key] = { k: _key, v: 371 }, _key = "uopf;", _map[_key] = { k: _key, v: 120166 }, _key = "uparrow;", _map[_key] = { k: _key, v: 8593 }, _key = "updownarrow;", _map[_key] = { k: _key, v: 8597 }, _key = "upharpoonleft;", _map[_key] = { k: _key, v: 8639 }, _key = "upharpoonright;", _map[_key] = { k: _key, v: 8638 }, _key = "uplus;", _map[_key] = { k: _key, v: 8846 }, _key = "upsi;", _map[_key] = { k: _key, v: 965 }, _key = "upsih;", _map[_key] = { k: _key, v: 978 }, _key = "upsilon;", _map[_key] = { k: _key, v: 965 }, _key = "upuparrows;", _map[_key] = { k: _key, v: 8648 }, _key = "urcorn;", _map[_key] = { k: _key, v: 8989 }, _key = "urcorner;", _map[_key] = { k: _key, v: 8989 }, _key = "urcrop;", _map[_key] = { k: _key, v: 8974 }, _key = "uring;", _map[_key] = { k: _key, v: 367 }, _key = "urtri;", _map[_key] = { k: _key, v: 9721 }, _key = "uscr;", _map[_key] = { k: _key, v: 120010 }, _key = "utdot;", _map[_key] = { k: _key, v: 8944 }, _key = "utilde;", _map[_key] = { k: _key, v: 361 }, _key = "utri;", _map[_key] = { k: _key, v: 9653 }, _key = "utrif;", _map[_key] = { k: _key, v: 9652 }, _key = "uuarr;", _map[_key] = { k: _key, v: 8648 }, _key = "uuml;", _map[_key] = { k: _key, v: 252 }, _key = "uwangle;", _map[_key] = { k: _key, v: 10663 }, _key = "vArr;", _map[_key] = { k: _key, v: 8661 }, _key = "vBar;", _map[_key] = { k: _key, v: 10984 }, _key = "vBarv;", _map[_key] = { k: _key, v: 10985 }, _key = "vDash;", _map[_key] = { k: _key, v: 8872 }, _key = "vangrt;", _map[_key] = { k: _key, v: 10652 }, _key = "varepsilon;", _map[_key] = { k: _key, v: 1013 }, _key = "varkappa;", _map[_key] = { k: _key, v: 1008 }, _key = "varnothing;", _map[_key] = { k: _key, v: 8709 }, _key = "varphi;", _map[_key] = { k: _key, v: 981 }, _key = "varpi;", _map[_key] = { k: _key, v: 982 }, _key = "varpropto;", _map[_key] = { k: _key, v: 8733 }, _key = "varr;", _map[_key] = { k: _key, v: 8597 }, _key = "varrho;", _map[_key] = { k: _key, v: 1009 }, _key = "varsigma;", _map[_key] = { k: _key, v: 962 }, _key = "vartheta;", _map[_key] = { k: _key, v: 977 }, _key = "vartriangleleft;", _map[_key] = { k: _key, v: 8882 }, _key = "vartriangleright;", _map[_key] = { k: _key, v: 8883 }, _key = "vcy;", _map[_key] = { k: _key, v: 1074 }, _key = "vdash;", _map[_key] = { k: _key, v: 8866 }, _key = "vee;", _map[_key] = { k: _key, v: 8744 }, _key = "veebar;", _map[_key] = { k: _key, v: 8891 }, _key = "veeeq;", _map[_key] = { k: _key, v: 8794 }, _key = "vellip;", _map[_key] = { k: _key, v: 8942 }, _key = "verbar;", _map[_key] = { k: _key, v: 124 }, _key = "vert;", _map[_key] = { k: _key, v: 124 }, _key = "vfr;", _map[_key] = { k: _key, v: 120115 }, _key = "vltri;", _map[_key] = { k: _key, v: 8882 }, _key = "vopf;", _map[_key] = { k: _key, v: 120167 }, _key = "vprop;", _map[_key] = { k: _key, v: 8733 }, _key = "vrtri;", _map[_key] = { k: _key, v: 8883 }, _key = "vscr;", _map[_key] = { k: _key, v: 120011 }, _key = "vzigzag;", _map[_key] = { k: _key, v: 10650 }, _key = "wcirc;", _map[_key] = { k: _key, v: 373 }, _key = "wedbar;", _map[_key] = { k: _key, v: 10847 }, _key = "wedge;", _map[_key] = { k: _key, v: 8743 }, _key = "wedgeq;", _map[_key] = { k: _key, v: 8793 }, _key = "weierp;", _map[_key] = { k: _key, v: 8472 }, _key = "wfr;", _map[_key] = { k: _key, v: 120116 }, _key = "wopf;", _map[_key] = { k: _key, v: 120168 }, _key = "wp;", _map[_key] = { k: _key, v: 8472 }, _key = "wr;", _map[_key] = { k: _key, v: 8768 }, _key = "wreath;", _map[_key] = { k: _key, v: 8768 }, _key = "wscr;", _map[_key] = { k: _key, v: 120012 }, _key = "xcap;", _map[_key] = { k: _key, v: 8898 }, _key = "xcirc;", _map[_key] = { k: _key, v: 9711 }, _key = "xcup;", _map[_key] = { k: _key, v: 8899 }, _key = "xdtri;", _map[_key] = { k: _key, v: 9661 }, _key = "xfr;", _map[_key] = { k: _key, v: 120117 }, _key = "xhArr;", _map[_key] = { k: _key, v: 10234 }, _key = "xharr;", _map[_key] = { k: _key, v: 10231 }, _key = "xi;", _map[_key] = { k: _key, v: 958 }, _key = "xlArr;", _map[_key] = { k: _key, v: 10232 }, _key = "xlarr;", _map[_key] = { k: _key, v: 10229 }, _key = "xmap;", _map[_key] = { k: _key, v: 10236 }, _key = "xnis;", _map[_key] = { k: _key, v: 8955 }, _key = "xodot;", _map[_key] = { k: _key, v: 10752 }, _key = "xopf;", _map[_key] = { k: _key, v: 120169 }, _key = "xoplus;", _map[_key] = { k: _key, v: 10753 }, _key = "xotime;", _map[_key] = { k: _key, v: 10754 }, _key = "xrArr;", _map[_key] = { k: _key, v: 10233 }, _key = "xrarr;", _map[_key] = { k: _key, v: 10230 }, _key = "xscr;", _map[_key] = { k: _key, v: 120013 }, _key = "xsqcup;", _map[_key] = { k: _key, v: 10758 }, _key = "xuplus;", _map[_key] = { k: _key, v: 10756 }, _key = "xutri;", _map[_key] = { k: _key, v: 9651 }, _key = "xvee;", _map[_key] = { k: _key, v: 8897 }, _key = "xwedge;", _map[_key] = { k: _key, v: 8896 }, _key = "yacute;", _map[_key] = { k: _key, v: 253 }, _key = "yacy;", _map[_key] = { k: _key, v: 1103 }, _key = "ycirc;", _map[_key] = { k: _key, v: 375 }, _key = "ycy;", _map[_key] = { k: _key, v: 1099 }, _key = "yen;", _map[_key] = { k: _key, v: 165 }, _key = "yfr;", _map[_key] = { k: _key, v: 120118 }, _key = "yicy;", _map[_key] = { k: _key, v: 1111 }, _key = "yopf;", _map[_key] = { k: _key, v: 120170 }, _key = "yscr;", _map[_key] = { k: _key, v: 120014 }, _key = "yucy;", _map[_key] = { k: _key, v: 1102 }, _key = "yuml;", _map[_key] = { k: _key, v: 255 }, _key = "zacute;", _map[_key] = { k: _key, v: 378 }, _key = "zcaron;", _map[_key] = { k: _key, v: 382 }, _key = "zcy;", _map[_key] = { k: _key, v: 1079 }, _key = "zdot;", _map[_key] = { k: _key, v: 380 }, _key = "zeetrf;", _map[_key] = { k: _key, v: 8488 }, _key = "zeta;", _map[_key] = { k: _key, v: 950 }, _key = "zfr;", _map[_key] = { k: _key, v: 120119 }, _key = "zhcy;", _map[_key] = { k: _key, v: 1078 }, _key = "zigrarr;", _map[_key] = { k: _key, v: 8669 }, _key = "zopf;", _map[_key] = { k: _key, v: 120171 }, _key = "zscr;", _map[_key] = { k: _key, v: 120015 }, _key = "zwj;", _map[_key] = { k: _key, v: 8205 }, _key = "zwnj;", _map[_key] = { k: _key, v: 8204 }, _key = "AElig", _map[_key] = { k: _key, v: 198 }, _key = "AMP", _map[_key] = { k: _key, v: 38 }, _key = "Aacute", _map[_key] = { k: _key, v: 193 }, _key = "Acirc", _map[_key] = { k: _key, v: 194 }, _key = "Agrave", _map[_key] = { k: _key, v: 192 }, _key = "Aring", _map[_key] = { k: _key, v: 197 }, _key = "Atilde", _map[_key] = { k: _key, v: 195 }, _key = "Auml", _map[_key] = { k: _key, v: 196 }, _key = "COPY", _map[_key] = { k: _key, v: 169 }, _key = "Ccedil", _map[_key] = { k: _key, v: 199 }, _key = "ETH", _map[_key] = { k: _key, v: 208 }, _key = "Eacute", _map[_key] = { k: _key, v: 201 }, _key = "Ecirc", _map[_key] = { k: _key, v: 202 }, _key = "Egrave", _map[_key] = { k: _key, v: 200 }, _key = "Euml", _map[_key] = { k: _key, v: 203 }, _key = "GT", _map[_key] = { k: _key, v: 62 }, _key = "Iacute", _map[_key] = { k: _key, v: 205 }, _key = "Icirc", _map[_key] = { k: _key, v: 206 }, _key = "Igrave", _map[_key] = { k: _key, v: 204 }, _key = "Iuml", _map[_key] = { k: _key, v: 207 }, _key = "LT", _map[_key] = { k: _key, v: 60 }, _key = "Ntilde", _map[_key] = { k: _key, v: 209 }, _key = "Oacute", _map[_key] = { k: _key, v: 211 }, _key = "Ocirc", _map[_key] = { k: _key, v: 212 }, _key = "Ograve", _map[_key] = { k: _key, v: 210 }, _key = "Oslash", _map[_key] = { k: _key, v: 216 }, _key = "Otilde", _map[_key] = { k: _key, v: 213 }, _key = "Ouml", _map[_key] = { k: _key, v: 214 }, _key = "QUOT", _map[_key] = { k: _key, v: 34 }, _key = "REG", _map[_key] = { k: _key, v: 174 }, _key = "THORN", _map[_key] = { k: _key, v: 222 }, _key = "Uacute", _map[_key] = { k: _key, v: 218 }, _key = "Ucirc", _map[_key] = { k: _key, v: 219 }, _key = "Ugrave", _map[_key] = { k: _key, v: 217 }, _key = "Uuml", _map[_key] = { k: _key, v: 220 }, _key = "Yacute", _map[_key] = { k: _key, v: 221 }, _key = "aacute", _map[_key] = { k: _key, v: 225 }, _key = "acirc", _map[_key] = { k: _key, v: 226 }, _key = "acute", _map[_key] = { k: _key, v: 180 }, _key = "aelig", _map[_key] = { k: _key, v: 230 }, _key = "agrave", _map[_key] = { k: _key, v: 224 }, _key = "amp", _map[_key] = { k: _key, v: 38 }, _key = "aring", _map[_key] = { k: _key, v: 229 }, _key = "atilde", _map[_key] = { k: _key, v: 227 }, _key = "auml", _map[_key] = { k: _key, v: 228 }, _key = "brvbar", _map[_key] = { k: _key, v: 166 }, _key = "ccedil", _map[_key] = { k: _key, v: 231 }, _key = "cedil", _map[_key] = { k: _key, v: 184 }, _key = "cent", _map[_key] = { k: _key, v: 162 }, _key = "copy", _map[_key] = { k: _key, v: 169 }, _key = "curren", _map[_key] = { k: _key, v: 164 }, _key = "deg", _map[_key] = { k: _key, v: 176 }, _key = "divide", _map[_key] = { k: _key, v: 247 }, _key = "eacute", _map[_key] = { k: _key, v: 233 }, _key = "ecirc", _map[_key] = { k: _key, v: 234 }, _key = "egrave", _map[_key] = { k: _key, v: 232 }, _key = "eth", _map[_key] = { k: _key, v: 240 }, _key = "euml", _map[_key] = { k: _key, v: 235 }, _key = "frac12", _map[_key] = { k: _key, v: 189 }, _key = "frac14", _map[_key] = { k: _key, v: 188 }, _key = "frac34", _map[_key] = { k: _key, v: 190 }, _key = "gt", _map[_key] = { k: _key, v: 62 }, _key = "iacute", _map[_key] = { k: _key, v: 237 }, _key = "icirc", _map[_key] = { k: _key, v: 238 }, _key = "iexcl", _map[_key] = { k: _key, v: 161 }, _key = "igrave", _map[_key] = { k: _key, v: 236 }, _key = "iquest", _map[_key] = { k: _key, v: 191 }, _key = "iuml", _map[_key] = { k: _key, v: 239 }, _key = "laquo", _map[_key] = { k: _key, v: 171 }, _key = "lt", _map[_key] = { k: _key, v: 60 }, _key = "macr", _map[_key] = { k: _key, v: 175 }, _key = "micro", _map[_key] = { k: _key, v: 181 }, _key = "middot", _map[_key] = { k: _key, v: 183 }, _key = "nbsp", _map[_key] = { k: _key, v: 160 }, _key = "not", _map[_key] = { k: _key, v: 172 }, _key = "ntilde", _map[_key] = { k: _key, v: 241 }, _key = "oacute", _map[_key] = { k: _key, v: 243 }, _key = "ocirc", _map[_key] = { k: _key, v: 244 }, _key = "ograve", _map[_key] = { k: _key, v: 242 }, _key = "ordf", _map[_key] = { k: _key, v: 170 }, _key = "ordm", _map[_key] = { k: _key, v: 186 }, _key = "oslash", _map[_key] = { k: _key, v: 248 }, _key = "otilde", _map[_key] = { k: _key, v: 245 }, _key = "ouml", _map[_key] = { k: _key, v: 246 }, _key = "para", _map[_key] = { k: _key, v: 182 }, _key = "plusmn", _map[_key] = { k: _key, v: 177 }, _key = "pound", _map[_key] = { k: _key, v: 163 }, _key = "quot", _map[_key] = { k: _key, v: 34 }, _key = "raquo", _map[_key] = { k: _key, v: 187 }, _key = "reg", _map[_key] = { k: _key, v: 174 }, _key = "sect", _map[_key] = { k: _key, v: 167 }, _key = "shy", _map[_key] = { k: _key, v: 173 }, _key = "sup1", _map[_key] = { k: _key, v: 185 }, _key = "sup2", _map[_key] = { k: _key, v: 178 }, _key = "sup3", _map[_key] = { k: _key, v: 179 }, _key = "szlig", _map[_key] = { k: _key, v: 223 }, _key = "thorn", _map[_key] = { k: _key, v: 254 }, _key = "times", _map[_key] = { k: _key, v: 215 }, _key = "uacute", _map[_key] = { k: _key, v: 250 }, _key = "ucirc", _map[_key] = { k: _key, v: 251 }, _key = "ugrave", _map[_key] = { k: _key, v: 249 }, _key = "uml", _map[_key] = { k: _key, v: 168 }, _key = "uuml", _map[_key] = { k: _key, v: 252 }, _key = "yacute", _map[_key] = { k: _key, v: 253 }, _key = "yen", _map[_key] = { k: _key, v: 165 }, _key = "yuml", _map[_key] = { k: _key, v: 255 }, _map);
+		var _map$1, _key$1;
+		entity2 = (_map$1 = new Go$Map(), _key$1 = "NotEqualTilde;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8770, 824]) }, _key$1 = "NotGreaterFullEqual;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8807, 824]) }, _key$1 = "NotGreaterGreater;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8811, 824]) }, _key$1 = "NotGreaterSlantEqual;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10878, 824]) }, _key$1 = "NotHumpDownHump;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8782, 824]) }, _key$1 = "NotHumpEqual;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8783, 824]) }, _key$1 = "NotLeftTriangleBar;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10703, 824]) }, _key$1 = "NotLessLess;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8810, 824]) }, _key$1 = "NotLessSlantEqual;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10877, 824]) }, _key$1 = "NotNestedGreaterGreater;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10914, 824]) }, _key$1 = "NotNestedLessLess;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10913, 824]) }, _key$1 = "NotPrecedesEqual;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10927, 824]) }, _key$1 = "NotRightTriangleBar;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10704, 824]) }, _key$1 = "NotSquareSubset;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8847, 824]) }, _key$1 = "NotSquareSuperset;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8848, 824]) }, _key$1 = "NotSubset;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8834, 8402]) }, _key$1 = "NotSucceedsEqual;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10928, 824]) }, _key$1 = "NotSucceedsTilde;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8831, 824]) }, _key$1 = "NotSuperset;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8835, 8402]) }, _key$1 = "ThickSpace;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8287, 8202]) }, _key$1 = "acE;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8766, 819]) }, _key$1 = "bne;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [61, 8421]) }, _key$1 = "bnequiv;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8801, 8421]) }, _key$1 = "caps;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8745, 65024]) }, _key$1 = "cups;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8746, 65024]) }, _key$1 = "fjlig;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [102, 106]) }, _key$1 = "gesl;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8923, 65024]) }, _key$1 = "gvertneqq;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8809, 65024]) }, _key$1 = "gvnE;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8809, 65024]) }, _key$1 = "lates;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10925, 65024]) }, _key$1 = "lesg;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8922, 65024]) }, _key$1 = "lvertneqq;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8808, 65024]) }, _key$1 = "lvnE;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8808, 65024]) }, _key$1 = "nGg;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8921, 824]) }, _key$1 = "nGtv;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8811, 824]) }, _key$1 = "nLl;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8920, 824]) }, _key$1 = "nLtv;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8810, 824]) }, _key$1 = "nang;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8736, 8402]) }, _key$1 = "napE;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10864, 824]) }, _key$1 = "napid;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8779, 824]) }, _key$1 = "nbump;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8782, 824]) }, _key$1 = "nbumpe;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8783, 824]) }, _key$1 = "ncongdot;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10861, 824]) }, _key$1 = "nedot;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8784, 824]) }, _key$1 = "nesim;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8770, 824]) }, _key$1 = "ngE;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8807, 824]) }, _key$1 = "ngeqq;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8807, 824]) }, _key$1 = "ngeqslant;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10878, 824]) }, _key$1 = "nges;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10878, 824]) }, _key$1 = "nlE;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8806, 824]) }, _key$1 = "nleqq;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8806, 824]) }, _key$1 = "nleqslant;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10877, 824]) }, _key$1 = "nles;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10877, 824]) }, _key$1 = "notinE;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8953, 824]) }, _key$1 = "notindot;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8949, 824]) }, _key$1 = "nparsl;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [11005, 8421]) }, _key$1 = "npart;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8706, 824]) }, _key$1 = "npre;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10927, 824]) }, _key$1 = "npreceq;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10927, 824]) }, _key$1 = "nrarrc;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10547, 824]) }, _key$1 = "nrarrw;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8605, 824]) }, _key$1 = "nsce;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10928, 824]) }, _key$1 = "nsubE;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10949, 824]) }, _key$1 = "nsubset;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8834, 8402]) }, _key$1 = "nsubseteqq;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10949, 824]) }, _key$1 = "nsucceq;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10928, 824]) }, _key$1 = "nsupE;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10950, 824]) }, _key$1 = "nsupset;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8835, 8402]) }, _key$1 = "nsupseteqq;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10950, 824]) }, _key$1 = "nvap;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8781, 8402]) }, _key$1 = "nvge;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8805, 8402]) }, _key$1 = "nvgt;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [62, 8402]) }, _key$1 = "nvle;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8804, 8402]) }, _key$1 = "nvlt;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [60, 8402]) }, _key$1 = "nvltrie;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8884, 8402]) }, _key$1 = "nvrtrie;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8885, 8402]) }, _key$1 = "nvsim;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8764, 8402]) }, _key$1 = "race;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8765, 817]) }, _key$1 = "smtes;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10924, 65024]) }, _key$1 = "sqcaps;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8851, 65024]) }, _key$1 = "sqcups;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8852, 65024]) }, _key$1 = "varsubsetneq;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8842, 65024]) }, _key$1 = "varsubsetneqq;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10955, 65024]) }, _key$1 = "varsupsetneq;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8843, 65024]) }, _key$1 = "varsupsetneqq;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10956, 65024]) }, _key$1 = "vnsub;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8834, 8402]) }, _key$1 = "vnsup;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8835, 8402]) }, _key$1 = "vsubnE;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10955, 65024]) }, _key$1 = "vsubne;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8842, 65024]) }, _key$1 = "vsupnE;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [10956, 65024]) }, _key$1 = "vsupne;", _map$1[_key$1] = { k: _key$1, v: go$toNativeArray("Int32", [8843, 65024]) }, _map$1);
+		replacementTable = go$toNativeArray("Int32", [8364, 129, 8218, 402, 8222, 8230, 8224, 8225, 710, 8240, 352, 8249, 338, 141, 381, 143, 144, 8216, 8217, 8220, 8221, 8226, 8211, 8212, 732, 8482, 353, 8250, 339, 157, 382, 376]);
+	}
+	return go$pkg;
+})();
+go$packages["path/filepath"] = (function() {
+	var go$pkg = {}, errors = go$packages["errors"], os = go$packages["os"], runtime = go$packages["runtime"], sort = go$packages["sort"], strings = go$packages["strings"], utf8 = go$packages["unicode/utf8"], syscall = go$packages["syscall"], lazybuf, Match, scanChunk, matchChunk, getEsc, Glob, glob, hasMeta, Clean, FromSlash, Split, Join, Base, VolumeName, isSlash, volumeNameLen;
+	lazybuf = go$pkg.lazybuf = go$newType(0, "Struct", "filepath.lazybuf", "lazybuf", "path/filepath", function(path_, buf_, w_, volAndPath_, volLen_) {
+		this.go$val = this;
+		this.path = path_ !== undefined ? path_ : "";
+		this.buf = buf_ !== undefined ? buf_ : (go$sliceType(Go$Uint8)).nil;
+		this.w = w_ !== undefined ? w_ : 0;
+		this.volAndPath = volAndPath_ !== undefined ? volAndPath_ : "";
+		this.volLen = volLen_ !== undefined ? volLen_ : 0;
+	});
+	Match = go$pkg.Match = function(pattern, name) {
+		var matched, err, star, chunk, _tuple, _tuple$1, _tuple$2, t, ok, err$1, _tuple$3, i, _tuple$4, t$1, ok$1, err$2, _tuple$5, _tuple$6, _tuple$7;
+		matched = false;
+		err = null;
+		Pattern:
+		while (pattern.length > 0) {
+			star = false;
+			chunk = "";
+			_tuple = scanChunk(pattern); star = _tuple[0]; chunk = _tuple[1]; pattern = _tuple[2];
+			if (star && chunk === "") {
+				_tuple$1 = [strings.Index(name, "\\") < 0, null]; matched = _tuple$1[0]; err = _tuple$1[1];
+				return [matched, err];
+			}
+			_tuple$2 = matchChunk(chunk, name); t = _tuple$2[0]; ok = _tuple$2[1]; err$1 = _tuple$2[2];
+			if (ok && ((t.length === 0) || pattern.length > 0)) {
+				name = t;
+				continue;
+			}
+			if (!(go$interfaceIsEqual(err$1, null))) {
+				_tuple$3 = [false, err$1]; matched = _tuple$3[0]; err = _tuple$3[1];
+				return [matched, err];
+			}
+			if (star) {
+				i = 0;
+				while (i < name.length && !((name.charCodeAt(i) === 92))) {
+					_tuple$4 = matchChunk(chunk, name.substring((i + 1 >> 0))); t$1 = _tuple$4[0]; ok$1 = _tuple$4[1]; err$2 = _tuple$4[2];
+					if (ok$1) {
+						if ((pattern.length === 0) && t$1.length > 0) {
+							i = i + 1 >> 0;
+							continue;
+						}
+						name = t$1;
+						continue Pattern;
+					}
+					if (!(go$interfaceIsEqual(err$2, null))) {
+						_tuple$5 = [false, err$2]; matched = _tuple$5[0]; err = _tuple$5[1];
+						return [matched, err];
+					}
+					i = i + 1 >> 0;
+				}
+			}
+			_tuple$6 = [false, null]; matched = _tuple$6[0]; err = _tuple$6[1];
+			return [matched, err];
+		}
+		_tuple$7 = [name.length === 0, null]; matched = _tuple$7[0]; err = _tuple$7[1];
+		return [matched, err];
+	};
+	scanChunk = function(pattern) {
+		var star, chunk, rest, inrange, i, _ref, _tuple;
+		star = false;
+		chunk = "";
+		rest = "";
+		while (pattern.length > 0 && (pattern.charCodeAt(0) === 42)) {
+			pattern = pattern.substring(1);
+			star = true;
+		}
+		inrange = false;
+		i = 0;
+		i = 0;
+		Scan:
+		while (i < pattern.length) {
+			_ref = pattern.charCodeAt(i);
+			if (_ref === 92) {
+			} else if (_ref === 91) {
+				inrange = true;
+			} else if (_ref === 93) {
+				inrange = false;
+			} else if (_ref === 42) {
+				if (!inrange) {
+					break Scan;
+				}
+			}
+			i = i + 1 >> 0;
+		}
+		_tuple = [star, pattern.substring(0, i), pattern.substring(i)]; star = _tuple[0]; chunk = _tuple[1]; rest = _tuple[2];
+		return [star, chunk, rest];
+	};
+	matchChunk = function(chunk, s) {
+		var rest, ok, err, _ref, _tuple, r, n, negated, match, nrange, _tuple$1, lo, hi, _tuple$2, _tuple$3, _tuple$4, n$1, _tuple$5;
+		rest = "";
+		ok = false;
+		err = null;
+		while (chunk.length > 0) {
+			if (s.length === 0) {
+				return [rest, ok, err];
+			}
+			_ref = chunk.charCodeAt(0);
+			if (_ref === 91) {
+				_tuple = utf8.DecodeRuneInString(s); r = _tuple[0]; n = _tuple[1];
+				s = s.substring(n);
+				chunk = chunk.substring(1);
+				if (chunk.length === 0) {
+					err = go$pkg.ErrBadPattern;
+					return [rest, ok, err];
+				}
+				negated = chunk.charCodeAt(0) === 94;
+				if (negated) {
+					chunk = chunk.substring(1);
+				}
+				match = false;
+				nrange = 0;
+				while (true) {
+					if (chunk.length > 0 && (chunk.charCodeAt(0) === 93) && nrange > 0) {
+						chunk = chunk.substring(1);
+						break;
+					}
+					_tuple$1 = [0, 0]; lo = _tuple$1[0]; hi = _tuple$1[1];
+					_tuple$2 = getEsc(chunk); lo = _tuple$2[0]; chunk = _tuple$2[1]; err = _tuple$2[2];
+					if (!(go$interfaceIsEqual(err, null))) {
+						return [rest, ok, err];
+					}
+					hi = lo;
+					if (chunk.charCodeAt(0) === 45) {
+						_tuple$3 = getEsc(chunk.substring(1)); hi = _tuple$3[0]; chunk = _tuple$3[1]; err = _tuple$3[2];
+						if (!(go$interfaceIsEqual(err, null))) {
+							return [rest, ok, err];
+						}
+					}
+					if (lo <= r && r <= hi) {
+						match = true;
+					}
+					nrange = nrange + 1 >> 0;
+				}
+				if (match === negated) {
+					return [rest, ok, err];
+				}
+			} else if (_ref === 63) {
+				if (s.charCodeAt(0) === 92) {
+					return [rest, ok, err];
+				}
+				_tuple$4 = utf8.DecodeRuneInString(s); n$1 = _tuple$4[1];
+				s = s.substring(n$1);
+				chunk = chunk.substring(1);
+			} else if (_ref === 92) {
+				if (!((chunk.charCodeAt(0) === s.charCodeAt(0)))) {
+					return [rest, ok, err];
+				}
+				s = s.substring(1);
+				chunk = chunk.substring(1);
+			} else {
+				if (!((chunk.charCodeAt(0) === s.charCodeAt(0)))) {
+					return [rest, ok, err];
+				}
+				s = s.substring(1);
+				chunk = chunk.substring(1);
+			}
+		}
+		_tuple$5 = [s, true, null]; rest = _tuple$5[0]; ok = _tuple$5[1]; err = _tuple$5[2];
+		return [rest, ok, err];
+	};
+	getEsc = function(chunk) {
+		var r, nchunk, err, _tuple, n;
+		r = 0;
+		nchunk = "";
+		err = null;
+		if ((chunk.length === 0) || (chunk.charCodeAt(0) === 45) || (chunk.charCodeAt(0) === 93)) {
+			err = go$pkg.ErrBadPattern;
+			return [r, nchunk, err];
+		}
+		if ((chunk.charCodeAt(0) === 92) && false) {
+			chunk = chunk.substring(1);
+			if (chunk.length === 0) {
+				err = go$pkg.ErrBadPattern;
+				return [r, nchunk, err];
+			}
+		}
+		_tuple = utf8.DecodeRuneInString(chunk); r = _tuple[0]; n = _tuple[1];
+		if ((r === 65533) && (n === 1)) {
+			err = go$pkg.ErrBadPattern;
+		}
+		nchunk = chunk.substring(n);
+		if (nchunk.length === 0) {
+			err = go$pkg.ErrBadPattern;
+		}
+		return [r, nchunk, err];
+	};
+	Glob = go$pkg.Glob = function(pattern) {
+		var matches, err, _tuple, _tuple$1, _tuple$2, _tuple$3, dir, file, _ref, _tuple$4, m, _tuple$5, _ref$1, _i, _slice, _index, d, _tuple$6;
+		matches = (go$sliceType(Go$String)).nil;
+		err = null;
+		if (!hasMeta(pattern)) {
+			_tuple = os.Stat(pattern); err = _tuple[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				_tuple$1 = [(go$sliceType(Go$String)).nil, null]; matches = _tuple$1[0]; err = _tuple$1[1];
+				return [matches, err];
+			}
+			_tuple$2 = [new (go$sliceType(Go$String))([pattern]), null]; matches = _tuple$2[0]; err = _tuple$2[1];
+			return [matches, err];
+		}
+		_tuple$3 = Split(pattern); dir = _tuple$3[0]; file = _tuple$3[1];
+		_ref = dir;
+		if (_ref === "") {
+			dir = ".";
+		} else if (_ref === "\\") {
+		} else {
+			dir = dir.substring(0, (dir.length - 1 >> 0));
+		}
+		if (!hasMeta(dir)) {
+			_tuple$4 = glob(dir, file, (go$sliceType(Go$String)).nil); matches = _tuple$4[0]; err = _tuple$4[1];
+			return [matches, err];
+		}
+		m = (go$sliceType(Go$String)).nil;
+		_tuple$5 = Glob(dir); m = _tuple$5[0]; err = _tuple$5[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			return [matches, err];
+		}
+		_ref$1 = m;
+		_i = 0;
+		while (_i < _ref$1.length) {
+			d = (_slice = _ref$1, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			_tuple$6 = glob(d, file, matches); matches = _tuple$6[0]; err = _tuple$6[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				return [matches, err];
+			}
+			_i++;
+		}
+		return [matches, err];
+	};
+	glob = function(dir, pattern, matches) {
+		var m, e, _tuple, fi, err, _tuple$1, d, _tuple$2, names, _ref, _i, _slice, _index, n, _tuple$3, matched, err$1, _tuple$4;
+		m = (go$sliceType(Go$String)).nil;
+		e = null;
+		var go$deferred = [];
+		try {
+			m = matches;
+			_tuple = os.Stat(dir); fi = _tuple[0]; err = _tuple[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				return [m, e];
+			}
+			if (!fi.IsDir()) {
+				return [m, e];
+			}
+			_tuple$1 = os.Open(dir); d = _tuple$1[0]; err = _tuple$1[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				return [m, e];
+			}
+			go$deferred.push({ recv: d, method: "Close", args: [] });
+			_tuple$2 = d.Readdirnames(-1); names = _tuple$2[0]; err = _tuple$2[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				return [m, e];
+			}
+			sort.Strings(names);
+			_ref = names;
+			_i = 0;
+			while (_i < _ref.length) {
+				n = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+				_tuple$3 = Match(pattern, n); matched = _tuple$3[0]; err$1 = _tuple$3[1];
+				if (!(go$interfaceIsEqual(err$1, null))) {
+					_tuple$4 = [m, err$1]; m = _tuple$4[0]; e = _tuple$4[1];
+					return [m, e];
+				}
+				if (matched) {
+					m = go$append(m, Join(new (go$sliceType(Go$String))([dir, n])));
+				}
+				_i++;
+			}
+			return [m, e];
+		} catch(go$err) {
+			go$pushErr(go$err);
+		} finally {
+			go$callDeferred(go$deferred);
+			return [m, e];
+		}
+	};
+	hasMeta = function(path) {
+		return strings.IndexAny(path, "*?[") >= 0;
+	};
+	lazybuf.Ptr.prototype.index = function(i) {
+		var b, _slice, _index;
+		b = this;
+		if (!(b.buf === (go$sliceType(Go$Uint8)).nil)) {
+			return (_slice = b.buf, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+		}
+		return b.path.charCodeAt(i);
+	};
+	lazybuf.prototype.index = function(i) { return this.go$val.index(i); };
+	lazybuf.Ptr.prototype.append = function(c) {
+		var b, _slice, _index;
+		b = this;
+		if (b.buf === (go$sliceType(Go$Uint8)).nil) {
+			if (b.w < b.path.length && (b.path.charCodeAt(b.w) === c)) {
+				b.w = b.w + 1 >> 0;
+				return;
+			}
+			b.buf = (go$sliceType(Go$Uint8)).make(b.path.length, 0, function() { return 0; });
+			go$copyString(b.buf, b.path.substring(0, b.w));
+		}
+		_slice = b.buf; _index = b.w;(_index >= 0 && _index < _slice.length) ? (_slice.array[_slice.offset + _index] = c) : go$throwRuntimeError("index out of range");
+		b.w = b.w + 1 >> 0;
+	};
+	lazybuf.prototype.append = function(c) { return this.go$val.append(c); };
+	lazybuf.Ptr.prototype.string = function() {
+		var b;
+		b = this;
+		if (b.buf === (go$sliceType(Go$Uint8)).nil) {
+			return b.volAndPath.substring(0, (b.volLen + b.w >> 0));
+		}
+		return b.volAndPath.substring(0, b.volLen) + go$bytesToString(go$subslice(b.buf, 0, b.w));
+	};
+	lazybuf.prototype.string = function() { return this.go$val.string(); };
+	Clean = go$pkg.Clean = function(path) {
+		var originalPath, volLen, rooted, n, out, _tuple, r, dotdot, _tuple$1;
+		originalPath = path;
+		volLen = volumeNameLen(path);
+		path = path.substring(volLen);
+		if (path === "") {
+			if (volLen > 1 && !((originalPath.charCodeAt(1) === 58))) {
+				return FromSlash(originalPath);
+			}
+			return originalPath + ".";
+		}
+		rooted = os.IsPathSeparator(path.charCodeAt(0));
+		n = path.length;
+		out = new lazybuf.Ptr(path, (go$sliceType(Go$Uint8)).nil, 0, originalPath, volLen);
+		_tuple = [0, 0]; r = _tuple[0]; dotdot = _tuple[1];
+		if (rooted) {
+			out.append(92);
+			_tuple$1 = [1, 1]; r = _tuple$1[0]; dotdot = _tuple$1[1];
+		}
+		while (r < n) {
+			if (os.IsPathSeparator(path.charCodeAt(r))) {
+				r = r + 1 >> 0;
+			} else if ((path.charCodeAt(r) === 46) && (((r + 1 >> 0) === n) || os.IsPathSeparator(path.charCodeAt((r + 1 >> 0))))) {
+				r = r + 1 >> 0;
+			} else if ((path.charCodeAt(r) === 46) && (path.charCodeAt((r + 1 >> 0)) === 46) && (((r + 2 >> 0) === n) || os.IsPathSeparator(path.charCodeAt((r + 2 >> 0))))) {
+				r = r + 2 >> 0;
+				if (out.w > dotdot) {
+					out.w = out.w - 1 >> 0;
+					while (out.w > dotdot && !os.IsPathSeparator(out.index(out.w))) {
+						out.w = out.w - 1 >> 0;
+					}
+				} else if (!rooted) {
+					if (out.w > 0) {
+						out.append(92);
+					}
+					out.append(46);
+					out.append(46);
+					dotdot = out.w;
+				}
+			} else {
+				if (rooted && !((out.w === 1)) || !rooted && !((out.w === 0))) {
+					out.append(92);
+				}
+				while (r < n && !os.IsPathSeparator(path.charCodeAt(r))) {
+					out.append(path.charCodeAt(r));
+					r = r + 1 >> 0;
+				}
+			}
+		}
+		if (out.w === 0) {
+			out.append(46);
+		}
+		return FromSlash(out.string());
+	};
+	FromSlash = go$pkg.FromSlash = function(path) {
+		return strings.Replace(path, "/", "\\", -1);
+	};
+	Split = go$pkg.Split = function(path) {
+		var dir, file, vol, i, _tuple;
+		dir = "";
+		file = "";
+		vol = VolumeName(path);
+		i = path.length - 1 >> 0;
+		while (i >= vol.length && !os.IsPathSeparator(path.charCodeAt(i))) {
+			i = i - 1 >> 0;
+		}
+		_tuple = [path.substring(0, (i + 1 >> 0)), path.substring((i + 1 >> 0))]; dir = _tuple[0]; file = _tuple[1];
+		return [dir, file];
+	};
+	Join = go$pkg.Join = function(elem) {
+		var _ref, _i, _slice, _index, e, i;
+		_ref = elem;
+		_i = 0;
+		while (_i < _ref.length) {
+			e = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			i = _i;
+			if (!(e === "")) {
+				return Clean(strings.Join(go$subslice(elem, i), "\\"));
+			}
+			_i++;
+		}
+		return "";
+	};
+	Base = go$pkg.Base = function(path) {
+		var i;
+		if (path === "") {
+			return ".";
+		}
+		while (path.length > 0 && os.IsPathSeparator(path.charCodeAt((path.length - 1 >> 0)))) {
+			path = path.substring(0, (path.length - 1 >> 0));
+		}
+		path = path.substring(VolumeName(path).length);
+		i = path.length - 1 >> 0;
+		while (i >= 0 && !os.IsPathSeparator(path.charCodeAt(i))) {
+			i = i - 1 >> 0;
+		}
+		if (i >= 0) {
+			path = path.substring((i + 1 >> 0));
+		}
+		if (path === "") {
+			return "\\";
+		}
+		return path;
+	};
+	VolumeName = go$pkg.VolumeName = function(path) {
+		var v;
+		v = "";
+		v = path.substring(0, volumeNameLen(path));
+		return v;
+	};
+	isSlash = function(c) {
+		return (c === 92) || (c === 47);
+	};
+	volumeNameLen = function(path) {
+		var c, l, n;
+		if (path.length < 2) {
+			return 0;
+		}
+		c = path.charCodeAt(0);
+		if ((path.charCodeAt(1) === 58) && (97 <= c && c <= 122 || 65 <= c && c <= 90)) {
+			return 2;
+		}
+		l = path.length;
+		if (l >= 5 && isSlash(path.charCodeAt(0)) && isSlash(path.charCodeAt(1)) && !isSlash(path.charCodeAt(2)) && !((path.charCodeAt(2) === 46))) {
+			n = 3;
+			while (n < (l - 1 >> 0)) {
+				if (isSlash(path.charCodeAt(n))) {
+					n = n + 1 >> 0;
+					if (!isSlash(path.charCodeAt(n))) {
+						if (path.charCodeAt(n) === 46) {
+							break;
+						}
+						while (n < l) {
+							if (isSlash(path.charCodeAt(n))) {
+								break;
+							}
+							n = n + 1 >> 0;
+						}
+						return n;
+					}
+					break;
+				}
+				n = n + 1 >> 0;
+			}
+		}
+		return 0;
+	};
+	go$pkg.init = function() {
+		(go$ptrType(lazybuf)).methods = [["append", "path/filepath", [Go$Uint8], [], false, -1], ["index", "path/filepath", [Go$Int], [Go$Uint8], false, -1], ["string", "path/filepath", [], [Go$String], false, -1]];
+		lazybuf.init([["path", "path", "path/filepath", Go$String, ""], ["buf", "buf", "path/filepath", (go$sliceType(Go$Uint8)), ""], ["w", "w", "path/filepath", Go$Int, ""], ["volAndPath", "volAndPath", "path/filepath", Go$String, ""], ["volLen", "volLen", "path/filepath", Go$Int, ""]]);
+		go$pkg.ErrBadPattern = errors.New("syntax error in pattern");
+		go$pkg.SkipDir = errors.New("skip this directory");
+	}
+	return go$pkg;
+})();
+go$packages["io/ioutil"] = (function() {
+	var go$pkg = {}, bytes = go$packages["bytes"], io = go$packages["io"], os = go$packages["os"], sort = go$packages["sort"], filepath = go$packages["path/filepath"], strconv = go$packages["strconv"], sync = go$packages["sync"], time = go$packages["time"], readAll, ReadFile, blackHoleBuf;
+	readAll = function(r, capacity) {
+		var b, err, buf, _tuple, _tuple$1;
+		b = (go$sliceType(Go$Uint8)).nil;
+		err = null;
+		var go$deferred = [];
+		try {
+			buf = bytes.NewBuffer((go$sliceType(Go$Uint8)).make(0, go$flatten64(capacity), function() { return 0; }));
+			go$deferred.push({ fun: (function() {
+				var e, _tuple, panicErr, ok;
+				e = go$recover();
+				if (go$interfaceIsEqual(e, null)) {
+					return;
+				}
+				_tuple = (e !== null && go$error.implementedBy.indexOf(e.constructor) !== -1 ? [e, true] : [null, false]); panicErr = _tuple[0]; ok = _tuple[1];
+				if (ok && go$interfaceIsEqual(panicErr, bytes.ErrTooLarge)) {
+					err = panicErr;
+				} else {
+					throw go$panic(e);
+				}
+			}), args: [] });
+			_tuple = buf.ReadFrom(r); err = _tuple[1];
+			_tuple$1 = [buf.Bytes(), err]; b = _tuple$1[0]; err = _tuple$1[1];
+			return [b, err];
+		} catch(go$err) {
+			go$pushErr(go$err);
+		} finally {
+			go$callDeferred(go$deferred);
+			return [b, err];
+		}
+	};
+	ReadFile = go$pkg.ReadFile = function(filename) {
+		var _tuple, f, err, n, _tuple$1, fi, err$1, size;
+		var go$deferred = [];
+		try {
+			_tuple = os.Open(filename); f = _tuple[0]; err = _tuple[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				return [(go$sliceType(Go$Uint8)).nil, err];
+			}
+			go$deferred.push({ recv: f, method: "Close", args: [] });
+			n = new Go$Int64(0, 0);
+			_tuple$1 = f.Stat(); fi = _tuple$1[0]; err$1 = _tuple$1[1];
+			if (go$interfaceIsEqual(err$1, null)) {
+				size = fi.Size();
+				if ((size.high < 0 || (size.high === 0 && size.low < 1000000000))) {
+					n = size;
+				}
+			}
+			return readAll(f, new Go$Int64(n.high + 0, n.low + 512));
+		} catch(go$err) {
+			go$pushErr(go$err);
+			return [(go$sliceType(Go$Uint8)).nil, null];
+		} finally {
+			go$callDeferred(go$deferred);
+		}
+	};
+	go$pkg.init = function() {
+		blackHoleBuf = new (go$chanType((go$sliceType(Go$Uint8)), false, false))();
+	}
+	return go$pkg;
+})();
+go$packages["net/url"] = (function() {
+	var go$pkg = {}, bytes = go$packages["bytes"], errors = go$packages["errors"], sort = go$packages["sort"], strconv = go$packages["strconv"], strings = go$packages["strings"], shouldEscape, QueryEscape, escape;
+	shouldEscape = function(c, mode) {
+		var _ref, _ref$1;
+		if (65 <= c && c <= 90 || 97 <= c && c <= 122 || 48 <= c && c <= 57) {
+			return false;
+		}
+		_ref = c;
+		if (_ref === 45 || _ref === 95 || _ref === 46 || _ref === 126) {
+			return false;
+		} else if (_ref === 36 || _ref === 38 || _ref === 43 || _ref === 44 || _ref === 47 || _ref === 58 || _ref === 59 || _ref === 61 || _ref === 63 || _ref === 64) {
+			_ref$1 = mode;
+			if (_ref$1 === 1) {
+				return c === 63;
+			} else if (_ref$1 === 2) {
+				return (c === 64) || (c === 47) || (c === 58);
+			} else if (_ref$1 === 3) {
+				return true;
+			} else if (_ref$1 === 4) {
+				return false;
+			}
+		}
+		return true;
+	};
+	QueryEscape = go$pkg.QueryEscape = function(s) {
+		return escape(s, 3);
+	};
+	escape = function(s, mode) {
+		var _tuple, spaceCount, hexCount, i, c, t, j, i$1, c$1, _slice, _index, _slice$1, _index$1, _slice$2, _index$2, _slice$3, _index$3, _slice$4, _index$4;
+		_tuple = [0, 0]; spaceCount = _tuple[0]; hexCount = _tuple[1];
+		i = 0;
+		while (i < s.length) {
+			c = s.charCodeAt(i);
+			if (shouldEscape(c, mode)) {
+				if ((c === 32) && (mode === 3)) {
+					spaceCount = spaceCount + 1 >> 0;
+				} else {
+					hexCount = hexCount + 1 >> 0;
+				}
+			}
+			i = i + 1 >> 0;
+		}
+		if ((spaceCount === 0) && (hexCount === 0)) {
+			return s;
+		}
+		t = (go$sliceType(Go$Uint8)).make(s.length + ((((2 >>> 16 << 16) * hexCount >> 0) + (2 << 16 >>> 16) * hexCount) >> 0) >> 0, 0, function() { return 0; });
+		j = 0;
+		i$1 = 0;
+		while (i$1 < s.length) {
+			c$1 = s.charCodeAt(i$1);
+			if ((c$1 === 32) && (mode === 3)) {
+				_slice = t; _index = j;(_index >= 0 && _index < _slice.length) ? (_slice.array[_slice.offset + _index] = 43) : go$throwRuntimeError("index out of range");
+				j = j + 1 >> 0;
+			} else if (shouldEscape(c$1, mode)) {
+				_slice$1 = t; _index$1 = j;(_index$1 >= 0 && _index$1 < _slice$1.length) ? (_slice$1.array[_slice$1.offset + _index$1] = 37) : go$throwRuntimeError("index out of range");
+				_slice$2 = t; _index$2 = j + 1 >> 0;(_index$2 >= 0 && _index$2 < _slice$2.length) ? (_slice$2.array[_slice$2.offset + _index$2] = "0123456789ABCDEF".charCodeAt((c$1 >>> 4 << 24 >>> 24))) : go$throwRuntimeError("index out of range");
+				_slice$3 = t; _index$3 = j + 2 >> 0;(_index$3 >= 0 && _index$3 < _slice$3.length) ? (_slice$3.array[_slice$3.offset + _index$3] = "0123456789ABCDEF".charCodeAt(((c$1 & 15) >>> 0))) : go$throwRuntimeError("index out of range");
+				j = j + 3 >> 0;
+			} else {
+				_slice$4 = t; _index$4 = j;(_index$4 >= 0 && _index$4 < _slice$4.length) ? (_slice$4.array[_slice$4.offset + _index$4] = s.charCodeAt(i$1)) : go$throwRuntimeError("index out of range");
+				j = j + 1 >> 0;
+			}
+			i$1 = i$1 + 1 >> 0;
+		}
+		return go$bytesToString(t);
+	};
+	go$pkg.init = function() {
+	}
+	return go$pkg;
+})();
+go$packages["container/list"] = (function() {
+	var go$pkg = {}, Element, List, New;
+	Element = go$pkg.Element = go$newType(0, "Struct", "list.Element", "Element", "container/list", function(next_, prev_, list_, Value_) {
+		this.go$val = this;
+		this.next = next_ !== undefined ? next_ : (go$ptrType(Element)).nil;
+		this.prev = prev_ !== undefined ? prev_ : (go$ptrType(Element)).nil;
+		this.list = list_ !== undefined ? list_ : (go$ptrType(List)).nil;
+		this.Value = Value_ !== undefined ? Value_ : null;
+	});
+	List = go$pkg.List = go$newType(0, "Struct", "list.List", "List", "container/list", function(root_, len_) {
+		this.go$val = this;
+		this.root = root_ !== undefined ? root_ : new Element.Ptr();
+		this.len = len_ !== undefined ? len_ : 0;
+	});
+	Element.Ptr.prototype.Next = function() {
+		var e, p;
+		e = this;
+		p = e.next;
+		if (!(e.list === (go$ptrType(List)).nil) && !(p === e.list.root)) {
+			return p;
+		}
+		return (go$ptrType(Element)).nil;
+	};
+	Element.prototype.Next = function() { return this.go$val.Next(); };
+	Element.Ptr.prototype.Prev = function() {
+		var e, p;
+		e = this;
+		p = e.prev;
+		if (!(e.list === (go$ptrType(List)).nil) && !(p === e.list.root)) {
+			return p;
+		}
+		return (go$ptrType(Element)).nil;
+	};
+	Element.prototype.Prev = function() { return this.go$val.Prev(); };
+	List.Ptr.prototype.Init = function() {
+		var l;
+		l = this;
+		l.root.next = l.root;
+		l.root.prev = l.root;
+		l.len = 0;
+		return l;
+	};
+	List.prototype.Init = function() { return this.go$val.Init(); };
+	New = go$pkg.New = function() {
+		return new List.Ptr().Init();
+	};
+	List.Ptr.prototype.Len = function() {
+		var l;
+		l = this;
+		return l.len;
+	};
+	List.prototype.Len = function() { return this.go$val.Len(); };
+	List.Ptr.prototype.Front = function() {
+		var l;
+		l = this;
+		if (l.len === 0) {
+			return (go$ptrType(Element)).nil;
+		}
+		return l.root.next;
+	};
+	List.prototype.Front = function() { return this.go$val.Front(); };
+	List.Ptr.prototype.Back = function() {
+		var l;
+		l = this;
+		if (l.len === 0) {
+			return (go$ptrType(Element)).nil;
+		}
+		return l.root.prev;
+	};
+	List.prototype.Back = function() { return this.go$val.Back(); };
+	List.Ptr.prototype.lazyInit = function() {
+		var l;
+		l = this;
+		if (l.root.next === (go$ptrType(Element)).nil) {
+			l.Init();
+		}
+	};
+	List.prototype.lazyInit = function() { return this.go$val.lazyInit(); };
+	List.Ptr.prototype.insert = function(e, at) {
+		var l, n;
+		l = this;
+		n = at.next;
+		at.next = e;
+		e.prev = at;
+		e.next = n;
+		n.prev = e;
+		e.list = l;
+		l.len = l.len + 1 >> 0;
+		return e;
+	};
+	List.prototype.insert = function(e, at) { return this.go$val.insert(e, at); };
+	List.Ptr.prototype.insertValue = function(v, at) {
+		var l;
+		l = this;
+		return l.insert(new Element.Ptr((go$ptrType(Element)).nil, (go$ptrType(Element)).nil, (go$ptrType(List)).nil, v), at);
+	};
+	List.prototype.insertValue = function(v, at) { return this.go$val.insertValue(v, at); };
+	List.Ptr.prototype.remove = function(e) {
+		var l;
+		l = this;
+		e.prev.next = e.next;
+		e.next.prev = e.prev;
+		e.next = (go$ptrType(Element)).nil;
+		e.prev = (go$ptrType(Element)).nil;
+		e.list = (go$ptrType(List)).nil;
+		l.len = l.len - 1 >> 0;
+		return e;
+	};
+	List.prototype.remove = function(e) { return this.go$val.remove(e); };
+	List.Ptr.prototype.Remove = function(e) {
+		var l;
+		l = this;
+		if (e.list === l) {
+			l.remove(e);
+		}
+		return e.Value;
+	};
+	List.prototype.Remove = function(e) { return this.go$val.Remove(e); };
+	List.Ptr.prototype.PushFront = function(v) {
+		var l;
+		l = this;
+		l.lazyInit();
+		return l.insertValue(v, l.root);
+	};
+	List.prototype.PushFront = function(v) { return this.go$val.PushFront(v); };
+	List.Ptr.prototype.PushBack = function(v) {
+		var l;
+		l = this;
+		l.lazyInit();
+		return l.insertValue(v, l.root.prev);
+	};
+	List.prototype.PushBack = function(v) { return this.go$val.PushBack(v); };
+	List.Ptr.prototype.InsertBefore = function(v, mark) {
+		var l;
+		l = this;
+		if (!(mark.list === l)) {
+			return (go$ptrType(Element)).nil;
+		}
+		return l.insertValue(v, mark.prev);
+	};
+	List.prototype.InsertBefore = function(v, mark) { return this.go$val.InsertBefore(v, mark); };
+	List.Ptr.prototype.InsertAfter = function(v, mark) {
+		var l;
+		l = this;
+		if (!(mark.list === l)) {
+			return (go$ptrType(Element)).nil;
+		}
+		return l.insertValue(v, mark);
+	};
+	List.prototype.InsertAfter = function(v, mark) { return this.go$val.InsertAfter(v, mark); };
+	List.Ptr.prototype.MoveToFront = function(e) {
+		var l;
+		l = this;
+		if (!(e.list === l) || l.root.next === e) {
+			return;
+		}
+		l.insert(l.remove(e), l.root);
+	};
+	List.prototype.MoveToFront = function(e) { return this.go$val.MoveToFront(e); };
+	List.Ptr.prototype.MoveToBack = function(e) {
+		var l;
+		l = this;
+		if (!(e.list === l) || l.root.prev === e) {
+			return;
+		}
+		l.insert(l.remove(e), l.root.prev);
+	};
+	List.prototype.MoveToBack = function(e) { return this.go$val.MoveToBack(e); };
+	List.Ptr.prototype.MoveBefore = function(e, mark) {
+		var l;
+		l = this;
+		if (!(e.list === l) || e === mark) {
+			return;
+		}
+		l.insert(l.remove(e), mark.prev);
+	};
+	List.prototype.MoveBefore = function(e, mark) { return this.go$val.MoveBefore(e, mark); };
+	List.Ptr.prototype.MoveAfter = function(e, mark) {
+		var l;
+		l = this;
+		if (!(e.list === l) || e === mark) {
+			return;
+		}
+		l.insert(l.remove(e), mark);
+	};
+	List.prototype.MoveAfter = function(e, mark) { return this.go$val.MoveAfter(e, mark); };
+	List.Ptr.prototype.PushBackList = function(other) {
+		var l, _tuple, i, e, _tuple$1;
+		l = this;
+		l.lazyInit();
+		_tuple = [other.Len(), other.Front()]; i = _tuple[0]; e = _tuple[1];
+		while (i > 0) {
+			l.insertValue(e.Value, l.root.prev);
+			_tuple$1 = [i - 1 >> 0, e.Next()]; i = _tuple$1[0]; e = _tuple$1[1];
+		}
+	};
+	List.prototype.PushBackList = function(other) { return this.go$val.PushBackList(other); };
+	List.Ptr.prototype.PushFrontList = function(other) {
+		var l, _tuple, i, e, _tuple$1;
+		l = this;
+		l.lazyInit();
+		_tuple = [other.Len(), other.Back()]; i = _tuple[0]; e = _tuple[1];
+		while (i > 0) {
+			l.insertValue(e.Value, l.root);
+			_tuple$1 = [i - 1 >> 0, e.Prev()]; i = _tuple$1[0]; e = _tuple$1[1];
+		}
+	};
+	List.prototype.PushFrontList = function(other) { return this.go$val.PushFrontList(other); };
+	go$pkg.init = function() {
+		(go$ptrType(Element)).methods = [["Next", "", [], [(go$ptrType(Element))], false, -1], ["Prev", "", [], [(go$ptrType(Element))], false, -1]];
+		Element.init([["next", "next", "container/list", (go$ptrType(Element)), ""], ["prev", "prev", "container/list", (go$ptrType(Element)), ""], ["list", "list", "container/list", (go$ptrType(List)), ""], ["Value", "Value", "", go$emptyInterface, ""]]);
+		(go$ptrType(List)).methods = [["Back", "", [], [(go$ptrType(Element))], false, -1], ["Front", "", [], [(go$ptrType(Element))], false, -1], ["Init", "", [], [(go$ptrType(List))], false, -1], ["InsertAfter", "", [go$emptyInterface, (go$ptrType(Element))], [(go$ptrType(Element))], false, -1], ["InsertBefore", "", [go$emptyInterface, (go$ptrType(Element))], [(go$ptrType(Element))], false, -1], ["Len", "", [], [Go$Int], false, -1], ["MoveAfter", "", [(go$ptrType(Element)), (go$ptrType(Element))], [], false, -1], ["MoveBefore", "", [(go$ptrType(Element)), (go$ptrType(Element))], [], false, -1], ["MoveToBack", "", [(go$ptrType(Element))], [], false, -1], ["MoveToFront", "", [(go$ptrType(Element))], [], false, -1], ["PushBack", "", [go$emptyInterface], [(go$ptrType(Element))], false, -1], ["PushBackList", "", [(go$ptrType(List))], [], false, -1], ["PushFront", "", [go$emptyInterface], [(go$ptrType(Element))], false, -1], ["PushFrontList", "", [(go$ptrType(List))], [], false, -1], ["Remove", "", [(go$ptrType(Element))], [go$emptyInterface], false, -1], ["insert", "container/list", [(go$ptrType(Element)), (go$ptrType(Element))], [(go$ptrType(Element))], false, -1], ["insertValue", "container/list", [go$emptyInterface, (go$ptrType(Element))], [(go$ptrType(Element))], false, -1], ["lazyInit", "container/list", [], [], false, -1], ["remove", "container/list", [(go$ptrType(Element))], [(go$ptrType(Element))], false, -1]];
+		List.init([["root", "root", "container/list", Element, ""], ["len", "len", "container/list", Go$Int, ""]]);
+	}
+	return go$pkg;
+})();
+go$packages["text/template/parse"] = (function() {
+	var go$pkg = {}, list = go$packages["container/list"], fmt = go$packages["fmt"], strings = go$packages["strings"], unicode = go$packages["unicode"], utf8 = go$packages["unicode/utf8"], bytes = go$packages["bytes"], strconv = go$packages["strconv"], runtime = go$packages["runtime"], item, itemType, stateFn, lexer, Node, NodeType, Pos, ListNode, TextNode, PipeNode, ActionNode, CommandNode, IdentifierNode, VariableNode, DotNode, NilNode, FieldNode, ChainNode, BoolNode, NumberNode, StringNode, endNode, elseNode, BranchNode, IfNode, RangeNode, WithNode, TemplateNode, Tree, lex, lexText, lexLeftDelim, lexComment, lexRightDelim, lexInsideAction, lexSpace, lexIdentifier, lexField, lexVariable, lexFieldOrVariable, lexChar, lexNumber, lexQuote, lexRawQuote, isSpace, isEndOfLine, isAlphaNumeric, newList, newText, newPipeline, newAction, newCommand, NewIdentifier, newVariable, newDot, newNil, newField, newChain, newBool, newNumber, newString, newEnd, newElse, newIf, newRange, newWith, newTemplate, Parse, New, IsEmptyTree, key, textFormat;
+	item = go$pkg.item = go$newType(0, "Struct", "parse.item", "item", "text/template/parse", function(typ_, pos_, val_) {
+		this.go$val = this;
+		this.typ = typ_ !== undefined ? typ_ : 0;
+		this.pos = pos_ !== undefined ? pos_ : 0;
+		this.val = val_ !== undefined ? val_ : "";
+	});
+	itemType = go$pkg.itemType = go$newType(4, "Int", "parse.itemType", "itemType", "text/template/parse", null);
+	stateFn = go$pkg.stateFn = go$newType(0, "Func", "parse.stateFn", "stateFn", "text/template/parse", null);
+	lexer = go$pkg.lexer = go$newType(0, "Struct", "parse.lexer", "lexer", "text/template/parse", function(name_, input_, leftDelim_, rightDelim_, state_, pos_, start_, width_, lastPos_, items_, parenDepth_) {
+		this.go$val = this;
+		this.name = name_ !== undefined ? name_ : "";
+		this.input = input_ !== undefined ? input_ : "";
+		this.leftDelim = leftDelim_ !== undefined ? leftDelim_ : "";
+		this.rightDelim = rightDelim_ !== undefined ? rightDelim_ : "";
+		this.state = state_ !== undefined ? state_ : go$throwNilPointerError;
+		this.pos = pos_ !== undefined ? pos_ : 0;
+		this.start = start_ !== undefined ? start_ : 0;
+		this.width = width_ !== undefined ? width_ : 0;
+		this.lastPos = lastPos_ !== undefined ? lastPos_ : 0;
+		this.items = items_ !== undefined ? items_ : (go$ptrType(list.List)).nil;
+		this.parenDepth = parenDepth_ !== undefined ? parenDepth_ : 0;
+	});
+	Node = go$pkg.Node = go$newType(0, "Interface", "parse.Node", "Node", "text/template/parse", null);
+	NodeType = go$pkg.NodeType = go$newType(4, "Int", "parse.NodeType", "NodeType", "text/template/parse", null);
+	Pos = go$pkg.Pos = go$newType(4, "Int", "parse.Pos", "Pos", "text/template/parse", null);
+	ListNode = go$pkg.ListNode = go$newType(0, "Struct", "parse.ListNode", "ListNode", "text/template/parse", function(NodeType_, Pos_, Nodes_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.Nodes = Nodes_ !== undefined ? Nodes_ : (go$sliceType(Node)).nil;
+	});
+	TextNode = go$pkg.TextNode = go$newType(0, "Struct", "parse.TextNode", "TextNode", "text/template/parse", function(NodeType_, Pos_, Text_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.Text = Text_ !== undefined ? Text_ : (go$sliceType(Go$Uint8)).nil;
+	});
+	PipeNode = go$pkg.PipeNode = go$newType(0, "Struct", "parse.PipeNode", "PipeNode", "text/template/parse", function(NodeType_, Pos_, Line_, Decl_, Cmds_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.Line = Line_ !== undefined ? Line_ : 0;
+		this.Decl = Decl_ !== undefined ? Decl_ : (go$sliceType((go$ptrType(VariableNode)))).nil;
+		this.Cmds = Cmds_ !== undefined ? Cmds_ : (go$sliceType((go$ptrType(CommandNode)))).nil;
+	});
+	ActionNode = go$pkg.ActionNode = go$newType(0, "Struct", "parse.ActionNode", "ActionNode", "text/template/parse", function(NodeType_, Pos_, Line_, Pipe_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.Line = Line_ !== undefined ? Line_ : 0;
+		this.Pipe = Pipe_ !== undefined ? Pipe_ : (go$ptrType(PipeNode)).nil;
+	});
+	CommandNode = go$pkg.CommandNode = go$newType(0, "Struct", "parse.CommandNode", "CommandNode", "text/template/parse", function(NodeType_, Pos_, Args_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.Args = Args_ !== undefined ? Args_ : (go$sliceType(Node)).nil;
+	});
+	IdentifierNode = go$pkg.IdentifierNode = go$newType(0, "Struct", "parse.IdentifierNode", "IdentifierNode", "text/template/parse", function(NodeType_, Pos_, Ident_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.Ident = Ident_ !== undefined ? Ident_ : "";
+	});
+	VariableNode = go$pkg.VariableNode = go$newType(0, "Struct", "parse.VariableNode", "VariableNode", "text/template/parse", function(NodeType_, Pos_, Ident_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.Ident = Ident_ !== undefined ? Ident_ : (go$sliceType(Go$String)).nil;
+	});
+	DotNode = go$pkg.DotNode = go$newType(0, "Struct", "parse.DotNode", "DotNode", "text/template/parse", function(Pos_) {
+		this.go$val = this;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+	});
+	NilNode = go$pkg.NilNode = go$newType(0, "Struct", "parse.NilNode", "NilNode", "text/template/parse", function(Pos_) {
+		this.go$val = this;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+	});
+	FieldNode = go$pkg.FieldNode = go$newType(0, "Struct", "parse.FieldNode", "FieldNode", "text/template/parse", function(NodeType_, Pos_, Ident_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.Ident = Ident_ !== undefined ? Ident_ : (go$sliceType(Go$String)).nil;
+	});
+	ChainNode = go$pkg.ChainNode = go$newType(0, "Struct", "parse.ChainNode", "ChainNode", "text/template/parse", function(NodeType_, Pos_, Node_, Field_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.Node = Node_ !== undefined ? Node_ : null;
+		this.Field = Field_ !== undefined ? Field_ : (go$sliceType(Go$String)).nil;
+	});
+	BoolNode = go$pkg.BoolNode = go$newType(0, "Struct", "parse.BoolNode", "BoolNode", "text/template/parse", function(NodeType_, Pos_, True_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.True = True_ !== undefined ? True_ : false;
+	});
+	NumberNode = go$pkg.NumberNode = go$newType(0, "Struct", "parse.NumberNode", "NumberNode", "text/template/parse", function(NodeType_, Pos_, IsInt_, IsUint_, IsFloat_, IsComplex_, Int64_, Uint64_, Float64_, Complex128_, Text_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.IsInt = IsInt_ !== undefined ? IsInt_ : false;
+		this.IsUint = IsUint_ !== undefined ? IsUint_ : false;
+		this.IsFloat = IsFloat_ !== undefined ? IsFloat_ : false;
+		this.IsComplex = IsComplex_ !== undefined ? IsComplex_ : false;
+		this.Int64 = Int64_ !== undefined ? Int64_ : new Go$Int64(0, 0);
+		this.Uint64 = Uint64_ !== undefined ? Uint64_ : new Go$Uint64(0, 0);
+		this.Float64 = Float64_ !== undefined ? Float64_ : 0;
+		this.Complex128 = Complex128_ !== undefined ? Complex128_ : new Go$Complex128(0, 0);
+		this.Text = Text_ !== undefined ? Text_ : "";
+	});
+	StringNode = go$pkg.StringNode = go$newType(0, "Struct", "parse.StringNode", "StringNode", "text/template/parse", function(NodeType_, Pos_, Quoted_, Text_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.Quoted = Quoted_ !== undefined ? Quoted_ : "";
+		this.Text = Text_ !== undefined ? Text_ : "";
+	});
+	endNode = go$pkg.endNode = go$newType(0, "Struct", "parse.endNode", "endNode", "text/template/parse", function(Pos_) {
+		this.go$val = this;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+	});
+	elseNode = go$pkg.elseNode = go$newType(0, "Struct", "parse.elseNode", "elseNode", "text/template/parse", function(NodeType_, Pos_, Line_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.Line = Line_ !== undefined ? Line_ : 0;
+	});
+	BranchNode = go$pkg.BranchNode = go$newType(0, "Struct", "parse.BranchNode", "BranchNode", "text/template/parse", function(NodeType_, Pos_, Line_, Pipe_, List_, ElseList_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.Line = Line_ !== undefined ? Line_ : 0;
+		this.Pipe = Pipe_ !== undefined ? Pipe_ : (go$ptrType(PipeNode)).nil;
+		this.List = List_ !== undefined ? List_ : (go$ptrType(ListNode)).nil;
+		this.ElseList = ElseList_ !== undefined ? ElseList_ : (go$ptrType(ListNode)).nil;
+	});
+	IfNode = go$pkg.IfNode = go$newType(0, "Struct", "parse.IfNode", "IfNode", "text/template/parse", function(BranchNode_) {
+		this.go$val = this;
+		this.BranchNode = BranchNode_ !== undefined ? BranchNode_ : new BranchNode.Ptr();
+	});
+	RangeNode = go$pkg.RangeNode = go$newType(0, "Struct", "parse.RangeNode", "RangeNode", "text/template/parse", function(BranchNode_) {
+		this.go$val = this;
+		this.BranchNode = BranchNode_ !== undefined ? BranchNode_ : new BranchNode.Ptr();
+	});
+	WithNode = go$pkg.WithNode = go$newType(0, "Struct", "parse.WithNode", "WithNode", "text/template/parse", function(BranchNode_) {
+		this.go$val = this;
+		this.BranchNode = BranchNode_ !== undefined ? BranchNode_ : new BranchNode.Ptr();
+	});
+	TemplateNode = go$pkg.TemplateNode = go$newType(0, "Struct", "parse.TemplateNode", "TemplateNode", "text/template/parse", function(NodeType_, Pos_, Line_, Name_, Pipe_) {
+		this.go$val = this;
+		this.NodeType = NodeType_ !== undefined ? NodeType_ : 0;
+		this.Pos = Pos_ !== undefined ? Pos_ : 0;
+		this.Line = Line_ !== undefined ? Line_ : 0;
+		this.Name = Name_ !== undefined ? Name_ : "";
+		this.Pipe = Pipe_ !== undefined ? Pipe_ : (go$ptrType(PipeNode)).nil;
+	});
+	Tree = go$pkg.Tree = go$newType(0, "Struct", "parse.Tree", "Tree", "text/template/parse", function(Name_, ParseName_, Root_, text_, funcs_, lex_, token_, peekCount_, vars_) {
+		this.go$val = this;
+		this.Name = Name_ !== undefined ? Name_ : "";
+		this.ParseName = ParseName_ !== undefined ? ParseName_ : "";
+		this.Root = Root_ !== undefined ? Root_ : (go$ptrType(ListNode)).nil;
+		this.text = text_ !== undefined ? text_ : "";
+		this.funcs = funcs_ !== undefined ? funcs_ : (go$sliceType((go$mapType(Go$String, go$emptyInterface)))).nil;
+		this.lex = lex_ !== undefined ? lex_ : (go$ptrType(lexer)).nil;
+		this.token = token_ !== undefined ? token_ : go$makeNativeArray("Struct", 3, function() { return new item.Ptr(); });
+		this.peekCount = peekCount_ !== undefined ? peekCount_ : 0;
+		this.vars = vars_ !== undefined ? vars_ : (go$sliceType(Go$String)).nil;
+	});
+	item.Ptr.prototype.String = function() {
+		var _struct, i;
+		i = (_struct = this, new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+		if (i.typ === 6) {
+			return "EOF";
+		} else if (i.typ === 0) {
+			return i.val;
+		} else if (i.typ > 20) {
+			return fmt.Sprintf("<%s>", new (go$sliceType(go$emptyInterface))([new Go$String(i.val)]));
+		} else if (i.val.length > 10) {
+			return fmt.Sprintf("%.10q...", new (go$sliceType(go$emptyInterface))([new Go$String(i.val)]));
+		}
+		return fmt.Sprintf("%q", new (go$sliceType(go$emptyInterface))([new Go$String(i.val)]));
+	};
+	item.prototype.String = function() { return this.go$val.String(); };
+	lexer.Ptr.prototype.next = function() {
+		var l, _tuple, r, w;
+		l = this;
+		if ((l.pos >> 0) >= l.input.length) {
+			l.width = 0;
+			return -1;
+		}
+		_tuple = utf8.DecodeRuneInString(l.input.substring(l.pos)); r = _tuple[0]; w = _tuple[1];
+		l.width = (w >> 0);
+		l.pos = l.pos + (l.width) >> 0;
+		return r;
+	};
+	lexer.prototype.next = function() { return this.go$val.next(); };
+	lexer.Ptr.prototype.peek = function() {
+		var l, r;
+		l = this;
+		r = l.next();
+		l.backup();
+		return r;
+	};
+	lexer.prototype.peek = function() { return this.go$val.peek(); };
+	lexer.Ptr.prototype.backup = function() {
+		var l;
+		l = this;
+		l.pos = l.pos - (l.width) >> 0;
+	};
+	lexer.prototype.backup = function() { return this.go$val.backup(); };
+	lexer.Ptr.prototype.emit = function(t) {
+		var l, x;
+		l = this;
+		l.items.PushBack((x = new item.Ptr(t, l.start, l.input.substring(l.start, l.pos)), new x.constructor.Struct(x)));
+		l.start = l.pos;
+	};
+	lexer.prototype.emit = function(t) { return this.go$val.emit(t); };
+	lexer.Ptr.prototype.ignore = function() {
+		var l;
+		l = this;
+		l.start = l.pos;
+	};
+	lexer.prototype.ignore = function() { return this.go$val.ignore(); };
+	lexer.Ptr.prototype.accept = function(valid) {
+		var l;
+		l = this;
+		if (strings.IndexRune(valid, l.next()) >= 0) {
+			return true;
+		}
+		l.backup();
+		return false;
+	};
+	lexer.prototype.accept = function(valid) { return this.go$val.accept(valid); };
+	lexer.Ptr.prototype.acceptRun = function(valid) {
+		var l;
+		l = this;
+		while (strings.IndexRune(valid, l.next()) >= 0) {
+		}
+		l.backup();
+	};
+	lexer.prototype.acceptRun = function(valid) { return this.go$val.acceptRun(valid); };
+	lexer.Ptr.prototype.lineNumber = function() {
+		var l;
+		l = this;
+		return 1 + strings.Count(l.input.substring(0, l.lastPos), "\n") >> 0;
+	};
+	lexer.prototype.lineNumber = function() { return this.go$val.lineNumber(); };
+	lexer.Ptr.prototype.errorf = function(format, args) {
+		var l, x;
+		l = this;
+		l.items.PushBack((x = new item.Ptr(0, l.start, fmt.Sprintf(format, args)), new x.constructor.Struct(x)));
+		return go$throwNilPointerError;
+	};
+	lexer.prototype.errorf = function(format, args) { return this.go$val.errorf(format, args); };
+	lexer.Ptr.prototype.nextItem = function() {
+		var l, element, x, _struct, item$1, _struct$1;
+		l = this;
+		element = l.items.Front();
+		while (element === (go$ptrType(list.Element)).nil) {
+			l.state = l.state(l);
+			element = l.items.Front();
+		}
+		l.items.Remove(element);
+		item$1 = (_struct = (x = element.Value, (x !== null && x.constructor === item ? x.go$val : go$typeAssertionFailed(x, item))), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+		l.lastPos = item$1.pos;
+		return (_struct$1 = item$1, new item.Ptr(_struct$1.typ, _struct$1.pos, _struct$1.val));
+	};
+	lexer.prototype.nextItem = function() { return this.go$val.nextItem(); };
+	lex = function(name, input, left, right) {
+		var l;
+		if (left === "") {
+			left = "{{";
+		}
+		if (right === "") {
+			right = "}}";
+		}
+		l = new lexer.Ptr(name, input, left, right, go$throwNilPointerError, 0, 0, 0, 0, list.New(), 0);
+		l.state = lexText;
+		return l;
+	};
+	lexText = function(l) {
+		while (true) {
+			if (strings.HasPrefix(l.input.substring(l.pos), l.leftDelim)) {
+				if (l.pos > l.start) {
+					l.emit(18);
+				}
+				return lexLeftDelim;
+			}
+			if (l.next() === -1) {
+				break;
+			}
+		}
+		if (l.pos > l.start) {
+			l.emit(18);
+		}
+		l.emit(6);
+		return go$throwNilPointerError;
+	};
+	lexLeftDelim = function(l) {
+		l.pos = l.pos + ((l.leftDelim.length >> 0)) >> 0;
+		if (strings.HasPrefix(l.input.substring(l.pos), "/*")) {
+			return lexComment;
+		}
+		l.emit(9);
+		l.parenDepth = 0;
+		return lexInsideAction;
+	};
+	lexComment = function(l) {
+		var i;
+		l.pos = l.pos + 2 >> 0;
+		i = strings.Index(l.input.substring(l.pos), "*/");
+		if (i < 0) {
+			return l.errorf("unclosed comment", new (go$sliceType(go$emptyInterface))([]));
+		}
+		l.pos = l.pos + (((i + 2 >> 0) >> 0)) >> 0;
+		if (!strings.HasPrefix(l.input.substring(l.pos), l.rightDelim)) {
+			return l.errorf("comment ends before closing delimiter", new (go$sliceType(go$emptyInterface))([]));
+		}
+		l.pos = l.pos + ((l.rightDelim.length >> 0)) >> 0;
+		l.ignore();
+		return lexText;
+	};
+	lexRightDelim = function(l) {
+		l.pos = l.pos + ((l.rightDelim.length >> 0)) >> 0;
+		l.emit(14);
+		return lexText;
+	};
+	lexInsideAction = function(l) {
+		var r, r$1;
+		if (strings.HasPrefix(l.input.substring(l.pos), l.rightDelim)) {
+			if (l.parenDepth === 0) {
+				return lexRightDelim;
+			}
+			return l.errorf("unclosed left paren", new (go$sliceType(go$emptyInterface))([]));
+		}
+		r = l.next();
+		if ((r === -1) || isEndOfLine(r)) {
+			return l.errorf("unclosed action", new (go$sliceType(go$emptyInterface))([]));
+		} else if (isSpace(r)) {
+			return lexSpace;
+		} else if (r === 58) {
+			if (!((l.next() === 61))) {
+				return l.errorf("expected :=", new (go$sliceType(go$emptyInterface))([]));
+			}
+			l.emit(5);
+		} else if (r === 124) {
+			l.emit(12);
+		} else if (r === 34) {
+			return lexQuote;
+		} else if (r === 96) {
+			return lexRawQuote;
+		} else if (r === 36) {
+			return lexVariable;
+		} else if (r === 39) {
+			return lexChar;
+		} else if (r === 46) {
+			if (l.pos < (l.input.length >> 0)) {
+				r$1 = l.input.charCodeAt(l.pos);
+				if (r$1 < 48 || 57 < r$1) {
+					return lexField;
+				}
+			}
+			l.backup();
+			return lexNumber;
+		} else if ((r === 43) || (r === 45) || (48 <= r && r <= 57)) {
+			l.backup();
+			return lexNumber;
+		} else if (isAlphaNumeric(r)) {
+			l.backup();
+			return lexIdentifier;
+		} else if (r === 40) {
+			l.emit(10);
+			l.parenDepth = l.parenDepth + 1 >> 0;
+			return lexInsideAction;
+		} else if (r === 41) {
+			l.emit(15);
+			l.parenDepth = l.parenDepth - 1 >> 0;
+			if (l.parenDepth < 0) {
+				return l.errorf("unexpected right paren %#U", new (go$sliceType(go$emptyInterface))([new Go$Int32(r)]));
+			}
+			return lexInsideAction;
+		} else if (r <= 127 && unicode.IsPrint(r)) {
+			l.emit(2);
+			return lexInsideAction;
+		} else {
+			return l.errorf("unrecognized character in action: %#U", new (go$sliceType(go$emptyInterface))([new Go$Int32(r)]));
+		}
+		return lexInsideAction;
+	};
+	lexSpace = function(l) {
+		while (isSpace(l.peek())) {
+			l.next();
+		}
+		l.emit(16);
+		return lexInsideAction;
+	};
+	lexIdentifier = function(l) {
+		var r, word, _entry, _entry$1;
+		Loop:
+		while (true) {
+			r = l.next();
+			if (isAlphaNumeric(r)) {
+			} else {
+				l.backup();
+				word = l.input.substring(l.start, l.pos);
+				if (!l.atTerminator()) {
+					return l.errorf("bad character %#U", new (go$sliceType(go$emptyInterface))([new Go$Int32(r)]));
+				}
+				if ((_entry = key[word], _entry !== undefined ? _entry.v : 0) > 20) {
+					l.emit((_entry$1 = key[word], _entry$1 !== undefined ? _entry$1.v : 0));
+				} else if (word.charCodeAt(0) === 46) {
+					l.emit(7);
+				} else if (word === "true" || word === "false") {
+					l.emit(1);
+				} else {
+					l.emit(8);
+				}
+				break Loop;
+			}
+		}
+		return lexInsideAction;
+	};
+	lexField = function(l) {
+		return lexFieldOrVariable(l, 7);
+	};
+	lexVariable = function(l) {
+		if (l.atTerminator()) {
+			l.emit(19);
+			return lexInsideAction;
+		}
+		return lexFieldOrVariable(l, 19);
+	};
+	lexFieldOrVariable = function(l, typ) {
+		var r;
+		if (l.atTerminator()) {
+			if (typ === 19) {
+				l.emit(19);
+			} else {
+				l.emit(21);
+			}
+			return lexInsideAction;
+		}
+		r = 0;
+		while (true) {
+			r = l.next();
+			if (!isAlphaNumeric(r)) {
+				l.backup();
+				break;
+			}
+		}
+		if (!l.atTerminator()) {
+			return l.errorf("bad character %#U", new (go$sliceType(go$emptyInterface))([new Go$Int32(r)]));
+		}
+		l.emit(typ);
+		return lexInsideAction;
+	};
+	lexer.Ptr.prototype.atTerminator = function() {
+		var l, r, _ref, _tuple, rd;
+		l = this;
+		r = l.peek();
+		if (isSpace(r) || isEndOfLine(r)) {
+			return true;
+		}
+		_ref = r;
+		if (_ref === -1 || _ref === 46 || _ref === 44 || _ref === 124 || _ref === 58 || _ref === 41 || _ref === 40) {
+			return true;
+		}
+		_tuple = utf8.DecodeRuneInString(l.rightDelim); rd = _tuple[0];
+		if (rd === r) {
+			return true;
+		}
+		return false;
+	};
+	lexer.prototype.atTerminator = function() { return this.go$val.atTerminator(); };
+	lexChar = function(l) {
+		var _ref, r;
+		Loop:
+		while (true) {
+			_ref = l.next();
+			switch (0) { default: if (_ref === 92) {
+				r = l.next();
+				if (!((r === -1)) && !((r === 10))) {
+					break;
+				}
+				return l.errorf("unterminated character constant", new (go$sliceType(go$emptyInterface))([]));
+			} else if (_ref === -1 || _ref === 10) {
+				return l.errorf("unterminated character constant", new (go$sliceType(go$emptyInterface))([]));
+			} else if (_ref === 39) {
+				break Loop;
+			} }
+		}
+		l.emit(3);
+		return lexInsideAction;
+	};
+	lexNumber = function(l) {
+		var sign;
+		if (!l.scanNumber()) {
+			return l.errorf("bad number syntax: %q", new (go$sliceType(go$emptyInterface))([new Go$String(l.input.substring(l.start, l.pos))]));
+		}
+		sign = l.peek();
+		if ((sign === 43) || (sign === 45)) {
+			if (!l.scanNumber() || !((l.input.charCodeAt((l.pos - 1 >> 0)) === 105))) {
+				return l.errorf("bad number syntax: %q", new (go$sliceType(go$emptyInterface))([new Go$String(l.input.substring(l.start, l.pos))]));
+			}
+			l.emit(4);
+		} else {
+			l.emit(11);
+		}
+		return lexInsideAction;
+	};
+	lexer.Ptr.prototype.scanNumber = function() {
+		var l, digits;
+		l = this;
+		l.accept("+-");
+		digits = "0123456789";
+		if (l.accept("0") && l.accept("xX")) {
+			digits = "0123456789abcdefABCDEF";
+		}
+		l.acceptRun(digits);
+		if (l.accept(".")) {
+			l.acceptRun(digits);
+		}
+		if (l.accept("eE")) {
+			l.accept("+-");
+			l.acceptRun("0123456789");
+		}
+		l.accept("i");
+		if (isAlphaNumeric(l.peek())) {
+			l.next();
+			return false;
+		}
+		return true;
+	};
+	lexer.prototype.scanNumber = function() { return this.go$val.scanNumber(); };
+	lexQuote = function(l) {
+		var _ref, r;
+		Loop:
+		while (true) {
+			_ref = l.next();
+			switch (0) { default: if (_ref === 92) {
+				r = l.next();
+				if (!((r === -1)) && !((r === 10))) {
+					break;
+				}
+				return l.errorf("unterminated quoted string", new (go$sliceType(go$emptyInterface))([]));
+			} else if (_ref === -1 || _ref === 10) {
+				return l.errorf("unterminated quoted string", new (go$sliceType(go$emptyInterface))([]));
+			} else if (_ref === 34) {
+				break Loop;
+			} }
+		}
+		l.emit(17);
+		return lexInsideAction;
+	};
+	lexRawQuote = function(l) {
+		var _ref;
+		Loop:
+		while (true) {
+			_ref = l.next();
+			if (_ref === -1 || _ref === 10) {
+				return l.errorf("unterminated raw quoted string", new (go$sliceType(go$emptyInterface))([]));
+			} else if (_ref === 96) {
+				break Loop;
+			}
+		}
+		l.emit(13);
+		return lexInsideAction;
+	};
+	isSpace = function(r) {
+		return (r === 32) || (r === 9);
+	};
+	isEndOfLine = function(r) {
+		return (r === 13) || (r === 10);
+	};
+	isAlphaNumeric = function(r) {
+		return (r === 95) || unicode.IsLetter(r) || unicode.IsDigit(r);
+	};
+	Pos.prototype.Position = function() {
+		var p;
+		p = this.go$val;
+		return p;
+	};
+	go$ptrType(Pos).prototype.Position = function() { return new Pos(this.go$get()).Position(); };
+	NodeType.prototype.Type = function() {
+		var t;
+		t = this.go$val;
+		return t;
+	};
+	go$ptrType(NodeType).prototype.Type = function() { return new NodeType(this.go$get()).Type(); };
+	newList = function(pos) {
+		return new ListNode.Ptr(11, pos, (go$sliceType(Node)).nil);
+	};
+	ListNode.Ptr.prototype.append = function(n) {
+		var l;
+		l = this;
+		l.Nodes = go$append(l.Nodes, n);
+	};
+	ListNode.prototype.append = function(n) { return this.go$val.append(n); };
+	ListNode.Ptr.prototype.String = function() {
+		var l, b, _ref, _i, _slice, _index, n;
+		l = this;
+		b = new bytes.Buffer.Ptr();
+		_ref = l.Nodes;
+		_i = 0;
+		while (_i < _ref.length) {
+			n = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			fmt.Fprint(b, new (go$sliceType(go$emptyInterface))([n]));
+			_i++;
+		}
+		return b.String();
+	};
+	ListNode.prototype.String = function() { return this.go$val.String(); };
+	ListNode.Ptr.prototype.CopyList = function() {
+		var l, n, _ref, _i, _slice, _index, elem;
+		l = this;
+		if (l === (go$ptrType(ListNode)).nil) {
+			return l;
+		}
+		n = newList(l.Pos);
+		_ref = l.Nodes;
+		_i = 0;
+		while (_i < _ref.length) {
+			elem = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			n.append(elem.Copy());
+			_i++;
+		}
+		return n;
+	};
+	ListNode.prototype.CopyList = function() { return this.go$val.CopyList(); };
+	ListNode.Ptr.prototype.Copy = function() {
+		var l;
+		l = this;
+		return l.CopyList();
+	};
+	ListNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newText = function(pos, text) {
+		return new TextNode.Ptr(0, pos, new (go$sliceType(Go$Uint8))(go$stringToBytes(text)));
+	};
+	TextNode.Ptr.prototype.String = function() {
+		var t;
+		t = this;
+		return fmt.Sprintf(textFormat, new (go$sliceType(go$emptyInterface))([t.Text]));
+	};
+	TextNode.prototype.String = function() { return this.go$val.String(); };
+	TextNode.Ptr.prototype.Copy = function() {
+		var t;
+		t = this;
+		return new TextNode.Ptr(0, 0, go$appendSlice(new (go$sliceType(Go$Uint8))([]), t.Text));
+	};
+	TextNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newPipeline = function(pos, line, decl) {
+		return new PipeNode.Ptr(14, pos, line, decl, (go$sliceType((go$ptrType(CommandNode)))).nil);
+	};
+	PipeNode.Ptr.prototype.append = function(command) {
+		var p;
+		p = this;
+		p.Cmds = go$append(p.Cmds, command);
+	};
+	PipeNode.prototype.append = function(command) { return this.go$val.append(command); };
+	PipeNode.Ptr.prototype.String = function() {
+		var p, s, _ref, _i, _slice, _index, v, i, _ref$1, _i$1, _slice$1, _index$1, c, i$1;
+		p = this;
+		s = "";
+		if (p.Decl.length > 0) {
+			_ref = p.Decl;
+			_i = 0;
+			while (_i < _ref.length) {
+				v = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+				i = _i;
+				if (i > 0) {
+					s = s + ", ";
+				}
+				s = s + (v.String());
+				_i++;
+			}
+			s = s + " := ";
+		}
+		_ref$1 = p.Cmds;
+		_i$1 = 0;
+		while (_i$1 < _ref$1.length) {
+			c = (_slice$1 = _ref$1, _index$1 = _i$1, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
+			i$1 = _i$1;
+			if (i$1 > 0) {
+				s = s + " | ";
+			}
+			s = s + (c.String());
+			_i$1++;
+		}
+		return s;
+	};
+	PipeNode.prototype.String = function() { return this.go$val.String(); };
+	PipeNode.Ptr.prototype.CopyPipe = function() {
+		var p, decl, _ref, _i, _slice, _index, d, x, n, _ref$1, _i$1, _slice$1, _index$1, c, x$1;
+		p = this;
+		if (p === (go$ptrType(PipeNode)).nil) {
+			return p;
+		}
+		decl = (go$sliceType((go$ptrType(VariableNode)))).nil;
+		_ref = p.Decl;
+		_i = 0;
+		while (_i < _ref.length) {
+			d = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			decl = go$append(decl, (x = d.Copy(), (x !== null && x.constructor === (go$ptrType(VariableNode)) ? x.go$val : go$typeAssertionFailed(x, (go$ptrType(VariableNode))))));
+			_i++;
+		}
+		n = newPipeline(p.Pos, p.Line, decl);
+		_ref$1 = p.Cmds;
+		_i$1 = 0;
+		while (_i$1 < _ref$1.length) {
+			c = (_slice$1 = _ref$1, _index$1 = _i$1, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
+			n.append((x$1 = c.Copy(), (x$1 !== null && x$1.constructor === (go$ptrType(CommandNode)) ? x$1.go$val : go$typeAssertionFailed(x$1, (go$ptrType(CommandNode))))));
+			_i$1++;
+		}
+		return n;
+	};
+	PipeNode.prototype.CopyPipe = function() { return this.go$val.CopyPipe(); };
+	PipeNode.Ptr.prototype.Copy = function() {
+		var p;
+		p = this;
+		return p.CopyPipe();
+	};
+	PipeNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newAction = function(pos, line, pipe) {
+		return new ActionNode.Ptr(1, pos, line, pipe);
+	};
+	ActionNode.Ptr.prototype.String = function() {
+		var a;
+		a = this;
+		return fmt.Sprintf("{{%s}}", new (go$sliceType(go$emptyInterface))([a.Pipe]));
+	};
+	ActionNode.prototype.String = function() { return this.go$val.String(); };
+	ActionNode.Ptr.prototype.Copy = function() {
+		var a;
+		a = this;
+		return newAction(a.Pos, a.Line, a.Pipe.CopyPipe());
+	};
+	ActionNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newCommand = function(pos) {
+		return new CommandNode.Ptr(4, pos, (go$sliceType(Node)).nil);
+	};
+	CommandNode.Ptr.prototype.append = function(arg) {
+		var c;
+		c = this;
+		c.Args = go$append(c.Args, arg);
+	};
+	CommandNode.prototype.append = function(arg) { return this.go$val.append(arg); };
+	CommandNode.Ptr.prototype.String = function() {
+		var c, s, _ref, _i, _slice, _index, arg, i, _tuple, arg$1, ok;
+		c = this;
+		s = "";
+		_ref = c.Args;
+		_i = 0;
+		while (_i < _ref.length) {
+			arg = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			i = _i;
+			if (i > 0) {
+				s = s + " ";
+			}
+			_tuple = (arg !== null && arg.constructor === (go$ptrType(PipeNode)) ? [arg.go$val, true] : [(go$ptrType(PipeNode)).nil, false]); arg$1 = _tuple[0]; ok = _tuple[1];
+			if (ok) {
+				s = s + ("(" + arg$1.String() + ")");
+				_i++;
+				continue;
+			}
+			s = s + (arg.String());
+			_i++;
+		}
+		return s;
+	};
+	CommandNode.prototype.String = function() { return this.go$val.String(); };
+	CommandNode.Ptr.prototype.Copy = function() {
+		var c, n, _ref, _i, _slice, _index, c$1;
+		c = this;
+		if (c === (go$ptrType(CommandNode)).nil) {
+			return c;
+		}
+		n = newCommand(c.Pos);
+		_ref = c.Args;
+		_i = 0;
+		while (_i < _ref.length) {
+			c$1 = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			n.append(c$1.Copy());
+			_i++;
+		}
+		return n;
+	};
+	CommandNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	NewIdentifier = go$pkg.NewIdentifier = function(ident) {
+		return new IdentifierNode.Ptr(9, 0, ident);
+	};
+	IdentifierNode.Ptr.prototype.SetPos = function(pos) {
+		var i;
+		i = this;
+		i.Pos = pos;
+		return i;
+	};
+	IdentifierNode.prototype.SetPos = function(pos) { return this.go$val.SetPos(pos); };
+	IdentifierNode.Ptr.prototype.String = function() {
+		var i;
+		i = this;
+		return i.Ident;
+	};
+	IdentifierNode.prototype.String = function() { return this.go$val.String(); };
+	IdentifierNode.Ptr.prototype.Copy = function() {
+		var i;
+		i = this;
+		return NewIdentifier(i.Ident).SetPos(i.Pos);
+	};
+	IdentifierNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newVariable = function(pos, ident) {
+		return new VariableNode.Ptr(18, pos, strings.Split(ident, "."));
+	};
+	VariableNode.Ptr.prototype.String = function() {
+		var v, s, _ref, _i, _slice, _index, id, i;
+		v = this;
+		s = "";
+		_ref = v.Ident;
+		_i = 0;
+		while (_i < _ref.length) {
+			id = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			i = _i;
+			if (i > 0) {
+				s = s + ".";
+			}
+			s = s + (id);
+			_i++;
+		}
+		return s;
+	};
+	VariableNode.prototype.String = function() { return this.go$val.String(); };
+	VariableNode.Ptr.prototype.Copy = function() {
+		var v;
+		v = this;
+		return new VariableNode.Ptr(18, v.Pos, go$appendSlice(new (go$sliceType(Go$String))([]), v.Ident));
+	};
+	VariableNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newDot = function(pos) {
+		return new DotNode.Ptr(pos);
+	};
+	DotNode.Ptr.prototype.Type = function() {
+		var d;
+		d = this;
+		return 5;
+	};
+	DotNode.prototype.Type = function() { return this.go$val.Type(); };
+	DotNode.Ptr.prototype.String = function() {
+		var d;
+		d = this;
+		return ".";
+	};
+	DotNode.prototype.String = function() { return this.go$val.String(); };
+	DotNode.Ptr.prototype.Copy = function() {
+		var d;
+		d = this;
+		return newDot(d.Pos);
+	};
+	DotNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newNil = function(pos) {
+		return new NilNode.Ptr(pos);
+	};
+	NilNode.Ptr.prototype.Type = function() {
+		var n;
+		n = this;
+		return 12;
+	};
+	NilNode.prototype.Type = function() { return this.go$val.Type(); };
+	NilNode.Ptr.prototype.String = function() {
+		var n;
+		n = this;
+		return "nil";
+	};
+	NilNode.prototype.String = function() { return this.go$val.String(); };
+	NilNode.Ptr.prototype.Copy = function() {
+		var n;
+		n = this;
+		return newNil(n.Pos);
+	};
+	NilNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newField = function(pos, ident) {
+		return new FieldNode.Ptr(8, pos, strings.Split(ident.substring(1), "."));
+	};
+	FieldNode.Ptr.prototype.String = function() {
+		var f, s, _ref, _i, _slice, _index, id;
+		f = this;
+		s = "";
+		_ref = f.Ident;
+		_i = 0;
+		while (_i < _ref.length) {
+			id = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			s = s + ("." + id);
+			_i++;
+		}
+		return s;
+	};
+	FieldNode.prototype.String = function() { return this.go$val.String(); };
+	FieldNode.Ptr.prototype.Copy = function() {
+		var f;
+		f = this;
+		return new FieldNode.Ptr(8, f.Pos, go$appendSlice(new (go$sliceType(Go$String))([]), f.Ident));
+	};
+	FieldNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newChain = function(pos, node) {
+		return new ChainNode.Ptr(3, pos, node, (go$sliceType(Go$String)).nil);
+	};
+	ChainNode.Ptr.prototype.Add = function(field) {
+		var c;
+		c = this;
+		if ((field.length === 0) || !((field.charCodeAt(0) === 46))) {
+			throw go$panic(new Go$String("no dot in field"));
+		}
+		field = field.substring(1);
+		if (field === "") {
+			throw go$panic(new Go$String("empty field"));
+		}
+		c.Field = go$append(c.Field, field);
+	};
+	ChainNode.prototype.Add = function(field) { return this.go$val.Add(field); };
+	ChainNode.Ptr.prototype.String = function() {
+		var c, s, _tuple, x, ok, _ref, _i, _slice, _index, field;
+		c = this;
+		s = c.Node.String();
+		_tuple = (x = c.Node, (x !== null && x.constructor === (go$ptrType(PipeNode)) ? [x.go$val, true] : [(go$ptrType(PipeNode)).nil, false])); ok = _tuple[1];
+		if (ok) {
+			s = "(" + s + ")";
+		}
+		_ref = c.Field;
+		_i = 0;
+		while (_i < _ref.length) {
+			field = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			s = s + ("." + field);
+			_i++;
+		}
+		return s;
+	};
+	ChainNode.prototype.String = function() { return this.go$val.String(); };
+	ChainNode.Ptr.prototype.Copy = function() {
+		var c;
+		c = this;
+		return new ChainNode.Ptr(3, c.Pos, c.Node, go$appendSlice(new (go$sliceType(Go$String))([]), c.Field));
+	};
+	ChainNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newBool = function(pos, true$1) {
+		return new BoolNode.Ptr(2, pos, true$1);
+	};
+	BoolNode.Ptr.prototype.String = function() {
+		var b;
+		b = this;
+		if (b.True) {
+			return "true";
+		}
+		return "false";
+	};
+	BoolNode.prototype.String = function() { return this.go$val.String(); };
+	BoolNode.Ptr.prototype.Copy = function() {
+		var b;
+		b = this;
+		return newBool(b.Pos, b.True);
+	};
+	BoolNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newNumber = function(pos, text, typ) {
+		var n, _ref, _tuple, rune, tail, err, _tuple$1, v, err$1, _tuple$2, f, err$2, _tuple$3, u, err$3, _tuple$4, i, _tuple$5, f$1, err$4;
+		n = new NumberNode.Ptr(13, pos, false, false, false, false, new Go$Int64(0, 0), new Go$Uint64(0, 0), 0, new Go$Complex128(0, 0), text);
+		_ref = typ;
+		if (_ref === 3) {
+			_tuple = strconv.UnquoteChar(text.substring(1), text.charCodeAt(0)); rune = _tuple[0]; tail = _tuple[2]; err = _tuple[3];
+			if (!(go$interfaceIsEqual(err, null))) {
+				return [(go$ptrType(NumberNode)).nil, err];
+			}
+			if (!(tail === "'")) {
+				return [(go$ptrType(NumberNode)).nil, fmt.Errorf("malformed character constant: %s", new (go$sliceType(go$emptyInterface))([new Go$String(text)]))];
+			}
+			n.Int64 = new Go$Int64(0, rune);
+			n.IsInt = true;
+			n.Uint64 = new Go$Uint64(0, rune);
+			n.IsUint = true;
+			n.Float64 = rune;
+			n.IsFloat = true;
+			return [n, null];
+		} else if (_ref === 4) {
+			_tuple$1 = fmt.Sscan(text, new (go$sliceType(go$emptyInterface))([new (go$ptrType(Go$Complex128))(function() { return n.Complex128; }, function(v) { n.Complex128 = v;; })])); err$1 = _tuple$1[1];
+			if (!(go$interfaceIsEqual(err$1, null))) {
+				return [(go$ptrType(NumberNode)).nil, err$1];
+			}
+			n.IsComplex = true;
+			n.simplifyComplex();
+			return [n, null];
+		}
+		if (text.length > 0 && (text.charCodeAt((text.length - 1 >> 0)) === 105)) {
+			_tuple$2 = strconv.ParseFloat(text.substring(0, (text.length - 1 >> 0)), 64); f = _tuple$2[0]; err$2 = _tuple$2[1];
+			if (go$interfaceIsEqual(err$2, null)) {
+				n.IsComplex = true;
+				n.Complex128 = new Go$Complex128(0, f);
+				n.simplifyComplex();
+				return [n, null];
+			}
+		}
+		_tuple$3 = strconv.ParseUint(text, 0, 64); u = _tuple$3[0]; err$3 = _tuple$3[1];
+		if (go$interfaceIsEqual(err$3, null)) {
+			n.IsUint = true;
+			n.Uint64 = u;
+		}
+		_tuple$4 = strconv.ParseInt(text, 0, 64); i = _tuple$4[0]; err$3 = _tuple$4[1];
+		if (go$interfaceIsEqual(err$3, null)) {
+			n.IsInt = true;
+			n.Int64 = i;
+			if ((i.high === 0 && i.low === 0)) {
+				n.IsUint = true;
+				n.Uint64 = u;
+			}
+		}
+		if (n.IsInt) {
+			n.IsFloat = true;
+			n.Float64 = go$flatten64(n.Int64);
+		} else if (n.IsUint) {
+			n.IsFloat = true;
+			n.Float64 = go$flatten64(n.Uint64);
+		} else {
+			_tuple$5 = strconv.ParseFloat(text, 64); f$1 = _tuple$5[0]; err$4 = _tuple$5[1];
+			if (go$interfaceIsEqual(err$4, null)) {
+				n.IsFloat = true;
+				n.Float64 = f$1;
+				if (!n.IsInt && (go$flatten64(new Go$Int64(0, f$1)) === f$1)) {
+					n.IsInt = true;
+					n.Int64 = new Go$Int64(0, f$1);
+				}
+				if (!n.IsUint && (go$flatten64(new Go$Uint64(0, f$1)) === f$1)) {
+					n.IsUint = true;
+					n.Uint64 = new Go$Uint64(0, f$1);
+				}
+			}
+		}
+		if (!n.IsInt && !n.IsUint && !n.IsFloat) {
+			return [(go$ptrType(NumberNode)).nil, fmt.Errorf("illegal number syntax: %q", new (go$sliceType(go$emptyInterface))([new Go$String(text)]))];
+		}
+		return [n, null];
+	};
+	NumberNode.Ptr.prototype.simplifyComplex = function() {
+		var n;
+		n = this;
+		n.IsFloat = n.Complex128.imag === 0;
+		if (n.IsFloat) {
+			n.Float64 = n.Complex128.real;
+			n.IsInt = go$flatten64(new Go$Int64(0, n.Float64)) === n.Float64;
+			if (n.IsInt) {
+				n.Int64 = new Go$Int64(0, n.Float64);
+			}
+			n.IsUint = go$flatten64(new Go$Uint64(0, n.Float64)) === n.Float64;
+			if (n.IsUint) {
+				n.Uint64 = new Go$Uint64(0, n.Float64);
+			}
+		}
+	};
+	NumberNode.prototype.simplifyComplex = function() { return this.go$val.simplifyComplex(); };
+	NumberNode.Ptr.prototype.String = function() {
+		var n;
+		n = this;
+		return n.Text;
+	};
+	NumberNode.prototype.String = function() { return this.go$val.String(); };
+	NumberNode.Ptr.prototype.Copy = function() {
+		var n, nn, _struct, l, r;
+		n = this;
+		nn = new NumberNode.Ptr();
+		l = nn; r = (_struct = n, new NumberNode.Ptr(_struct.NodeType, _struct.Pos, _struct.IsInt, _struct.IsUint, _struct.IsFloat, _struct.IsComplex, _struct.Int64, _struct.Uint64, _struct.Float64, _struct.Complex128, _struct.Text)); l.NodeType = r.NodeType; l.Pos = r.Pos; l.IsInt = r.IsInt; l.IsUint = r.IsUint; l.IsFloat = r.IsFloat; l.IsComplex = r.IsComplex; l.Int64 = r.Int64; l.Uint64 = r.Uint64; l.Float64 = r.Float64; l.Complex128 = r.Complex128; l.Text = r.Text;
+		return nn;
+	};
+	NumberNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newString = function(pos, orig, text) {
+		return new StringNode.Ptr(16, pos, orig, text);
+	};
+	StringNode.Ptr.prototype.String = function() {
+		var s;
+		s = this;
+		return s.Quoted;
+	};
+	StringNode.prototype.String = function() { return this.go$val.String(); };
+	StringNode.Ptr.prototype.Copy = function() {
+		var s;
+		s = this;
+		return newString(s.Pos, s.Quoted, s.Text);
+	};
+	StringNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newEnd = function(pos) {
+		return new endNode.Ptr(pos);
+	};
+	endNode.Ptr.prototype.Type = function() {
+		var e;
+		e = this;
+		return 7;
+	};
+	endNode.prototype.Type = function() { return this.go$val.Type(); };
+	endNode.Ptr.prototype.String = function() {
+		var e;
+		e = this;
+		return "{{end}}";
+	};
+	endNode.prototype.String = function() { return this.go$val.String(); };
+	endNode.Ptr.prototype.Copy = function() {
+		var e;
+		e = this;
+		return newEnd(e.Pos);
+	};
+	endNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newElse = function(pos, line) {
+		return new elseNode.Ptr(6, pos, line);
+	};
+	elseNode.Ptr.prototype.Type = function() {
+		var e;
+		e = this;
+		return 6;
+	};
+	elseNode.prototype.Type = function() { return this.go$val.Type(); };
+	elseNode.Ptr.prototype.String = function() {
+		var e;
+		e = this;
+		return "{{else}}";
+	};
+	elseNode.prototype.String = function() { return this.go$val.String(); };
+	elseNode.Ptr.prototype.Copy = function() {
+		var e;
+		e = this;
+		return newElse(e.Pos, e.Line);
+	};
+	elseNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	BranchNode.Ptr.prototype.String = function() {
+		var b, name, _ref;
+		b = this;
+		name = "";
+		_ref = b.NodeType;
+		if (_ref === 10) {
+			name = "if";
+		} else if (_ref === 15) {
+			name = "range";
+		} else if (_ref === 19) {
+			name = "with";
+		} else {
+			throw go$panic(new Go$String("unknown branch type"));
+		}
+		if (!(b.ElseList === (go$ptrType(ListNode)).nil)) {
+			return fmt.Sprintf("{{%s %s}}%s{{else}}%s{{end}}", new (go$sliceType(go$emptyInterface))([new Go$String(name), b.Pipe, b.List, b.ElseList]));
+		}
+		return fmt.Sprintf("{{%s %s}}%s{{end}}", new (go$sliceType(go$emptyInterface))([new Go$String(name), b.Pipe, b.List]));
+	};
+	BranchNode.prototype.String = function() { return this.go$val.String(); };
+	newIf = function(pos, line, pipe, list$1, elseList) {
+		return new IfNode.Ptr(new BranchNode.Ptr(10, pos, line, pipe, list$1, elseList));
+	};
+	IfNode.Ptr.prototype.Copy = function() {
+		var i;
+		i = this;
+		return newIf(i.BranchNode.Pos, i.BranchNode.Line, i.BranchNode.Pipe.CopyPipe(), i.BranchNode.List.CopyList(), i.BranchNode.ElseList.CopyList());
+	};
+	IfNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newRange = function(pos, line, pipe, list$1, elseList) {
+		return new RangeNode.Ptr(new BranchNode.Ptr(15, pos, line, pipe, list$1, elseList));
+	};
+	RangeNode.Ptr.prototype.Copy = function() {
+		var r;
+		r = this;
+		return newRange(r.BranchNode.Pos, r.BranchNode.Line, r.BranchNode.Pipe.CopyPipe(), r.BranchNode.List.CopyList(), r.BranchNode.ElseList.CopyList());
+	};
+	RangeNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newWith = function(pos, line, pipe, list$1, elseList) {
+		return new WithNode.Ptr(new BranchNode.Ptr(19, pos, line, pipe, list$1, elseList));
+	};
+	WithNode.Ptr.prototype.Copy = function() {
+		var w;
+		w = this;
+		return newWith(w.BranchNode.Pos, w.BranchNode.Line, w.BranchNode.Pipe.CopyPipe(), w.BranchNode.List.CopyList(), w.BranchNode.ElseList.CopyList());
+	};
+	WithNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	newTemplate = function(pos, line, name, pipe) {
+		return new TemplateNode.Ptr(17, pos, line, name, pipe);
+	};
+	TemplateNode.Ptr.prototype.String = function() {
+		var t;
+		t = this;
+		if (t.Pipe === (go$ptrType(PipeNode)).nil) {
+			return fmt.Sprintf("{{template %q}}", new (go$sliceType(go$emptyInterface))([new Go$String(t.Name)]));
+		}
+		return fmt.Sprintf("{{template %q %s}}", new (go$sliceType(go$emptyInterface))([new Go$String(t.Name), t.Pipe]));
+	};
+	TemplateNode.prototype.String = function() { return this.go$val.String(); };
+	TemplateNode.Ptr.prototype.Copy = function() {
+		var t;
+		t = this;
+		return newTemplate(t.Pos, t.Line, t.Name, t.Pipe.CopyPipe());
+	};
+	TemplateNode.prototype.Copy = function() { return this.go$val.Copy(); };
+	Tree.Ptr.prototype.Copy = function() {
+		var t;
+		t = this;
+		if (t === (go$ptrType(Tree)).nil) {
+			return (go$ptrType(Tree)).nil;
+		}
+		return new Tree.Ptr(t.Name, t.ParseName, t.Root.CopyList(), t.text, (go$sliceType((go$mapType(Go$String, go$emptyInterface)))).nil, (go$ptrType(lexer)).nil, go$makeNativeArray("Struct", 3, function() { return new item.Ptr(); }), 0, (go$sliceType(Go$String)).nil);
+	};
+	Tree.prototype.Copy = function() { return this.go$val.Copy(); };
+	Parse = go$pkg.Parse = function(name, text, leftDelim, rightDelim, funcs) {
+		var treeSet, err, t, _tuple;
+		treeSet = false;
+		err = null;
+		treeSet = new Go$Map();
+		t = New(name, new (go$sliceType((go$mapType(Go$String, go$emptyInterface))))([]));
+		t.text = text;
+		_tuple = t.Parse(text, leftDelim, rightDelim, treeSet, funcs); err = _tuple[1];
+		return [treeSet, err];
+	};
+	Tree.Ptr.prototype.next = function() {
+		var t, _struct, _struct$1;
+		t = this;
+		if (t.peekCount > 0) {
+			t.peekCount = t.peekCount - 1 >> 0;
+		} else {
+			t.token[0] = (_struct = t.lex.nextItem(), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+		}
+		return (_struct$1 = t.token[t.peekCount], new item.Ptr(_struct$1.typ, _struct$1.pos, _struct$1.val));
+	};
+	Tree.prototype.next = function() { return this.go$val.next(); };
+	Tree.Ptr.prototype.backup = function() {
+		var t;
+		t = this;
+		t.peekCount = t.peekCount + 1 >> 0;
+	};
+	Tree.prototype.backup = function() { return this.go$val.backup(); };
+	Tree.Ptr.prototype.backup2 = function(t1) {
+		var t, _struct;
+		t = this;
+		t.token[1] = (_struct = t1, new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+		t.peekCount = 2;
+	};
+	Tree.prototype.backup2 = function(t1) { return this.go$val.backup2(t1); };
+	Tree.Ptr.prototype.backup3 = function(t2, t1) {
+		var t, _struct, _struct$1;
+		t = this;
+		t.token[1] = (_struct = t1, new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+		t.token[2] = (_struct$1 = t2, new item.Ptr(_struct$1.typ, _struct$1.pos, _struct$1.val));
+		t.peekCount = 3;
+	};
+	Tree.prototype.backup3 = function(t2, t1) { return this.go$val.backup3(t2, t1); };
+	Tree.Ptr.prototype.peek = function() {
+		var t, _struct, _struct$1, _struct$2;
+		t = this;
+		if (t.peekCount > 0) {
+			return (_struct = t.token[(t.peekCount - 1 >> 0)], new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+		}
+		t.peekCount = 1;
+		t.token[0] = (_struct$1 = t.lex.nextItem(), new item.Ptr(_struct$1.typ, _struct$1.pos, _struct$1.val));
+		return (_struct$2 = t.token[0], new item.Ptr(_struct$2.typ, _struct$2.pos, _struct$2.val));
+	};
+	Tree.prototype.peek = function() { return this.go$val.peek(); };
+	Tree.Ptr.prototype.nextNonSpace = function() {
+		var token, t, _struct, _struct$1, _struct$2;
+		token = new item.Ptr();
+		t = this;
+		while (true) {
+			token = (_struct = t.next(), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+			if (!((token.typ === 16))) {
+				break;
+			}
+		}
+		token = (_struct$1 = token, new item.Ptr(_struct$1.typ, _struct$1.pos, _struct$1.val));
+		return (_struct$2 = token, new item.Ptr(_struct$2.typ, _struct$2.pos, _struct$2.val));
+	};
+	Tree.prototype.nextNonSpace = function() { return this.go$val.nextNonSpace(); };
+	Tree.Ptr.prototype.peekNonSpace = function() {
+		var token, t, _struct, _struct$1, _struct$2;
+		token = new item.Ptr();
+		t = this;
+		while (true) {
+			token = (_struct = t.next(), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+			if (!((token.typ === 16))) {
+				break;
+			}
+		}
+		t.backup();
+		token = (_struct$1 = token, new item.Ptr(_struct$1.typ, _struct$1.pos, _struct$1.val));
+		return (_struct$2 = token, new item.Ptr(_struct$2.typ, _struct$2.pos, _struct$2.val));
+	};
+	Tree.prototype.peekNonSpace = function() { return this.go$val.peekNonSpace(); };
+	New = go$pkg.New = function(name, funcs) {
+		return new Tree.Ptr(name, "", (go$ptrType(ListNode)).nil, "", funcs, (go$ptrType(lexer)).nil, go$makeNativeArray("Struct", 3, function() { return new item.Ptr(); }), 0, (go$sliceType(Go$String)).nil);
+	};
+	Tree.Ptr.prototype.ErrorContext = function(n) {
+		var location, context, t, pos, text, byteNum, lineNum, _tuple;
+		location = "";
+		context = "";
+		t = this;
+		pos = (n.Position() >> 0);
+		text = t.text.substring(0, pos);
+		byteNum = strings.LastIndex(text, "\n");
+		if (byteNum === -1) {
+			byteNum = pos;
+		} else {
+			byteNum = byteNum + 1 >> 0;
+			byteNum = pos - byteNum >> 0;
+		}
+		lineNum = 1 + strings.Count(text, "\n") >> 0;
+		context = n.String();
+		if (context.length > 20) {
+			context = fmt.Sprintf("%.20s...", new (go$sliceType(go$emptyInterface))([new Go$String(context)]));
+		}
+		_tuple = [fmt.Sprintf("%s:%d:%d", new (go$sliceType(go$emptyInterface))([new Go$String(t.ParseName), new Go$Int(lineNum), new Go$Int(byteNum)])), context]; location = _tuple[0]; context = _tuple[1];
+		return [location, context];
+	};
+	Tree.prototype.ErrorContext = function(n) { return this.go$val.ErrorContext(n); };
+	Tree.Ptr.prototype.errorf = function(format, args) {
+		var t;
+		t = this;
+		t.Root = (go$ptrType(ListNode)).nil;
+		format = fmt.Sprintf("template: %s:%d: %s", new (go$sliceType(go$emptyInterface))([new Go$String(t.ParseName), new Go$Int(t.lex.lineNumber()), new Go$String(format)]));
+		throw go$panic(fmt.Errorf(format, args));
+	};
+	Tree.prototype.errorf = function(format, args) { return this.go$val.errorf(format, args); };
+	Tree.Ptr.prototype.error = function(err) {
+		var t;
+		t = this;
+		t.errorf("%s", new (go$sliceType(go$emptyInterface))([err]));
+	};
+	Tree.prototype.error = function(err) { return this.go$val.error(err); };
+	Tree.Ptr.prototype.expect = function(expected, context) {
+		var t, _struct, token, _struct$1, _struct$2;
+		t = this;
+		token = (_struct = t.nextNonSpace(), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+		if (!((token.typ === expected))) {
+			t.unexpected((_struct$1 = token, new item.Ptr(_struct$1.typ, _struct$1.pos, _struct$1.val)), context);
+		}
+		return (_struct$2 = token, new item.Ptr(_struct$2.typ, _struct$2.pos, _struct$2.val));
+	};
+	Tree.prototype.expect = function(expected, context) { return this.go$val.expect(expected, context); };
+	Tree.Ptr.prototype.expectOneOf = function(expected1, expected2, context) {
+		var t, _struct, token, _struct$1, _struct$2;
+		t = this;
+		token = (_struct = t.nextNonSpace(), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+		if (!((token.typ === expected1)) && !((token.typ === expected2))) {
+			t.unexpected((_struct$1 = token, new item.Ptr(_struct$1.typ, _struct$1.pos, _struct$1.val)), context);
+		}
+		return (_struct$2 = token, new item.Ptr(_struct$2.typ, _struct$2.pos, _struct$2.val));
+	};
+	Tree.prototype.expectOneOf = function(expected1, expected2, context) { return this.go$val.expectOneOf(expected1, expected2, context); };
+	Tree.Ptr.prototype.unexpected = function(token, context) {
+		var t;
+		t = this;
+		t.errorf("unexpected %s in %s", new (go$sliceType(go$emptyInterface))([new token.constructor.Struct(token), new Go$String(context)]));
+	};
+	Tree.prototype.unexpected = function(token, context) { return this.go$val.unexpected(token, context); };
+	Tree.Ptr.prototype.recover = function(errp) {
+		var t, e, _tuple, ok;
+		t = this;
+		e = go$recover();
+		if (!(go$interfaceIsEqual(e, null))) {
+			_tuple = (e !== null && runtime.Error.implementedBy.indexOf(e.constructor) !== -1 ? [e, true] : [null, false]); ok = _tuple[1];
+			if (ok) {
+				throw go$panic(e);
+			}
+			if (!(t === (go$ptrType(Tree)).nil)) {
+				t.stopParse();
+			}
+			errp.go$set((e !== null && go$error.implementedBy.indexOf(e.constructor) !== -1 ? e : go$typeAssertionFailed(e, go$error)));
+		}
+		return;
+	};
+	Tree.prototype.recover = function(errp) { return this.go$val.recover(errp); };
+	Tree.Ptr.prototype.startParse = function(funcs, lex$1) {
+		var t;
+		t = this;
+		t.Root = (go$ptrType(ListNode)).nil;
+		t.lex = lex$1;
+		t.vars = new (go$sliceType(Go$String))(["$"]);
+		t.funcs = funcs;
+	};
+	Tree.prototype.startParse = function(funcs, lex$1) { return this.go$val.startParse(funcs, lex$1); };
+	Tree.Ptr.prototype.stopParse = function() {
+		var t;
+		t = this;
+		t.lex = (go$ptrType(lexer)).nil;
+		t.vars = (go$sliceType(Go$String)).nil;
+		t.funcs = (go$sliceType((go$mapType(Go$String, go$emptyInterface)))).nil;
+	};
+	Tree.prototype.stopParse = function() { return this.go$val.stopParse(); };
+	Tree.Ptr.prototype.Parse = function(text, leftDelim, rightDelim, treeSet, funcs) {
+		var tree, err, t, v, _tuple;
+		tree = (go$ptrType(Tree)).nil;
+		err = null;
+		var go$deferred = [];
+		try {
+			t = this;
+			go$deferred.push({ recv: t, method: "recover", args: [new (go$ptrType(go$error))(function() { return err; }, function(v) { err = v;; })] });
+			t.ParseName = t.Name;
+			t.startParse(funcs, lex(t.Name, text, leftDelim, rightDelim));
+			t.text = text;
+			t.parse(treeSet);
+			t.add(treeSet);
+			t.stopParse();
+			_tuple = [t, null]; tree = _tuple[0]; err = _tuple[1];
+			return [tree, err];
+		} catch(go$err) {
+			go$pushErr(go$err);
+		} finally {
+			go$callDeferred(go$deferred);
+			return [tree, err];
+		}
+	};
+	Tree.prototype.Parse = function(text, leftDelim, rightDelim, treeSet, funcs) { return this.go$val.Parse(text, leftDelim, rightDelim, treeSet, funcs); };
+	Tree.Ptr.prototype.add = function(treeSet) {
+		var t, _entry, tree, _key;
+		t = this;
+		tree = (_entry = treeSet[t.Name], _entry !== undefined ? _entry.v : (go$ptrType(Tree)).nil);
+		if (tree === (go$ptrType(Tree)).nil || IsEmptyTree(tree.Root)) {
+			_key = t.Name; (treeSet || go$throwRuntimeError("assignment to entry in nil map"))[_key] = { k: _key, v: t };
+			return;
+		}
+		if (!IsEmptyTree(t.Root)) {
+			t.errorf("template: multiple definition of template %q", new (go$sliceType(go$emptyInterface))([new Go$String(t.Name)]));
+		}
+	};
+	Tree.prototype.add = function(treeSet) { return this.go$val.add(treeSet); };
+	IsEmptyTree = go$pkg.IsEmptyTree = function(n) {
+		var n$1, _ref, _type, _ref$1, _i, _slice, _index, node;
+		_ref = n;
+		_type = _ref !== null ? _ref.constructor : null;
+		if (_type === null) {
+			n$1 = _ref;
+			return true;
+		} else if (_type === (go$ptrType(ActionNode))) {
+			n$1 = _ref.go$val;
+		} else if (_type === (go$ptrType(IfNode))) {
+			n$1 = _ref.go$val;
+		} else if (_type === (go$ptrType(ListNode))) {
+			n$1 = _ref.go$val;
+			_ref$1 = n$1.Nodes;
+			_i = 0;
+			while (_i < _ref$1.length) {
+				node = (_slice = _ref$1, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+				if (!IsEmptyTree(node)) {
+					return false;
+				}
+				_i++;
+			}
+			return true;
+		} else if (_type === (go$ptrType(RangeNode))) {
+			n$1 = _ref.go$val;
+		} else if (_type === (go$ptrType(TemplateNode))) {
+			n$1 = _ref.go$val;
+		} else if (_type === (go$ptrType(TextNode))) {
+			n$1 = _ref.go$val;
+			return bytes.TrimSpace(n$1.Text).length === 0;
+		} else if (_type === (go$ptrType(WithNode))) {
+			n$1 = _ref.go$val;
+		} else {
+			n$1 = _ref;
+			throw go$panic(new Go$String("unknown node: " + n$1.String()));
+		}
+		return false;
+	};
+	Tree.Ptr.prototype.parse = function(treeSet) {
+		var next, t, _struct, delim, newT, _struct$1, n;
+		next = null;
+		t = this;
+		t.Root = newList(t.peek().pos);
+		while (!((t.peek().typ === 6))) {
+			if (t.peek().typ === 9) {
+				delim = (_struct = t.next(), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+				if (t.nextNonSpace().typ === 22) {
+					newT = New("definition", new (go$sliceType((go$mapType(Go$String, go$emptyInterface))))([]));
+					newT.text = t.text;
+					newT.ParseName = t.ParseName;
+					newT.startParse(t.funcs, t.lex);
+					newT.parseDefinition(treeSet);
+					continue;
+				}
+				t.backup2((_struct$1 = delim, new item.Ptr(_struct$1.typ, _struct$1.pos, _struct$1.val)));
+			}
+			n = t.textOrAction();
+			if (n.Type() === 7) {
+				t.errorf("unexpected %s", new (go$sliceType(go$emptyInterface))([n]));
+			}
+			t.Root.append(n);
+		}
+		next = null;
+		return next;
+	};
+	Tree.prototype.parse = function(treeSet) { return this.go$val.parse(treeSet); };
+	Tree.Ptr.prototype.parseDefinition = function(treeSet) {
+		var t, _struct, name, err, _tuple, end, _tuple$1;
+		t = this;
+		name = (_struct = t.expectOneOf(17, 13, "define clause"), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+		err = null;
+		_tuple = strconv.Unquote(name.val); t.Name = _tuple[0]; err = _tuple[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			t.error(err);
+		}
+		t.expect(14, "define clause");
+		end = null;
+		_tuple$1 = t.itemList(); t.Root = _tuple$1[0]; end = _tuple$1[1];
+		if (!((end.Type() === 7))) {
+			t.errorf("unexpected %s in %s", new (go$sliceType(go$emptyInterface))([end, new Go$String("define clause")]));
+		}
+		t.add(treeSet);
+		t.stopParse();
+	};
+	Tree.prototype.parseDefinition = function(treeSet) { return this.go$val.parseDefinition(treeSet); };
+	Tree.Ptr.prototype.itemList = function() {
+		var list$1, next, t, n, _ref, _tuple;
+		list$1 = (go$ptrType(ListNode)).nil;
+		next = null;
+		t = this;
+		list$1 = newList(t.peekNonSpace().pos);
+		while (!((t.peekNonSpace().typ === 6))) {
+			n = t.textOrAction();
+			_ref = n.Type();
+			if (_ref === 7 || _ref === 6) {
+				_tuple = [list$1, n]; list$1 = _tuple[0]; next = _tuple[1];
+				return [list$1, next];
+			}
+			list$1.append(n);
+		}
+		t.errorf("unexpected EOF", new (go$sliceType(go$emptyInterface))([]));
+		return [list$1, next];
+	};
+	Tree.prototype.itemList = function() { return this.go$val.itemList(); };
+	Tree.Ptr.prototype.textOrAction = function() {
+		var t, _struct, token, _ref, _struct$1;
+		t = this;
+		token = (_struct = t.nextNonSpace(), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+		_ref = token.typ;
+		if (_ref === 18) {
+			return newText(token.pos, token.val);
+		} else if (_ref === 9) {
+			return t.action();
+		} else {
+			t.unexpected((_struct$1 = token, new item.Ptr(_struct$1.typ, _struct$1.pos, _struct$1.val)), "input");
+		}
+		return null;
+	};
+	Tree.prototype.textOrAction = function() { return this.go$val.textOrAction(); };
+	Tree.Ptr.prototype.action = function() {
+		var n, t, _struct, token, _ref;
+		n = null;
+		t = this;
+		token = (_struct = t.nextNonSpace(), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+		_ref = token.typ;
+		if (_ref === 23) {
+			n = t.elseControl();
+			return n;
+		} else if (_ref === 24) {
+			n = t.endControl();
+			return n;
+		} else if (_ref === 25) {
+			n = t.ifControl();
+			return n;
+		} else if (_ref === 27) {
+			n = t.rangeControl();
+			return n;
+		} else if (_ref === 28) {
+			n = t.templateControl();
+			return n;
+		} else if (_ref === 29) {
+			n = t.withControl();
+			return n;
+		}
+		t.backup();
+		n = newAction(t.peek().pos, t.lex.lineNumber(), t.pipeline("command"));
+		return n;
+	};
+	Tree.prototype.action = function() { return this.go$val.action(); };
+	Tree.Ptr.prototype.pipeline = function(context) {
+		var pipe, t, decl, pos, _struct, v, _struct$1, tokenAfterVariable, _struct$2, next, variable, _struct$3, _struct$4, _struct$5, _struct$6, token, _ref, _struct$7;
+		pipe = (go$ptrType(PipeNode)).nil;
+		t = this;
+		decl = (go$sliceType((go$ptrType(VariableNode)))).nil;
+		pos = t.peekNonSpace().pos;
+		while (true) {
+			v = (_struct = t.peekNonSpace(), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+			if (v.typ === 19) {
+				t.next();
+				tokenAfterVariable = (_struct$1 = t.peek(), new item.Ptr(_struct$1.typ, _struct$1.pos, _struct$1.val));
+				next = (_struct$2 = t.peekNonSpace(), new item.Ptr(_struct$2.typ, _struct$2.pos, _struct$2.val));
+				if ((next.typ === 5) || ((next.typ === 2) && next.val === ",")) {
+					t.nextNonSpace();
+					variable = newVariable(v.pos, v.val);
+					decl = go$append(decl, variable);
+					t.vars = go$append(t.vars, v.val);
+					if ((next.typ === 2) && next.val === ",") {
+						if (context === "range" && decl.length < 2) {
+							continue;
+						}
+						t.errorf("too many declarations in %s", new (go$sliceType(go$emptyInterface))([new Go$String(context)]));
+					}
+				} else if (tokenAfterVariable.typ === 16) {
+					t.backup3((_struct$3 = v, new item.Ptr(_struct$3.typ, _struct$3.pos, _struct$3.val)), (_struct$4 = tokenAfterVariable, new item.Ptr(_struct$4.typ, _struct$4.pos, _struct$4.val)));
+				} else {
+					t.backup2((_struct$5 = v, new item.Ptr(_struct$5.typ, _struct$5.pos, _struct$5.val)));
+				}
+			}
+			break;
+		}
+		pipe = newPipeline(pos, t.lex.lineNumber(), decl);
+		while (true) {
+			token = (_struct$6 = t.nextNonSpace(), new item.Ptr(_struct$6.typ, _struct$6.pos, _struct$6.val));
+			_ref = token.typ;
+			if (_ref === 14 || _ref === 15) {
+				if (pipe.Cmds.length === 0) {
+					t.errorf("missing value for %s", new (go$sliceType(go$emptyInterface))([new Go$String(context)]));
+				}
+				if (token.typ === 15) {
+					t.backup();
+				}
+				return pipe;
+			} else if (_ref === 1 || _ref === 3 || _ref === 4 || _ref === 21 || _ref === 7 || _ref === 8 || _ref === 11 || _ref === 26 || _ref === 13 || _ref === 17 || _ref === 19 || _ref === 10) {
+				t.backup();
+				pipe.append(t.command());
+			} else {
+				t.unexpected((_struct$7 = token, new item.Ptr(_struct$7.typ, _struct$7.pos, _struct$7.val)), context);
+			}
+		}
+	};
+	Tree.prototype.pipeline = function(context) { return this.go$val.pipeline(context); };
+	Tree.Ptr.prototype.parseControl = function(allowElseIf, context) {
+		var pos, line, pipe, list$1, elseList, t, next, _tuple, _ref, _tuple$1, _tuple$2;
+		pos = 0;
+		line = 0;
+		pipe = (go$ptrType(PipeNode)).nil;
+		list$1 = (go$ptrType(ListNode)).nil;
+		elseList = (go$ptrType(ListNode)).nil;
+		var go$deferred = [];
+		try {
+			t = this;
+			go$deferred.push({ recv: t, method: "popVars", args: [t.vars.length] });
+			line = t.lex.lineNumber();
+			pipe = t.pipeline(context);
+			next = null;
+			_tuple = t.itemList(); list$1 = _tuple[0]; next = _tuple[1];
+			_ref = next.Type();
+			switch (0) { default: if (_ref === 7) {
+			} else if (_ref === 6) {
+				if (allowElseIf) {
+					if (t.peek().typ === 25) {
+						t.next();
+						elseList = newList(next.Position());
+						elseList.append(t.ifControl());
+						break;
+					}
+				}
+				_tuple$1 = t.itemList(); elseList = _tuple$1[0]; next = _tuple$1[1];
+				if (!((next.Type() === 7))) {
+					t.errorf("expected end; found %s", new (go$sliceType(go$emptyInterface))([next]));
+				}
+			} }
+			_tuple$2 = [(new Pos(pipe.Pos)).Position(), line, pipe, list$1, elseList]; pos = _tuple$2[0]; line = _tuple$2[1]; pipe = _tuple$2[2]; list$1 = _tuple$2[3]; elseList = _tuple$2[4];
+			return [pos, line, pipe, list$1, elseList];
+		} catch(go$err) {
+			go$pushErr(go$err);
+		} finally {
+			go$callDeferred(go$deferred);
+			return [pos, line, pipe, list$1, elseList];
+		}
+	};
+	Tree.prototype.parseControl = function(allowElseIf, context) { return this.go$val.parseControl(allowElseIf, context); };
+	Tree.Ptr.prototype.ifControl = function() {
+		var t, _tuple;
+		t = this;
+		return (_tuple = t.parseControl(true, "if"), newIf(_tuple[0], _tuple[1], _tuple[2], _tuple[3], _tuple[4]));
+	};
+	Tree.prototype.ifControl = function() { return this.go$val.ifControl(); };
+	Tree.Ptr.prototype.rangeControl = function() {
+		var t, _tuple;
+		t = this;
+		return (_tuple = t.parseControl(false, "range"), newRange(_tuple[0], _tuple[1], _tuple[2], _tuple[3], _tuple[4]));
+	};
+	Tree.prototype.rangeControl = function() { return this.go$val.rangeControl(); };
+	Tree.Ptr.prototype.withControl = function() {
+		var t, _tuple;
+		t = this;
+		return (_tuple = t.parseControl(false, "with"), newWith(_tuple[0], _tuple[1], _tuple[2], _tuple[3], _tuple[4]));
+	};
+	Tree.prototype.withControl = function() { return this.go$val.withControl(); };
+	Tree.Ptr.prototype.endControl = function() {
+		var t;
+		t = this;
+		return newEnd(t.expect(14, "end").pos);
+	};
+	Tree.prototype.endControl = function() { return this.go$val.endControl(); };
+	Tree.Ptr.prototype.elseControl = function() {
+		var t, _struct, peek;
+		t = this;
+		peek = (_struct = t.peekNonSpace(), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+		if (peek.typ === 25) {
+			return newElse(peek.pos, t.lex.lineNumber());
+		}
+		return newElse(t.expect(14, "else").pos, t.lex.lineNumber());
+	};
+	Tree.prototype.elseControl = function() { return this.go$val.elseControl(); };
+	Tree.Ptr.prototype.templateControl = function() {
+		var t, name, _struct, token, _ref, _tuple, s, err, _struct$1, pipe;
+		t = this;
+		name = "";
+		token = (_struct = t.nextNonSpace(), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+		_ref = token.typ;
+		if (_ref === 17 || _ref === 13) {
+			_tuple = strconv.Unquote(token.val); s = _tuple[0]; err = _tuple[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				t.error(err);
+			}
+			name = s;
+		} else {
+			t.unexpected((_struct$1 = token, new item.Ptr(_struct$1.typ, _struct$1.pos, _struct$1.val)), "template invocation");
+		}
+		pipe = (go$ptrType(PipeNode)).nil;
+		if (!((t.nextNonSpace().typ === 14))) {
+			t.backup();
+			pipe = t.pipeline("template");
+		}
+		return newTemplate(token.pos, t.lex.lineNumber(), name, pipe);
+	};
+	Tree.prototype.templateControl = function() { return this.go$val.templateControl(); };
+	Tree.Ptr.prototype.command = function() {
+		var t, cmd, operand, _struct, token, _ref;
+		t = this;
+		cmd = newCommand(t.peekNonSpace().pos);
+		while (true) {
+			t.peekNonSpace();
+			operand = t.operand();
+			if (!(go$interfaceIsEqual(operand, null))) {
+				cmd.append(operand);
+			}
+			token = (_struct = t.next(), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+			_ref = token.typ;
+			if (_ref === 16) {
+				continue;
+			} else if (_ref === 0) {
+				t.errorf("%s", new (go$sliceType(go$emptyInterface))([new Go$String(token.val)]));
+			} else if (_ref === 14 || _ref === 15) {
+				t.backup();
+			} else if (_ref === 12) {
+			} else {
+				t.errorf("unexpected %s in operand; missing space?", new (go$sliceType(go$emptyInterface))([new token.constructor.Struct(token)]));
+			}
+			break;
+		}
+		if (cmd.Args.length === 0) {
+			t.errorf("empty command", new (go$sliceType(go$emptyInterface))([]));
+		}
+		return cmd;
+	};
+	Tree.prototype.command = function() { return this.go$val.command(); };
+	Tree.Ptr.prototype.operand = function() {
+		var t, node, chain, _ref;
+		t = this;
+		node = t.term();
+		if (go$interfaceIsEqual(node, null)) {
+			return null;
+		}
+		if (t.peek().typ === 7) {
+			chain = newChain(t.peek().pos, node);
+			while (t.peek().typ === 7) {
+				chain.Add(t.next().val);
+			}
+			_ref = node.Type();
+			if (_ref === 8) {
+				node = newField((new Pos(chain.Pos)).Position(), chain.String());
+			} else if (_ref === 18) {
+				node = newVariable((new Pos(chain.Pos)).Position(), chain.String());
+			} else {
+				node = chain;
+			}
+		}
+		return node;
+	};
+	Tree.prototype.operand = function() { return this.go$val.operand(); };
+	Tree.Ptr.prototype.term = function() {
+		var t, _struct, token, _ref, _tuple, number, err, pipe, _struct$1, token$1, _tuple$1, s, err$1;
+		t = this;
+		token = (_struct = t.nextNonSpace(), new item.Ptr(_struct.typ, _struct.pos, _struct.val));
+		_ref = token.typ;
+		if (_ref === 0) {
+			t.errorf("%s", new (go$sliceType(go$emptyInterface))([new Go$String(token.val)]));
+		} else if (_ref === 8) {
+			if (!t.hasFunction(token.val)) {
+				t.errorf("function %q not defined", new (go$sliceType(go$emptyInterface))([new Go$String(token.val)]));
+			}
+			return NewIdentifier(token.val).SetPos(token.pos);
+		} else if (_ref === 21) {
+			return newDot(token.pos);
+		} else if (_ref === 26) {
+			return newNil(token.pos);
+		} else if (_ref === 19) {
+			return t.useVar(token.pos, token.val);
+		} else if (_ref === 7) {
+			return newField(token.pos, token.val);
+		} else if (_ref === 1) {
+			return newBool(token.pos, token.val === "true");
+		} else if (_ref === 3 || _ref === 4 || _ref === 11) {
+			_tuple = newNumber(token.pos, token.val, token.typ); number = _tuple[0]; err = _tuple[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				t.error(err);
+			}
+			return number;
+		} else if (_ref === 10) {
+			pipe = t.pipeline("parenthesized pipeline");
+			token$1 = (_struct$1 = t.next(), new item.Ptr(_struct$1.typ, _struct$1.pos, _struct$1.val));
+			if (!((token$1.typ === 15))) {
+				t.errorf("unclosed right paren: unexpected %s", new (go$sliceType(go$emptyInterface))([new token$1.constructor.Struct(token$1)]));
+			}
+			return pipe;
+		} else if (_ref === 17 || _ref === 13) {
+			_tuple$1 = strconv.Unquote(token.val); s = _tuple$1[0]; err$1 = _tuple$1[1];
+			if (!(go$interfaceIsEqual(err$1, null))) {
+				t.error(err$1);
+			}
+			return newString(token.pos, token.val, s);
+		}
+		t.backup();
+		return null;
+	};
+	Tree.prototype.term = function() { return this.go$val.term(); };
+	Tree.Ptr.prototype.hasFunction = function(name) {
+		var t, _ref, _i, _slice, _index, funcMap, _entry;
+		t = this;
+		_ref = t.funcs;
+		_i = 0;
+		while (_i < _ref.length) {
+			funcMap = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			if (funcMap === false) {
+				_i++;
+				continue;
+			}
+			if (!(go$interfaceIsEqual((_entry = funcMap[name], _entry !== undefined ? _entry.v : null), null))) {
+				return true;
+			}
+			_i++;
+		}
+		return false;
+	};
+	Tree.prototype.hasFunction = function(name) { return this.go$val.hasFunction(name); };
+	Tree.Ptr.prototype.popVars = function(n) {
+		var t;
+		t = this;
+		t.vars = go$subslice(t.vars, 0, n);
+	};
+	Tree.prototype.popVars = function(n) { return this.go$val.popVars(n); };
+	Tree.Ptr.prototype.useVar = function(pos, name) {
+		var t, v, _ref, _i, _slice, _index, varName, _slice$1, _index$1, _slice$2, _index$2;
+		t = this;
+		v = newVariable(pos, name);
+		_ref = t.vars;
+		_i = 0;
+		while (_i < _ref.length) {
+			varName = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			if (varName === (_slice$1 = v.Ident, _index$1 = 0, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"))) {
+				return v;
+			}
+			_i++;
+		}
+		t.errorf("undefined variable %q", new (go$sliceType(go$emptyInterface))([new Go$String((_slice$2 = v.Ident, _index$2 = 0, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range")))]));
+		return null;
+	};
+	Tree.prototype.useVar = function(pos, name) { return this.go$val.useVar(pos, name); };
+	go$pkg.init = function() {
+		item.methods = [["String", "", [], [Go$String], false, -1]];
+		(go$ptrType(item)).methods = [["String", "", [], [Go$String], false, -1]];
+		item.init([["typ", "typ", "text/template/parse", itemType, ""], ["pos", "pos", "text/template/parse", Pos, ""], ["val", "val", "text/template/parse", Go$String, ""]]);
+		stateFn.init([(go$ptrType(lexer))], [stateFn], false);
+		(go$ptrType(lexer)).methods = [["accept", "text/template/parse", [Go$String], [Go$Bool], false, -1], ["acceptRun", "text/template/parse", [Go$String], [], false, -1], ["atTerminator", "text/template/parse", [], [Go$Bool], false, -1], ["backup", "text/template/parse", [], [], false, -1], ["emit", "text/template/parse", [itemType], [], false, -1], ["errorf", "text/template/parse", [Go$String, (go$sliceType(go$emptyInterface))], [stateFn], true, -1], ["ignore", "text/template/parse", [], [], false, -1], ["lineNumber", "text/template/parse", [], [Go$Int], false, -1], ["next", "text/template/parse", [], [Go$Int32], false, -1], ["nextItem", "text/template/parse", [], [item], false, -1], ["peek", "text/template/parse", [], [Go$Int32], false, -1], ["scanNumber", "text/template/parse", [], [Go$Bool], false, -1]];
+		lexer.init([["name", "name", "text/template/parse", Go$String, ""], ["input", "input", "text/template/parse", Go$String, ""], ["leftDelim", "leftDelim", "text/template/parse", Go$String, ""], ["rightDelim", "rightDelim", "text/template/parse", Go$String, ""], ["state", "state", "text/template/parse", stateFn, ""], ["pos", "pos", "text/template/parse", Pos, ""], ["start", "start", "text/template/parse", Pos, ""], ["width", "width", "text/template/parse", Pos, ""], ["lastPos", "lastPos", "text/template/parse", Pos, ""], ["items", "items", "text/template/parse", (go$ptrType(list.List)), ""], ["parenDepth", "parenDepth", "text/template/parse", Go$Int, ""]]);
+		Node.init([["Copy", "", (go$funcType([], [Node], false))], ["Position", "", (go$funcType([], [Pos], false))], ["String", "", (go$funcType([], [Go$String], false))], ["Type", "", (go$funcType([], [NodeType], false))], ["unexported", "text/template/parse", (go$funcType([], [], false))]]);
+		NodeType.methods = [["Type", "", [], [NodeType], false, -1]];
+		(go$ptrType(NodeType)).methods = [["Type", "", [], [NodeType], false, -1]];
+		Pos.methods = [["Position", "", [], [Pos], false, -1], ["unexported", "text/template/parse", [], [], false, -1]];
+		(go$ptrType(Pos)).methods = [["Position", "", [], [Pos], false, -1], ["unexported", "text/template/parse", [], [], false, -1]];
+		ListNode.methods = [["Position", "", [], [Pos], false, 1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(ListNode)).methods = [["Copy", "", [], [Node], false, -1], ["CopyList", "", [], [(go$ptrType(ListNode))], false, -1], ["Position", "", [], [Pos], false, 1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, 0], ["append", "text/template/parse", [Node], [], false, -1], ["unexported", "text/template/parse", [], [], false, 1]];
+		ListNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["Nodes", "Nodes", "", (go$sliceType(Node)), ""]]);
+		TextNode.methods = [["Position", "", [], [Pos], false, 1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(TextNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		TextNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["Text", "Text", "", (go$sliceType(Go$Uint8)), ""]]);
+		PipeNode.methods = [["Position", "", [], [Pos], false, 1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(PipeNode)).methods = [["Copy", "", [], [Node], false, -1], ["CopyPipe", "", [], [(go$ptrType(PipeNode))], false, -1], ["Position", "", [], [Pos], false, 1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, 0], ["append", "text/template/parse", [(go$ptrType(CommandNode))], [], false, -1], ["unexported", "text/template/parse", [], [], false, 1]];
+		PipeNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["Line", "Line", "", Go$Int, ""], ["Decl", "Decl", "", (go$sliceType((go$ptrType(VariableNode)))), ""], ["Cmds", "Cmds", "", (go$sliceType((go$ptrType(CommandNode)))), ""]]);
+		ActionNode.methods = [["Position", "", [], [Pos], false, 1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(ActionNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		ActionNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["Line", "Line", "", Go$Int, ""], ["Pipe", "Pipe", "", (go$ptrType(PipeNode)), ""]]);
+		CommandNode.methods = [["Position", "", [], [Pos], false, 1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(CommandNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, 0], ["append", "text/template/parse", [Node], [], false, -1], ["unexported", "text/template/parse", [], [], false, 1]];
+		CommandNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["Args", "Args", "", (go$sliceType(Node)), ""]]);
+		IdentifierNode.methods = [["Position", "", [], [Pos], false, 1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(IdentifierNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 1], ["SetPos", "", [Pos], [(go$ptrType(IdentifierNode))], false, -1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		IdentifierNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["Ident", "Ident", "", Go$String, ""]]);
+		VariableNode.methods = [["Position", "", [], [Pos], false, 1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(VariableNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		VariableNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["Ident", "Ident", "", (go$sliceType(Go$String)), ""]]);
+		DotNode.methods = [["Position", "", [], [Pos], false, 0], ["unexported", "text/template/parse", [], [], false, 0]];
+		(go$ptrType(DotNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 0], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, -1], ["unexported", "text/template/parse", [], [], false, 0]];
+		DotNode.init([["Pos", "", "", Pos, ""]]);
+		NilNode.methods = [["Position", "", [], [Pos], false, 0], ["unexported", "text/template/parse", [], [], false, 0]];
+		(go$ptrType(NilNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 0], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, -1], ["unexported", "text/template/parse", [], [], false, 0]];
+		NilNode.init([["Pos", "", "", Pos, ""]]);
+		FieldNode.methods = [["Position", "", [], [Pos], false, 1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(FieldNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		FieldNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["Ident", "Ident", "", (go$sliceType(Go$String)), ""]]);
+		ChainNode.methods = [["Position", "", [], [Pos], false, 1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(ChainNode)).methods = [["Add", "", [Go$String], [], false, -1], ["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		ChainNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["Node", "Node", "", Node, ""], ["Field", "Field", "", (go$sliceType(Go$String)), ""]]);
+		BoolNode.methods = [["Position", "", [], [Pos], false, 1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(BoolNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		BoolNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["True", "True", "", Go$Bool, ""]]);
+		NumberNode.methods = [["Position", "", [], [Pos], false, 1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(NumberNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, 0], ["simplifyComplex", "text/template/parse", [], [], false, -1], ["unexported", "text/template/parse", [], [], false, 1]];
+		NumberNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["IsInt", "IsInt", "", Go$Bool, ""], ["IsUint", "IsUint", "", Go$Bool, ""], ["IsFloat", "IsFloat", "", Go$Bool, ""], ["IsComplex", "IsComplex", "", Go$Bool, ""], ["Int64", "Int64", "", Go$Int64, ""], ["Uint64", "Uint64", "", Go$Uint64, ""], ["Float64", "Float64", "", Go$Float64, ""], ["Complex128", "Complex128", "", Go$Complex128, ""], ["Text", "Text", "", Go$String, ""]]);
+		StringNode.methods = [["Position", "", [], [Pos], false, 1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(StringNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		StringNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["Quoted", "Quoted", "", Go$String, ""], ["Text", "Text", "", Go$String, ""]]);
+		endNode.methods = [["Position", "", [], [Pos], false, 0], ["unexported", "text/template/parse", [], [], false, 0]];
+		(go$ptrType(endNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 0], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, -1], ["unexported", "text/template/parse", [], [], false, 0]];
+		endNode.init([["Pos", "", "", Pos, ""]]);
+		elseNode.methods = [["Position", "", [], [Pos], false, 1], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(elseNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, -1], ["unexported", "text/template/parse", [], [], false, 1]];
+		elseNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["Line", "Line", "", Go$Int, ""]]);
+		BranchNode.methods = [["Position", "", [], [Pos], false, 1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(BranchNode)).methods = [["Position", "", [], [Pos], false, 1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		BranchNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["Line", "Line", "", Go$Int, ""], ["Pipe", "Pipe", "", (go$ptrType(PipeNode)), ""], ["List", "List", "", (go$ptrType(ListNode)), ""], ["ElseList", "ElseList", "", (go$ptrType(ListNode)), ""]]);
+		IfNode.methods = [["Position", "", [], [Pos], false, 0], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 0]];
+		(go$ptrType(IfNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 0], ["String", "", [], [Go$String], false, 0], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 0]];
+		IfNode.init([["BranchNode", "", "", BranchNode, ""]]);
+		RangeNode.methods = [["Position", "", [], [Pos], false, 0], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 0]];
+		(go$ptrType(RangeNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 0], ["String", "", [], [Go$String], false, 0], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 0]];
+		RangeNode.init([["BranchNode", "", "", BranchNode, ""]]);
+		WithNode.methods = [["Position", "", [], [Pos], false, 0], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 0]];
+		(go$ptrType(WithNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 0], ["String", "", [], [Go$String], false, 0], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 0]];
+		WithNode.init([["BranchNode", "", "", BranchNode, ""]]);
+		TemplateNode.methods = [["Position", "", [], [Pos], false, 1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		(go$ptrType(TemplateNode)).methods = [["Copy", "", [], [Node], false, -1], ["Position", "", [], [Pos], false, 1], ["String", "", [], [Go$String], false, -1], ["Type", "", [], [NodeType], false, 0], ["unexported", "text/template/parse", [], [], false, 1]];
+		TemplateNode.init([["NodeType", "", "", NodeType, ""], ["Pos", "", "", Pos, ""], ["Line", "Line", "", Go$Int, ""], ["Name", "Name", "", Go$String, ""], ["Pipe", "Pipe", "", (go$ptrType(PipeNode)), ""]]);
+		(go$ptrType(Tree)).methods = [["Copy", "", [], [(go$ptrType(Tree))], false, -1], ["ErrorContext", "", [Node], [Go$String, Go$String], false, -1], ["Parse", "", [Go$String, Go$String, Go$String, (go$mapType(Go$String, (go$ptrType(Tree)))), (go$sliceType((go$mapType(Go$String, go$emptyInterface))))], [(go$ptrType(Tree)), go$error], true, -1], ["action", "text/template/parse", [], [Node], false, -1], ["add", "text/template/parse", [(go$mapType(Go$String, (go$ptrType(Tree))))], [], false, -1], ["backup", "text/template/parse", [], [], false, -1], ["backup2", "text/template/parse", [item], [], false, -1], ["backup3", "text/template/parse", [item, item], [], false, -1], ["command", "text/template/parse", [], [(go$ptrType(CommandNode))], false, -1], ["elseControl", "text/template/parse", [], [Node], false, -1], ["endControl", "text/template/parse", [], [Node], false, -1], ["error", "text/template/parse", [go$error], [], false, -1], ["errorf", "text/template/parse", [Go$String, (go$sliceType(go$emptyInterface))], [], true, -1], ["expect", "text/template/parse", [itemType, Go$String], [item], false, -1], ["expectOneOf", "text/template/parse", [itemType, itemType, Go$String], [item], false, -1], ["hasFunction", "text/template/parse", [Go$String], [Go$Bool], false, -1], ["ifControl", "text/template/parse", [], [Node], false, -1], ["itemList", "text/template/parse", [], [(go$ptrType(ListNode)), Node], false, -1], ["next", "text/template/parse", [], [item], false, -1], ["nextNonSpace", "text/template/parse", [], [item], false, -1], ["operand", "text/template/parse", [], [Node], false, -1], ["parse", "text/template/parse", [(go$mapType(Go$String, (go$ptrType(Tree))))], [Node], false, -1], ["parseControl", "text/template/parse", [Go$Bool, Go$String], [Pos, Go$Int, (go$ptrType(PipeNode)), (go$ptrType(ListNode)), (go$ptrType(ListNode))], false, -1], ["parseDefinition", "text/template/parse", [(go$mapType(Go$String, (go$ptrType(Tree))))], [], false, -1], ["peek", "text/template/parse", [], [item], false, -1], ["peekNonSpace", "text/template/parse", [], [item], false, -1], ["pipeline", "text/template/parse", [Go$String], [(go$ptrType(PipeNode))], false, -1], ["popVars", "text/template/parse", [Go$Int], [], false, -1], ["rangeControl", "text/template/parse", [], [Node], false, -1], ["recover", "text/template/parse", [(go$ptrType(go$error))], [], false, -1], ["startParse", "text/template/parse", [(go$sliceType((go$mapType(Go$String, go$emptyInterface)))), (go$ptrType(lexer))], [], false, -1], ["stopParse", "text/template/parse", [], [], false, -1], ["templateControl", "text/template/parse", [], [Node], false, -1], ["term", "text/template/parse", [], [Node], false, -1], ["textOrAction", "text/template/parse", [], [Node], false, -1], ["unexpected", "text/template/parse", [item, Go$String], [], false, -1], ["useVar", "text/template/parse", [Pos, Go$String], [Node], false, -1], ["withControl", "text/template/parse", [], [Node], false, -1]];
+		Tree.init([["Name", "Name", "", Go$String, ""], ["ParseName", "ParseName", "", Go$String, ""], ["Root", "Root", "", (go$ptrType(ListNode)), ""], ["text", "text", "text/template/parse", Go$String, ""], ["funcs", "funcs", "text/template/parse", (go$sliceType((go$mapType(Go$String, go$emptyInterface)))), ""], ["lex", "lex", "text/template/parse", (go$ptrType(lexer)), ""], ["token", "token", "text/template/parse", (go$arrayType(item, 3)), ""], ["peekCount", "peekCount", "text/template/parse", Go$Int, ""], ["vars", "vars", "text/template/parse", (go$sliceType(Go$String)), ""]]);
+		var _map, _key;
+		key = (_map = new Go$Map(), _key = ".", _map[_key] = { k: _key, v: 21 }, _key = "define", _map[_key] = { k: _key, v: 22 }, _key = "else", _map[_key] = { k: _key, v: 23 }, _key = "end", _map[_key] = { k: _key, v: 24 }, _key = "if", _map[_key] = { k: _key, v: 25 }, _key = "range", _map[_key] = { k: _key, v: 27 }, _key = "nil", _map[_key] = { k: _key, v: 26 }, _key = "template", _map[_key] = { k: _key, v: 28 }, _key = "with", _map[_key] = { k: _key, v: 29 }, _map);
+		textFormat = "%s";
+	}
+	return go$pkg;
+})();
+go$packages["text/template"] = (function() {
+	var go$pkg = {}, bytes = go$packages["bytes"], fmt = go$packages["fmt"], io = go$packages["io"], reflect = go$packages["reflect"], runtime = go$packages["runtime"], sort = go$packages["sort"], strings = go$packages["strings"], parse = go$packages["text/template/parse"], errors = go$packages["errors"], url = go$packages["net/url"], unicode = go$packages["unicode"], utf8 = go$packages["unicode/utf8"], ioutil = go$packages["io/ioutil"], filepath = go$packages["path/filepath"], state, variable, rvs, rvInts, rvUints, rvFloats, rvStrings, FuncMap, common, Template, doublePercent, errRecover, isTrue, canBeNil, indirect, printableValue, sortKeys, createValueFuncs, addValueFuncs, addFuncs, goodFunc, findFunction, index, length, call, truth, and, or, not, basicKind, eq, ne, lt, le, gt, ge, HTMLEscape, HTMLEscapeString, HTMLEscaper, JSEscape, JSEscapeString, jsIsSpecial, JSEscaper, URLQueryEscaper, evalArgs, parseFiles, parseGlob, New, zero, errorType, fmtStringerType, builtins, builtinFuncs, errBadComparisonType, errBadComparison, errNoComparison, htmlQuot, htmlApos, htmlAmp, htmlLt, htmlGt, jsLowUni, hex, jsBackslash, jsApos, jsQuot, jsLt, jsGt;
+	state = go$pkg.state = go$newType(0, "Struct", "template.state", "state", "text/template", function(tmpl_, wr_, node_, vars_) {
+		this.go$val = this;
+		this.tmpl = tmpl_ !== undefined ? tmpl_ : (go$ptrType(Template)).nil;
+		this.wr = wr_ !== undefined ? wr_ : null;
+		this.node = node_ !== undefined ? node_ : null;
+		this.vars = vars_ !== undefined ? vars_ : (go$sliceType(variable)).nil;
+	});
+	variable = go$pkg.variable = go$newType(0, "Struct", "template.variable", "variable", "text/template", function(name_, value_) {
+		this.go$val = this;
+		this.name = name_ !== undefined ? name_ : "";
+		this.value = value_ !== undefined ? value_ : new reflect.Value.Ptr();
+	});
+	rvs = go$pkg.rvs = go$newType(0, "Slice", "template.rvs", "rvs", "text/template", null);
+	rvInts = go$pkg.rvInts = go$newType(0, "Struct", "template.rvInts", "rvInts", "text/template", function(rvs_) {
+		this.go$val = this;
+		this.rvs = rvs_ !== undefined ? rvs_ : rvs.nil;
+	});
+	rvUints = go$pkg.rvUints = go$newType(0, "Struct", "template.rvUints", "rvUints", "text/template", function(rvs_) {
+		this.go$val = this;
+		this.rvs = rvs_ !== undefined ? rvs_ : rvs.nil;
+	});
+	rvFloats = go$pkg.rvFloats = go$newType(0, "Struct", "template.rvFloats", "rvFloats", "text/template", function(rvs_) {
+		this.go$val = this;
+		this.rvs = rvs_ !== undefined ? rvs_ : rvs.nil;
+	});
+	rvStrings = go$pkg.rvStrings = go$newType(0, "Struct", "template.rvStrings", "rvStrings", "text/template", function(rvs_) {
+		this.go$val = this;
+		this.rvs = rvs_ !== undefined ? rvs_ : rvs.nil;
+	});
+	FuncMap = go$pkg.FuncMap = go$newType(0, "Map", "template.FuncMap", "FuncMap", "text/template", null);
+	common = go$pkg.common = go$newType(0, "Struct", "template.common", "common", "text/template", function(tmpl_, parseFuncs_, execFuncs_) {
+		this.go$val = this;
+		this.tmpl = tmpl_ !== undefined ? tmpl_ : false;
+		this.parseFuncs = parseFuncs_ !== undefined ? parseFuncs_ : false;
+		this.execFuncs = execFuncs_ !== undefined ? execFuncs_ : false;
+	});
+	Template = go$pkg.Template = go$newType(0, "Struct", "template.Template", "Template", "text/template", function(name_, Tree_, common_, leftDelim_, rightDelim_) {
+		this.go$val = this;
+		this.name = name_ !== undefined ? name_ : "";
+		this.Tree = Tree_ !== undefined ? Tree_ : (go$ptrType(parse.Tree)).nil;
+		this.common = common_ !== undefined ? common_ : (go$ptrType(common)).nil;
+		this.leftDelim = leftDelim_ !== undefined ? leftDelim_ : "";
+		this.rightDelim = rightDelim_ !== undefined ? rightDelim_ : "";
+	});
+	state.Ptr.prototype.push = function(name, value) {
+		var s, _struct;
+		s = this;
+		s.vars = go$append(s.vars, new variable.Ptr(name, (_struct = value, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag))));
+	};
+	state.prototype.push = function(name, value) { return this.go$val.push(name, value); };
+	state.Ptr.prototype.mark = function() {
+		var s;
+		s = this;
+		return s.vars.length;
+	};
+	state.prototype.mark = function() { return this.go$val.mark(); };
+	state.Ptr.prototype.pop = function(mark) {
+		var s;
+		s = this;
+		s.vars = go$subslice(s.vars, 0, mark);
+	};
+	state.prototype.pop = function(mark) { return this.go$val.pop(mark); };
+	state.Ptr.prototype.setVar = function(n, value) {
+		var s, _struct, _slice, _index;
+		s = this;
+		(_slice = s.vars, _index = (s.vars.length - n >> 0), (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).value = (_struct = value, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+	};
+	state.prototype.setVar = function(n, value) { return this.go$val.setVar(n, value); };
+	state.Ptr.prototype.varValue = function(name) {
+		var s, i, _slice, _index, _slice$1, _index$1, _struct, _struct$1;
+		s = this;
+		i = s.mark() - 1 >> 0;
+		while (i >= 0) {
+			if ((_slice = s.vars, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).name === name) {
+				return (_struct = (_slice$1 = s.vars, _index$1 = i, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).value, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+			}
+			i = i - 1 >> 0;
+		}
+		s.errorf("undefined variable: %s", new (go$sliceType(go$emptyInterface))([new Go$String(name)]));
+		return (_struct$1 = zero, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+	};
+	state.prototype.varValue = function(name) { return this.go$val.varValue(name); };
+	state.Ptr.prototype.at = function(node) {
+		var s;
+		s = this;
+		s.node = node;
+	};
+	state.prototype.at = function(node) { return this.go$val.at(node); };
+	doublePercent = function(str) {
+		if (strings.Contains(str, "%")) {
+			str = strings.Replace(str, "%", "%%", -1);
+		}
+		return str;
+	};
+	state.Ptr.prototype.errorf = function(format, args) {
+		var s, name, _tuple, location, context;
+		s = this;
+		name = doublePercent(s.tmpl.Name());
+		if (go$interfaceIsEqual(s.node, null)) {
+			format = fmt.Sprintf("template: %s: %s", new (go$sliceType(go$emptyInterface))([new Go$String(name), new Go$String(format)]));
+		} else {
+			_tuple = s.tmpl.Tree.ErrorContext(s.node); location = _tuple[0]; context = _tuple[1];
+			format = fmt.Sprintf("template: %s: executing %q at <%s>: %s", new (go$sliceType(go$emptyInterface))([new Go$String(location), new Go$String(name), new Go$String(doublePercent(context)), new Go$String(format)]));
+		}
+		throw go$panic(fmt.Errorf(format, args));
+	};
+	state.prototype.errorf = function(format, args) { return this.go$val.errorf(format, args); };
+	errRecover = function(errp) {
+		var e, err, _ref, _type;
+		e = go$recover();
+		if (!(go$interfaceIsEqual(e, null))) {
+			_ref = e;
+			_type = _ref !== null ? _ref.constructor : null;
+			if (runtime.Error.implementedBy.indexOf(_type) !== -1) {
+				err = _ref;
+				throw go$panic(e);
+			} else if (go$error.implementedBy.indexOf(_type) !== -1) {
+				err = _ref;
+				errp.go$set(err);
+			} else {
+				err = _ref;
+				throw go$panic(e);
+			}
+		}
+	};
+	Template.Ptr.prototype.ExecuteTemplate = function(wr, name, data) {
+		var t, _entry, tmpl;
+		t = this;
+		tmpl = (_entry = t.common.tmpl[name], _entry !== undefined ? _entry.v : (go$ptrType(Template)).nil);
+		if (tmpl === (go$ptrType(Template)).nil) {
+			return fmt.Errorf("template: no template %q associated with template %q", new (go$sliceType(go$emptyInterface))([new Go$String(name), new Go$String(t.name)]));
+		}
+		return tmpl.Execute(wr, data);
+	};
+	Template.prototype.ExecuteTemplate = function(wr, name, data) { return this.go$val.ExecuteTemplate(wr, name, data); };
+	Template.Ptr.prototype.Execute = function(wr, data) {
+		var err, t, v, _struct, value, _struct$1, state$1, b, _ref, _i, _keys, _entry, tmpl, name, s, _struct$2;
+		err = null;
+		var go$deferred = [];
+		try {
+			t = this;
+			go$deferred.push({ fun: errRecover, args: [new (go$ptrType(go$error))(function() { return err; }, function(v) { err = v;; })] });
+			value = (_struct = reflect.ValueOf(data), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+			state$1 = new state.Ptr(t, wr, null, new (go$sliceType(variable))([new variable.Ptr("$", (_struct$1 = value, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag)))]));
+			t.init();
+			if (t.Tree === (go$ptrType(parse.Tree)).nil || t.Tree.Root === (go$ptrType(parse.ListNode)).nil) {
+				b = new bytes.Buffer.Ptr();
+				_ref = t.common.tmpl;
+				_i = 0;
+				_keys = go$keys(_ref);
+				while (_i < _keys.length) {
+					_entry = _ref[_keys[_i]];
+					tmpl = _entry.v;
+					name = _entry.k;
+					if (tmpl.Tree === (go$ptrType(parse.Tree)).nil || tmpl.Tree.Root === (go$ptrType(parse.ListNode)).nil) {
+						_i++;
+						continue;
+					}
+					if (b.Len() > 0) {
+						b.WriteString(", ");
+					}
+					fmt.Fprintf(b, "%q", new (go$sliceType(go$emptyInterface))([new Go$String(name)]));
+					_i++;
+				}
+				s = "";
+				if (b.Len() > 0) {
+					s = "; defined templates are: " + b.String();
+				}
+				state$1.errorf("%q is an incomplete or empty template%s", new (go$sliceType(go$emptyInterface))([new Go$String(t.Name()), new Go$String(s)]));
+			}
+			state$1.walk((_struct$2 = value, new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag)), t.Tree.Root);
+			return err;
+		} catch(go$err) {
+			go$pushErr(go$err);
+		} finally {
+			go$callDeferred(go$deferred);
+			return err;
+		}
+	};
+	Template.prototype.Execute = function(wr, data) { return this.go$val.Execute(wr, data); };
+	state.Ptr.prototype.walk = function(dot, node) {
+		var s, node$1, _ref, _type, _struct, _struct$1, val, _struct$2, _struct$3, _ref$1, _i, _slice, _index, node$2, _struct$4, _struct$5, _struct$6, _tuple, err, _struct$7;
+		s = this;
+		s.at(node);
+		_ref = node;
+		_type = _ref !== null ? _ref.constructor : null;
+		if (_type === (go$ptrType(parse.ActionNode))) {
+			node$1 = _ref.go$val;
+			val = (_struct$1 = s.evalPipeline((_struct = dot, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag)), node$1.Pipe), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+			if (node$1.Pipe.Decl.length === 0) {
+				s.printValue(node$1, (_struct$2 = val, new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag)));
+			}
+		} else if (_type === (go$ptrType(parse.IfNode))) {
+			node$1 = _ref.go$val;
+			s.walkIfOrWith(10, (_struct$3 = dot, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag)), node$1.BranchNode.Pipe, node$1.BranchNode.List, node$1.BranchNode.ElseList);
+		} else if (_type === (go$ptrType(parse.ListNode))) {
+			node$1 = _ref.go$val;
+			_ref$1 = node$1.Nodes;
+			_i = 0;
+			while (_i < _ref$1.length) {
+				node$2 = (_slice = _ref$1, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+				s.walk((_struct$4 = dot, new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag)), node$2);
+				_i++;
+			}
+		} else if (_type === (go$ptrType(parse.RangeNode))) {
+			node$1 = _ref.go$val;
+			s.walkRange((_struct$5 = dot, new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag)), node$1);
+		} else if (_type === (go$ptrType(parse.TemplateNode))) {
+			node$1 = _ref.go$val;
+			s.walkTemplate((_struct$6 = dot, new reflect.Value.Ptr(_struct$6.typ, _struct$6.val, _struct$6.flag)), node$1);
+		} else if (_type === (go$ptrType(parse.TextNode))) {
+			node$1 = _ref.go$val;
+			_tuple = s.wr.Write(node$1.Text); err = _tuple[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				s.errorf("%s", new (go$sliceType(go$emptyInterface))([err]));
+			}
+		} else if (_type === (go$ptrType(parse.WithNode))) {
+			node$1 = _ref.go$val;
+			s.walkIfOrWith(19, (_struct$7 = dot, new reflect.Value.Ptr(_struct$7.typ, _struct$7.val, _struct$7.flag)), node$1.BranchNode.Pipe, node$1.BranchNode.List, node$1.BranchNode.ElseList);
+		} else {
+			node$1 = _ref;
+			s.errorf("unknown node: %s", new (go$sliceType(go$emptyInterface))([node$1]));
+		}
+	};
+	state.prototype.walk = function(dot, node) { return this.go$val.walk(dot, node); };
+	state.Ptr.prototype.walkIfOrWith = function(typ, dot, pipe, list, elseList) {
+		var s, _struct, _struct$1, val, _tuple, _struct$2, truth$1, ok, _struct$3, _struct$4, _struct$5;
+		var go$deferred = [];
+		try {
+			s = this;
+			go$deferred.push({ recv: s, method: "pop", args: [s.mark()] });
+			val = (_struct$1 = s.evalPipeline((_struct = dot, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag)), pipe), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+			_tuple = isTrue((_struct$2 = val, new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag))); truth$1 = _tuple[0]; ok = _tuple[1];
+			if (!ok) {
+				s.errorf("if/with can't use %v", new (go$sliceType(go$emptyInterface))([new val.constructor.Struct(val)]));
+			}
+			if (truth$1) {
+				if (typ === 19) {
+					s.walk((_struct$3 = val, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag)), list);
+				} else {
+					s.walk((_struct$4 = dot, new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag)), list);
+				}
+			} else if (!(elseList === (go$ptrType(parse.ListNode)).nil)) {
+				s.walk((_struct$5 = dot, new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag)), elseList);
+			}
+		} catch(go$err) {
+			go$pushErr(go$err);
+		} finally {
+			go$callDeferred(go$deferred);
+		}
+	};
+	state.prototype.walkIfOrWith = function(typ, dot, pipe, list, elseList) { return this.go$val.walkIfOrWith(typ, dot, pipe, list, elseList); };
+	isTrue = function(val) {
+		var truth$1, ok, _tuple, _ref, x, x$1, x$2, _tuple$1;
+		truth$1 = false;
+		ok = false;
+		if (!val.IsValid()) {
+			_tuple = [false, true]; truth$1 = _tuple[0]; ok = _tuple[1];
+			return [truth$1, ok];
+		}
+		_ref = val.Kind();
+		if (_ref === 17 || _ref === 21 || _ref === 23 || _ref === 24) {
+			truth$1 = val.Len() > 0;
+		} else if (_ref === 1) {
+			truth$1 = val.Bool();
+		} else if (_ref === 15 || _ref === 16) {
+			truth$1 = !((x = val.Complex(), (x.real === 0 && x.imag === 0)));
+		} else if (_ref === 18 || _ref === 19 || _ref === 22 || _ref === 20) {
+			truth$1 = !val.IsNil();
+		} else if (_ref === 2 || _ref === 3 || _ref === 4 || _ref === 5 || _ref === 6) {
+			truth$1 = !((x$1 = val.Int(), (x$1.high === 0 && x$1.low === 0)));
+		} else if (_ref === 13 || _ref === 14) {
+			truth$1 = !((val.Float() === 0));
+		} else if (_ref === 7 || _ref === 8 || _ref === 9 || _ref === 10 || _ref === 11 || _ref === 12) {
+			truth$1 = !((x$2 = val.Uint(), (x$2.high === 0 && x$2.low === 0)));
+		} else if (_ref === 25) {
+			truth$1 = true;
+		} else {
+			return [truth$1, ok];
+		}
+		_tuple$1 = [truth$1, true]; truth$1 = _tuple$1[0]; ok = _tuple$1[1];
+		return [truth$1, ok];
+	};
+	state.Ptr.prototype.walkRange = function(dot, r) {
+		var s, _tuple, _struct, _struct$1, _struct$2, val, mark, oneIteration, _ref, i, _struct$3, _struct$4, _ref$1, _i, _slice, _index, _struct$5, key, _struct$6, _struct$7, _struct$8, i$1, _tuple$1, _struct$9, elem, ok, _struct$10, _struct$11, _struct$12;
+		var go$deferred = [];
+		try {
+			s = this;
+			s.at(r);
+			go$deferred.push({ recv: s, method: "pop", args: [s.mark()] });
+			_tuple = indirect((_struct$1 = s.evalPipeline((_struct = dot, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag)), r.BranchNode.Pipe), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag))); val = (_struct$2 = _tuple[0], new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
+			mark = s.mark();
+			oneIteration = (function(index$1, elem) {
+				var _struct$3, _struct$4, _struct$5;
+				if (r.BranchNode.Pipe.Decl.length > 0) {
+					s.setVar(1, (_struct$3 = elem, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag)));
+				}
+				if (r.BranchNode.Pipe.Decl.length > 1) {
+					s.setVar(2, (_struct$4 = index$1, new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag)));
+				}
+				s.walk((_struct$5 = elem, new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag)), r.BranchNode.List);
+				s.pop(mark);
+			});
+			_ref = val.Kind();
+			switch (0) { default: if (_ref === 17 || _ref === 23) {
+				if (val.Len() === 0) {
+					break;
+				}
+				i = 0;
+				while (i < val.Len()) {
+					oneIteration((_struct$3 = reflect.ValueOf(new Go$Int(i)), new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag)), (_struct$4 = val.Index(i), new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag)));
+					i = i + 1 >> 0;
+				}
+				return;
+			} else if (_ref === 21) {
+				if (val.Len() === 0) {
+					break;
+				}
+				_ref$1 = sortKeys(val.MapKeys());
+				_i = 0;
+				while (_i < _ref$1.length) {
+					key = (_struct$5 = (_slice = _ref$1, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag));
+					oneIteration((_struct$6 = key, new reflect.Value.Ptr(_struct$6.typ, _struct$6.val, _struct$6.flag)), (_struct$8 = val.MapIndex((_struct$7 = key, new reflect.Value.Ptr(_struct$7.typ, _struct$7.val, _struct$7.flag))), new reflect.Value.Ptr(_struct$8.typ, _struct$8.val, _struct$8.flag)));
+					_i++;
+				}
+				return;
+			} else if (_ref === 18) {
+				if (val.IsNil()) {
+					break;
+				}
+				i$1 = 0;
+				while (true) {
+					_tuple$1 = val.Recv(); elem = (_struct$9 = _tuple$1[0], new reflect.Value.Ptr(_struct$9.typ, _struct$9.val, _struct$9.flag)); ok = _tuple$1[1];
+					if (!ok) {
+						break;
+					}
+					oneIteration((_struct$10 = reflect.ValueOf(new Go$Int(i$1)), new reflect.Value.Ptr(_struct$10.typ, _struct$10.val, _struct$10.flag)), (_struct$11 = elem, new reflect.Value.Ptr(_struct$11.typ, _struct$11.val, _struct$11.flag)));
+					i$1 = i$1 + 1 >> 0;
+				}
+				if (i$1 === 0) {
+					break;
+				}
+				return;
+			} else if (_ref === 0) {
+				break;
+			} else {
+				s.errorf("range can't iterate over %v", new (go$sliceType(go$emptyInterface))([new val.constructor.Struct(val)]));
+			} }
+			if (!(r.BranchNode.ElseList === (go$ptrType(parse.ListNode)).nil)) {
+				s.walk((_struct$12 = dot, new reflect.Value.Ptr(_struct$12.typ, _struct$12.val, _struct$12.flag)), r.BranchNode.ElseList);
+			}
+		} catch(go$err) {
+			go$pushErr(go$err);
+		} finally {
+			go$callDeferred(go$deferred);
+		}
+	};
+	state.prototype.walkRange = function(dot, r) { return this.go$val.walkRange(dot, r); };
+	state.Ptr.prototype.walkTemplate = function(dot, t) {
+		var s, _entry, tmpl, _struct, _struct$1, _struct$2, newState, _struct$3, _struct$4;
+		s = this;
+		s.at(t);
+		tmpl = (_entry = s.tmpl.common.tmpl[t.Name], _entry !== undefined ? _entry.v : (go$ptrType(Template)).nil);
+		if (tmpl === (go$ptrType(Template)).nil) {
+			s.errorf("template %q not defined", new (go$sliceType(go$emptyInterface))([new Go$String(t.Name)]));
+		}
+		dot = (_struct$1 = s.evalPipeline((_struct = dot, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag)), t.Pipe), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		newState = (_struct$2 = s, new state.Ptr(_struct$2.tmpl, _struct$2.wr, _struct$2.node, _struct$2.vars));
+		newState.tmpl = tmpl;
+		newState.vars = new (go$sliceType(variable))([new variable.Ptr("$", (_struct$3 = dot, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag)))]);
+		newState.walk((_struct$4 = dot, new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag)), tmpl.Tree.Root);
+	};
+	state.prototype.walkTemplate = function(dot, t) { return this.go$val.walkTemplate(dot, t); };
+	state.Ptr.prototype.evalPipeline = function(dot, pipe) {
+		var value, s, _struct, _ref, _i, _slice, _index, cmd, _struct$1, _struct$2, _struct$3, _struct$4, _ref$1, _i$1, _slice$1, _index$1, variable$1, _slice$2, _index$2, _struct$5, _struct$6, _struct$7;
+		value = new reflect.Value.Ptr();
+		s = this;
+		if (pipe === (go$ptrType(parse.PipeNode)).nil) {
+			return (_struct = value, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+		}
+		s.at(pipe);
+		_ref = pipe.Cmds;
+		_i = 0;
+		while (_i < _ref.length) {
+			cmd = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			value = (_struct$3 = s.evalCommand((_struct$1 = dot, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag)), cmd, (_struct$2 = value, new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag))), new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag));
+			if ((value.Kind() === 20) && (value.Type().NumMethod() === 0)) {
+				value = (_struct$4 = reflect.ValueOf(value.Interface()), new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag));
+			}
+			_i++;
+		}
+		_ref$1 = pipe.Decl;
+		_i$1 = 0;
+		while (_i$1 < _ref$1.length) {
+			variable$1 = (_slice$1 = _ref$1, _index$1 = _i$1, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
+			s.push((_slice$2 = variable$1.Ident, _index$2 = 0, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range")), (_struct$5 = value, new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag)));
+			_i$1++;
+		}
+		value = (_struct$6 = value, new reflect.Value.Ptr(_struct$6.typ, _struct$6.val, _struct$6.flag));
+		return (_struct$7 = value, new reflect.Value.Ptr(_struct$7.typ, _struct$7.val, _struct$7.flag));
+	};
+	state.prototype.evalPipeline = function(dot, pipe) { return this.go$val.evalPipeline(dot, pipe); };
+	state.Ptr.prototype.notAFunction = function(args, final$1) {
+		var s, _slice, _index;
+		s = this;
+		if (args.length > 1 || final$1.IsValid()) {
+			s.errorf("can't give argument to non-function %s", new (go$sliceType(go$emptyInterface))([(_slice = args, _index = 0, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"))]));
+		}
+	};
+	state.prototype.notAFunction = function(args, final$1) { return this.go$val.notAFunction(args, final$1); };
+	state.Ptr.prototype.evalCommand = function(dot, cmd, final$1) {
+		var s, _slice, _index, firstWord, n, _ref, _type, _struct, _struct$1, _struct$2, _struct$3, _struct$4, _struct$5, _struct$6, _struct$7, _struct$8, _struct$9, _struct$10, _struct$11, _struct$12, _struct$13, _struct$14, word, _ref$1, _type$1, _struct$15, _struct$16, _struct$17, _struct$18;
+		s = this;
+		firstWord = (_slice = cmd.Args, _index = 0, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+		_ref = firstWord;
+		_type = _ref !== null ? _ref.constructor : null;
+		if (_type === (go$ptrType(parse.FieldNode))) {
+			n = _ref.go$val;
+			return (_struct$2 = s.evalFieldNode((_struct = dot, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag)), n, cmd.Args, (_struct$1 = final$1, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag))), new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
+		} else if (_type === (go$ptrType(parse.ChainNode))) {
+			n = _ref.go$val;
+			return (_struct$5 = s.evalChainNode((_struct$3 = dot, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag)), n, cmd.Args, (_struct$4 = final$1, new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag))), new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag));
+		} else if (_type === (go$ptrType(parse.IdentifierNode))) {
+			n = _ref.go$val;
+			return (_struct$8 = s.evalFunction((_struct$6 = dot, new reflect.Value.Ptr(_struct$6.typ, _struct$6.val, _struct$6.flag)), n, cmd, cmd.Args, (_struct$7 = final$1, new reflect.Value.Ptr(_struct$7.typ, _struct$7.val, _struct$7.flag))), new reflect.Value.Ptr(_struct$8.typ, _struct$8.val, _struct$8.flag));
+		} else if (_type === (go$ptrType(parse.PipeNode))) {
+			n = _ref.go$val;
+			return (_struct$10 = s.evalPipeline((_struct$9 = dot, new reflect.Value.Ptr(_struct$9.typ, _struct$9.val, _struct$9.flag)), n), new reflect.Value.Ptr(_struct$10.typ, _struct$10.val, _struct$10.flag));
+		} else if (_type === (go$ptrType(parse.VariableNode))) {
+			n = _ref.go$val;
+			return (_struct$13 = s.evalVariableNode((_struct$11 = dot, new reflect.Value.Ptr(_struct$11.typ, _struct$11.val, _struct$11.flag)), n, cmd.Args, (_struct$12 = final$1, new reflect.Value.Ptr(_struct$12.typ, _struct$12.val, _struct$12.flag))), new reflect.Value.Ptr(_struct$13.typ, _struct$13.val, _struct$13.flag));
+		}
+		s.at(firstWord);
+		s.notAFunction(cmd.Args, (_struct$14 = final$1, new reflect.Value.Ptr(_struct$14.typ, _struct$14.val, _struct$14.flag)));
+		_ref$1 = firstWord;
+		_type$1 = _ref$1 !== null ? _ref$1.constructor : null;
+		if (_type$1 === (go$ptrType(parse.BoolNode))) {
+			word = _ref$1.go$val;
+			return (_struct$15 = reflect.ValueOf(new Go$Bool(word.True)), new reflect.Value.Ptr(_struct$15.typ, _struct$15.val, _struct$15.flag));
+		} else if (_type$1 === (go$ptrType(parse.DotNode))) {
+			word = _ref$1.go$val;
+			return (_struct$16 = dot, new reflect.Value.Ptr(_struct$16.typ, _struct$16.val, _struct$16.flag));
+		} else if (_type$1 === (go$ptrType(parse.NilNode))) {
+			word = _ref$1.go$val;
+			s.errorf("nil is not a command", new (go$sliceType(go$emptyInterface))([]));
+		} else if (_type$1 === (go$ptrType(parse.NumberNode))) {
+			word = _ref$1.go$val;
+			return (_struct$17 = s.idealConstant(word), new reflect.Value.Ptr(_struct$17.typ, _struct$17.val, _struct$17.flag));
+		} else if (_type$1 === (go$ptrType(parse.StringNode))) {
+			word = _ref$1.go$val;
+			return (_struct$18 = reflect.ValueOf(new Go$String(word.Text)), new reflect.Value.Ptr(_struct$18.typ, _struct$18.val, _struct$18.flag));
+		}
+		s.errorf("can't evaluate command %q", new (go$sliceType(go$emptyInterface))([firstWord]));
+		throw go$panic(new Go$String("not reached"));
+	};
+	state.prototype.evalCommand = function(dot, cmd, final$1) { return this.go$val.evalCommand(dot, cmd, final$1); };
+	state.Ptr.prototype.idealConstant = function(constant) {
+		var s, _struct, _struct$1, x, n, x$1, x$2, _struct$2, _struct$3;
+		s = this;
+		s.at(constant);
+		if (constant.IsComplex) {
+			return (_struct = reflect.ValueOf(constant.Complex128), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+		} else if (constant.IsFloat && strings.IndexAny(constant.Text, ".eE") >= 0) {
+			return (_struct$1 = reflect.ValueOf(new Go$Float64(constant.Float64)), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		} else if (constant.IsInt) {
+			n = ((x = constant.Int64, x.low + ((x.high >> 31) * 4294967296)) >> 0);
+			if (!((x$1 = new Go$Int64(0, n), x$2 = constant.Int64, (x$1.high === x$2.high && x$1.low === x$2.low)))) {
+				s.errorf("%s overflows int", new (go$sliceType(go$emptyInterface))([new Go$String(constant.Text)]));
+			}
+			return (_struct$2 = reflect.ValueOf(new Go$Int(n)), new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
+		} else if (constant.IsUint) {
+			s.errorf("%s overflows int", new (go$sliceType(go$emptyInterface))([new Go$String(constant.Text)]));
+		}
+		return (_struct$3 = zero, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag));
+	};
+	state.prototype.idealConstant = function(constant) { return this.go$val.idealConstant(constant); };
+	state.Ptr.prototype.evalFieldNode = function(dot, field, args, final$1) {
+		var s, _struct, _struct$1, _struct$2, _struct$3;
+		s = this;
+		s.at(field);
+		return (_struct$3 = s.evalFieldChain((_struct = dot, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag)), (_struct$1 = dot, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag)), field, field.Ident, args, (_struct$2 = final$1, new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag))), new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag));
+	};
+	state.prototype.evalFieldNode = function(dot, field, args, final$1) { return this.go$val.evalFieldNode(dot, field, args, final$1); };
+	state.Ptr.prototype.evalChainNode = function(dot, chain, args, final$1) {
+		var s, _struct, _struct$1, pipe, _struct$2, _struct$3, _struct$4, _struct$5;
+		s = this;
+		s.at(chain);
+		pipe = (_struct$1 = s.evalArg((_struct = dot, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag)), null, chain.Node), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		if (chain.Field.length === 0) {
+			s.errorf("internal error: no fields in evalChainNode", new (go$sliceType(go$emptyInterface))([]));
+		}
+		return (_struct$5 = s.evalFieldChain((_struct$2 = dot, new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag)), (_struct$3 = pipe, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag)), chain, chain.Field, args, (_struct$4 = final$1, new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag))), new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag));
+	};
+	state.prototype.evalChainNode = function(dot, chain, args, final$1) { return this.go$val.evalChainNode(dot, chain, args, final$1); };
+	state.Ptr.prototype.evalVariableNode = function(dot, variable$1, args, final$1) {
+		var s, _slice, _index, _struct, value, _struct$1, _struct$2, _struct$3, _struct$4, _struct$5, _struct$6;
+		s = this;
+		s.at(variable$1);
+		value = (_struct = s.varValue((_slice = variable$1.Ident, _index = 0, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"))), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+		if (variable$1.Ident.length === 1) {
+			s.notAFunction(args, (_struct$1 = final$1, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag)));
+			return (_struct$2 = value, new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
+		}
+		return (_struct$6 = s.evalFieldChain((_struct$3 = dot, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag)), (_struct$4 = value, new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag)), variable$1, go$subslice(variable$1.Ident, 1), args, (_struct$5 = final$1, new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag))), new reflect.Value.Ptr(_struct$6.typ, _struct$6.val, _struct$6.flag));
+	};
+	state.prototype.evalVariableNode = function(dot, variable$1, args, final$1) { return this.go$val.evalVariableNode(dot, variable$1, args, final$1); };
+	state.Ptr.prototype.evalFieldChain = function(dot, receiver, node, ident, args, final$1) {
+		var s, n, i, _struct, _slice, _index, _struct$1, _struct$2, _struct$3, _struct$4, _slice$1, _index$1, _struct$5, _struct$6, _struct$7;
+		s = this;
+		n = ident.length;
+		i = 0;
+		while (i < (n - 1 >> 0)) {
+			receiver = (_struct$3 = s.evalField((_struct = dot, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag)), (_slice = ident, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), node, (go$sliceType(parse.Node)).nil, (_struct$1 = zero, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag)), (_struct$2 = receiver, new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag))), new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag));
+			i = i + 1 >> 0;
+		}
+		return (_struct$7 = s.evalField((_struct$4 = dot, new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag)), (_slice$1 = ident, _index$1 = (n - 1 >> 0), (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")), node, args, (_struct$5 = final$1, new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag)), (_struct$6 = receiver, new reflect.Value.Ptr(_struct$6.typ, _struct$6.val, _struct$6.flag))), new reflect.Value.Ptr(_struct$7.typ, _struct$7.val, _struct$7.flag));
+	};
+	state.prototype.evalFieldChain = function(dot, receiver, node, ident, args, final$1) { return this.go$val.evalFieldChain(dot, receiver, node, ident, args, final$1); };
+	state.Ptr.prototype.evalFunction = function(dot, node, cmd, args, final$1) {
+		var s, name, _tuple, _struct, function$1, ok, _struct$1, _struct$2, _struct$3, _struct$4;
+		s = this;
+		s.at(node);
+		name = node.Ident;
+		_tuple = findFunction(name, s.tmpl); function$1 = (_struct = _tuple[0], new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag)); ok = _tuple[1];
+		if (!ok) {
+			s.errorf("%q is not a defined function", new (go$sliceType(go$emptyInterface))([new Go$String(name)]));
+		}
+		return (_struct$4 = s.evalCall((_struct$1 = dot, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag)), (_struct$2 = function$1, new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag)), cmd, name, args, (_struct$3 = final$1, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag))), new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag));
+	};
+	state.prototype.evalFunction = function(dot, node, cmd, args, final$1) { return this.go$val.evalFunction(dot, node, cmd, args, final$1); };
+	state.Ptr.prototype.evalField = function(dot, fieldName, node, args, final$1, receiver) {
+		var s, _struct, typ, _tuple, _struct$1, _struct$2, _struct$3, ptr, _struct$4, _struct$5, method, _struct$6, _struct$7, _struct$8, _struct$9, hasArgs, _tuple$1, _struct$10, _struct$11, isNil, _ref, _tuple$2, _struct$12, tField, ok, _struct$13, field, _struct$14, _struct$15, nameVal, _struct$16, _struct$17;
+		s = this;
+		if (!receiver.IsValid()) {
+			return (_struct = zero, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+		}
+		typ = receiver.Type();
+		_tuple = indirect((_struct$1 = receiver, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag))); receiver = (_struct$2 = _tuple[0], new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
+		ptr = (_struct$3 = receiver, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag));
+		if (!((ptr.Kind() === 20)) && ptr.CanAddr()) {
+			ptr = (_struct$4 = ptr.Addr(), new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag));
+		}
+		method = (_struct$5 = ptr.MethodByName(fieldName), new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag));
+		if (method.IsValid()) {
+			return (_struct$9 = s.evalCall((_struct$6 = dot, new reflect.Value.Ptr(_struct$6.typ, _struct$6.val, _struct$6.flag)), (_struct$7 = method, new reflect.Value.Ptr(_struct$7.typ, _struct$7.val, _struct$7.flag)), node, fieldName, args, (_struct$8 = final$1, new reflect.Value.Ptr(_struct$8.typ, _struct$8.val, _struct$8.flag))), new reflect.Value.Ptr(_struct$9.typ, _struct$9.val, _struct$9.flag));
+		}
+		hasArgs = args.length > 1 || final$1.IsValid();
+		_tuple$1 = indirect((_struct$10 = receiver, new reflect.Value.Ptr(_struct$10.typ, _struct$10.val, _struct$10.flag))); receiver = (_struct$11 = _tuple$1[0], new reflect.Value.Ptr(_struct$11.typ, _struct$11.val, _struct$11.flag)); isNil = _tuple$1[1];
+		if (isNil) {
+			s.errorf("nil pointer evaluating %s.%s", new (go$sliceType(go$emptyInterface))([typ, new Go$String(fieldName)]));
+		}
+		_ref = receiver.Kind();
+		if (_ref === 25) {
+			_tuple$2 = receiver.Type().FieldByName(fieldName); tField = (_struct$12 = _tuple$2[0], new reflect.StructField.Ptr(_struct$12.Name, _struct$12.PkgPath, _struct$12.Type, _struct$12.Tag, _struct$12.Offset, _struct$12.Index, _struct$12.Anonymous)); ok = _tuple$2[1];
+			if (ok) {
+				field = (_struct$13 = receiver.FieldByIndex(tField.Index), new reflect.Value.Ptr(_struct$13.typ, _struct$13.val, _struct$13.flag));
+				if (!(tField.PkgPath === "")) {
+					s.errorf("%s is an unexported field of struct type %s", new (go$sliceType(go$emptyInterface))([new Go$String(fieldName), typ]));
+				}
+				if (hasArgs) {
+					s.errorf("%s has arguments but cannot be invoked as function", new (go$sliceType(go$emptyInterface))([new Go$String(fieldName)]));
+				}
+				return (_struct$14 = field, new reflect.Value.Ptr(_struct$14.typ, _struct$14.val, _struct$14.flag));
+			}
+			s.errorf("%s is not a field of struct type %s", new (go$sliceType(go$emptyInterface))([new Go$String(fieldName), typ]));
+		} else if (_ref === 21) {
+			nameVal = (_struct$15 = reflect.ValueOf(new Go$String(fieldName)), new reflect.Value.Ptr(_struct$15.typ, _struct$15.val, _struct$15.flag));
+			if (nameVal.Type().AssignableTo(receiver.Type().Key())) {
+				if (hasArgs) {
+					s.errorf("%s is not a method but has arguments", new (go$sliceType(go$emptyInterface))([new Go$String(fieldName)]));
+				}
+				return (_struct$17 = receiver.MapIndex((_struct$16 = nameVal, new reflect.Value.Ptr(_struct$16.typ, _struct$16.val, _struct$16.flag))), new reflect.Value.Ptr(_struct$17.typ, _struct$17.val, _struct$17.flag));
+			}
+		}
+		s.errorf("can't evaluate field %s in type %s", new (go$sliceType(go$emptyInterface))([new Go$String(fieldName), typ]));
+		throw go$panic(new Go$String("not reached"));
+	};
+	state.prototype.evalField = function(dot, fieldName, node, args, final$1, receiver) { return this.go$val.evalField(dot, fieldName, node, args, final$1, receiver); };
+	state.Ptr.prototype.evalCall = function(dot, fun, node, name, args, final$1) {
+		var s, typ, numIn, numFixed, argv, i, _struct, _slice, _index, _struct$1, _slice$1, _index$1, argType, _struct$2, _slice$2, _index$2, _struct$3, _slice$3, _index$3, t, _struct$4, _struct$5, _slice$4, _index$4, result, _slice$5, _index$5, x, _slice$6, _index$6, _slice$7, _index$7, _struct$6;
+		s = this;
+		if (!(args === (go$sliceType(parse.Node)).nil)) {
+			args = go$subslice(args, 1);
+		}
+		typ = fun.Type();
+		numIn = args.length;
+		if (final$1.IsValid()) {
+			numIn = numIn + 1 >> 0;
+		}
+		numFixed = args.length;
+		if (typ.IsVariadic()) {
+			numFixed = typ.NumIn() - 1 >> 0;
+			if (numIn < numFixed) {
+				s.errorf("wrong number of args for %s: want at least %d got %d", new (go$sliceType(go$emptyInterface))([new Go$String(name), new Go$Int((typ.NumIn() - 1 >> 0)), new Go$Int(args.length)]));
+			}
+		} else if (numIn < (typ.NumIn() - 1 >> 0) || !typ.IsVariadic() && !((numIn === typ.NumIn()))) {
+			s.errorf("wrong number of args for %s: want %d got %d", new (go$sliceType(go$emptyInterface))([new Go$String(name), new Go$Int(typ.NumIn()), new Go$Int(args.length)]));
+		}
+		if (!goodFunc(typ)) {
+			s.errorf("can't call method/function %q with %d results", new (go$sliceType(go$emptyInterface))([new Go$String(name), new Go$Int(typ.NumOut())]));
+		}
+		argv = (go$sliceType(reflect.Value)).make(numIn, 0, function() { return new reflect.Value.Ptr(); });
+		i = 0;
+		while (i < numFixed) {
+			_slice$1 = argv; _index$1 = i;(_index$1 >= 0 && _index$1 < _slice$1.length) ? (_slice$1.array[_slice$1.offset + _index$1] = (_struct$1 = s.evalArg((_struct = dot, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag)), typ.In(i), (_slice = args, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"))), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag))) : go$throwRuntimeError("index out of range");
+			i = i + 1 >> 0;
+		}
+		if (typ.IsVariadic()) {
+			argType = typ.In(typ.NumIn() - 1 >> 0).Elem();
+			while (i < args.length) {
+				_slice$3 = argv; _index$3 = i;(_index$3 >= 0 && _index$3 < _slice$3.length) ? (_slice$3.array[_slice$3.offset + _index$3] = (_struct$3 = s.evalArg((_struct$2 = dot, new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag)), argType, (_slice$2 = args, _index$2 = i, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range"))), new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag))) : go$throwRuntimeError("index out of range");
+				i = i + 1 >> 0;
+			}
+		}
+		if (final$1.IsValid()) {
+			t = typ.In(typ.NumIn() - 1 >> 0);
+			if (typ.IsVariadic()) {
+				t = t.Elem();
+			}
+			_slice$4 = argv; _index$4 = i;(_index$4 >= 0 && _index$4 < _slice$4.length) ? (_slice$4.array[_slice$4.offset + _index$4] = (_struct$5 = s.validateType((_struct$4 = final$1, new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag)), t), new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag))) : go$throwRuntimeError("index out of range");
+		}
+		result = fun.Call(argv);
+		if ((result.length === 2) && !(_slice$5 = result, _index$5 = 1, (_index$5 >= 0 && _index$5 < _slice$5.length) ? _slice$5.array[_slice$5.offset + _index$5] : go$throwRuntimeError("index out of range")).IsNil()) {
+			s.at(node);
+			s.errorf("error calling %s: %s", new (go$sliceType(go$emptyInterface))([new Go$String(name), (x = (_slice$6 = result, _index$6 = 1, (_index$6 >= 0 && _index$6 < _slice$6.length) ? _slice$6.array[_slice$6.offset + _index$6] : go$throwRuntimeError("index out of range")).Interface(), (x !== null && go$error.implementedBy.indexOf(x.constructor) !== -1 ? x : go$typeAssertionFailed(x, go$error)))]));
+		}
+		return (_struct$6 = (_slice$7 = result, _index$7 = 0, (_index$7 >= 0 && _index$7 < _slice$7.length) ? _slice$7.array[_slice$7.offset + _index$7] : go$throwRuntimeError("index out of range")), new reflect.Value.Ptr(_struct$6.typ, _struct$6.val, _struct$6.flag));
+	};
+	state.prototype.evalCall = function(dot, fun, node, name, args, final$1) { return this.go$val.evalCall(dot, fun, node, name, args, final$1); };
+	canBeNil = function(typ) {
+		var _ref;
+		_ref = typ.Kind();
+		if (_ref === 18 || _ref === 19 || _ref === 20 || _ref === 21 || _ref === 22 || _ref === 23) {
+			return true;
+		}
+		return false;
+	};
+	state.Ptr.prototype.validateType = function(value, typ) {
+		var s, _struct, _struct$1, _struct$2, _struct$3, _struct$4, _struct$5;
+		s = this;
+		if (!value.IsValid()) {
+			if (go$interfaceIsEqual(typ, null) || canBeNil(typ)) {
+				return (_struct = reflect.Zero(typ), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+			}
+			s.errorf("invalid value; expected %s", new (go$sliceType(go$emptyInterface))([typ]));
+		}
+		if (!(go$interfaceIsEqual(typ, null)) && !value.Type().AssignableTo(typ)) {
+			if ((value.Kind() === 20) && !value.IsNil()) {
+				value = (_struct$1 = value.Elem(), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+				if (value.Type().AssignableTo(typ)) {
+					return (_struct$2 = value, new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
+				}
+			}
+			if ((value.Kind() === 22) && value.Type().Elem().AssignableTo(typ)) {
+				value = (_struct$3 = value.Elem(), new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag));
+			} else if (reflect.PtrTo(value.Type()).AssignableTo(typ) && value.CanAddr()) {
+				value = (_struct$4 = value.Addr(), new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag));
+			} else {
+				s.errorf("wrong type for value; expected %s; got %s", new (go$sliceType(go$emptyInterface))([typ, value.Type()]));
+			}
+		}
+		return (_struct$5 = value, new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag));
+	};
+	state.prototype.validateType = function(value, typ) { return this.go$val.validateType(value, typ); };
+	state.Ptr.prototype.evalArg = function(dot, typ, n) {
+		var s, arg, _ref, _type, _struct, _struct$1, _struct$2, _struct$3, _struct$4, _struct$5, _struct$6, _struct$7, _struct$8, _struct$9, _struct$10, _struct$11, _struct$12, _struct$13, _struct$14, _struct$15, _struct$16, _ref$1, _struct$17, _struct$18, _struct$19, _struct$20, _struct$21, _struct$22, _struct$23, _struct$24;
+		s = this;
+		s.at(n);
+		_ref = n;
+		_type = _ref !== null ? _ref.constructor : null;
+		if (_type === (go$ptrType(parse.DotNode))) {
+			arg = _ref.go$val;
+			return (_struct$1 = s.validateType((_struct = dot, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag)), typ), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		} else if (_type === (go$ptrType(parse.NilNode))) {
+			arg = _ref.go$val;
+			if (canBeNil(typ)) {
+				return (_struct$2 = reflect.Zero(typ), new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
+			}
+			s.errorf("cannot assign nil to %s", new (go$sliceType(go$emptyInterface))([typ]));
+		} else if (_type === (go$ptrType(parse.FieldNode))) {
+			arg = _ref.go$val;
+			return (_struct$6 = s.validateType((_struct$5 = s.evalFieldNode((_struct$3 = dot, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag)), arg, new (go$sliceType(parse.Node))([n]), (_struct$4 = zero, new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag))), new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag)), typ), new reflect.Value.Ptr(_struct$6.typ, _struct$6.val, _struct$6.flag));
+		} else if (_type === (go$ptrType(parse.VariableNode))) {
+			arg = _ref.go$val;
+			return (_struct$10 = s.validateType((_struct$9 = s.evalVariableNode((_struct$7 = dot, new reflect.Value.Ptr(_struct$7.typ, _struct$7.val, _struct$7.flag)), arg, (go$sliceType(parse.Node)).nil, (_struct$8 = zero, new reflect.Value.Ptr(_struct$8.typ, _struct$8.val, _struct$8.flag))), new reflect.Value.Ptr(_struct$9.typ, _struct$9.val, _struct$9.flag)), typ), new reflect.Value.Ptr(_struct$10.typ, _struct$10.val, _struct$10.flag));
+		} else if (_type === (go$ptrType(parse.PipeNode))) {
+			arg = _ref.go$val;
+			return (_struct$13 = s.validateType((_struct$12 = s.evalPipeline((_struct$11 = dot, new reflect.Value.Ptr(_struct$11.typ, _struct$11.val, _struct$11.flag)), arg), new reflect.Value.Ptr(_struct$12.typ, _struct$12.val, _struct$12.flag)), typ), new reflect.Value.Ptr(_struct$13.typ, _struct$13.val, _struct$13.flag));
+		} else if (_type === (go$ptrType(parse.IdentifierNode))) {
+			arg = _ref.go$val;
+			return (_struct$16 = s.evalFunction((_struct$14 = dot, new reflect.Value.Ptr(_struct$14.typ, _struct$14.val, _struct$14.flag)), arg, arg, (go$sliceType(parse.Node)).nil, (_struct$15 = zero, new reflect.Value.Ptr(_struct$15.typ, _struct$15.val, _struct$15.flag))), new reflect.Value.Ptr(_struct$16.typ, _struct$16.val, _struct$16.flag));
+		}
+		_ref$1 = typ.Kind();
+		if (_ref$1 === 1) {
+			return (_struct$17 = s.evalBool(typ, n), new reflect.Value.Ptr(_struct$17.typ, _struct$17.val, _struct$17.flag));
+		} else if (_ref$1 === 15 || _ref$1 === 16) {
+			return (_struct$18 = s.evalComplex(typ, n), new reflect.Value.Ptr(_struct$18.typ, _struct$18.val, _struct$18.flag));
+		} else if (_ref$1 === 13 || _ref$1 === 14) {
+			return (_struct$19 = s.evalFloat(typ, n), new reflect.Value.Ptr(_struct$19.typ, _struct$19.val, _struct$19.flag));
+		} else if (_ref$1 === 2 || _ref$1 === 3 || _ref$1 === 4 || _ref$1 === 5 || _ref$1 === 6) {
+			return (_struct$20 = s.evalInteger(typ, n), new reflect.Value.Ptr(_struct$20.typ, _struct$20.val, _struct$20.flag));
+		} else if (_ref$1 === 20) {
+			if (typ.NumMethod() === 0) {
+				return (_struct$22 = s.evalEmptyInterface((_struct$21 = dot, new reflect.Value.Ptr(_struct$21.typ, _struct$21.val, _struct$21.flag)), n), new reflect.Value.Ptr(_struct$22.typ, _struct$22.val, _struct$22.flag));
+			}
+		} else if (_ref$1 === 24) {
+			return (_struct$23 = s.evalString(typ, n), new reflect.Value.Ptr(_struct$23.typ, _struct$23.val, _struct$23.flag));
+		} else if (_ref$1 === 7 || _ref$1 === 8 || _ref$1 === 9 || _ref$1 === 10 || _ref$1 === 11 || _ref$1 === 12) {
+			return (_struct$24 = s.evalUnsignedInteger(typ, n), new reflect.Value.Ptr(_struct$24.typ, _struct$24.val, _struct$24.flag));
+		}
+		s.errorf("can't handle %s for arg of type %s", new (go$sliceType(go$emptyInterface))([n, typ]));
+		throw go$panic(new Go$String("not reached"));
+	};
+	state.prototype.evalArg = function(dot, typ, n) { return this.go$val.evalArg(dot, typ, n); };
+	state.Ptr.prototype.evalBool = function(typ, n) {
+		var s, _tuple, n$1, ok, _struct, value, _struct$1;
+		s = this;
+		s.at(n);
+		_tuple = (n !== null && n.constructor === (go$ptrType(parse.BoolNode)) ? [n.go$val, true] : [(go$ptrType(parse.BoolNode)).nil, false]); n$1 = _tuple[0]; ok = _tuple[1];
+		if (ok) {
+			value = (_struct = reflect.New(typ).Elem(), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+			value.SetBool(n$1.True);
+			return (_struct$1 = value, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		}
+		s.errorf("expected bool; found %s", new (go$sliceType(go$emptyInterface))([n]));
+		throw go$panic(new Go$String("not reached"));
+	};
+	state.prototype.evalBool = function(typ, n) { return this.go$val.evalBool(typ, n); };
+	state.Ptr.prototype.evalString = function(typ, n) {
+		var s, _tuple, n$1, ok, _struct, value, _struct$1;
+		s = this;
+		s.at(n);
+		_tuple = (n !== null && n.constructor === (go$ptrType(parse.StringNode)) ? [n.go$val, true] : [(go$ptrType(parse.StringNode)).nil, false]); n$1 = _tuple[0]; ok = _tuple[1];
+		if (ok) {
+			value = (_struct = reflect.New(typ).Elem(), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+			value.SetString(n$1.Text);
+			return (_struct$1 = value, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		}
+		s.errorf("expected string; found %s", new (go$sliceType(go$emptyInterface))([n]));
+		throw go$panic(new Go$String("not reached"));
+	};
+	state.prototype.evalString = function(typ, n) { return this.go$val.evalString(typ, n); };
+	state.Ptr.prototype.evalInteger = function(typ, n) {
+		var s, _tuple, n$1, ok, _struct, value, _struct$1;
+		s = this;
+		s.at(n);
+		_tuple = (n !== null && n.constructor === (go$ptrType(parse.NumberNode)) ? [n.go$val, true] : [(go$ptrType(parse.NumberNode)).nil, false]); n$1 = _tuple[0]; ok = _tuple[1];
+		if (ok && n$1.IsInt) {
+			value = (_struct = reflect.New(typ).Elem(), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+			value.SetInt(n$1.Int64);
+			return (_struct$1 = value, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		}
+		s.errorf("expected integer; found %s", new (go$sliceType(go$emptyInterface))([n]));
+		throw go$panic(new Go$String("not reached"));
+	};
+	state.prototype.evalInteger = function(typ, n) { return this.go$val.evalInteger(typ, n); };
+	state.Ptr.prototype.evalUnsignedInteger = function(typ, n) {
+		var s, _tuple, n$1, ok, _struct, value, _struct$1;
+		s = this;
+		s.at(n);
+		_tuple = (n !== null && n.constructor === (go$ptrType(parse.NumberNode)) ? [n.go$val, true] : [(go$ptrType(parse.NumberNode)).nil, false]); n$1 = _tuple[0]; ok = _tuple[1];
+		if (ok && n$1.IsUint) {
+			value = (_struct = reflect.New(typ).Elem(), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+			value.SetUint(n$1.Uint64);
+			return (_struct$1 = value, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		}
+		s.errorf("expected unsigned integer; found %s", new (go$sliceType(go$emptyInterface))([n]));
+		throw go$panic(new Go$String("not reached"));
+	};
+	state.prototype.evalUnsignedInteger = function(typ, n) { return this.go$val.evalUnsignedInteger(typ, n); };
+	state.Ptr.prototype.evalFloat = function(typ, n) {
+		var s, _tuple, n$1, ok, _struct, value, _struct$1;
+		s = this;
+		s.at(n);
+		_tuple = (n !== null && n.constructor === (go$ptrType(parse.NumberNode)) ? [n.go$val, true] : [(go$ptrType(parse.NumberNode)).nil, false]); n$1 = _tuple[0]; ok = _tuple[1];
+		if (ok && n$1.IsFloat) {
+			value = (_struct = reflect.New(typ).Elem(), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+			value.SetFloat(n$1.Float64);
+			return (_struct$1 = value, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		}
+		s.errorf("expected float; found %s", new (go$sliceType(go$emptyInterface))([n]));
+		throw go$panic(new Go$String("not reached"));
+	};
+	state.prototype.evalFloat = function(typ, n) { return this.go$val.evalFloat(typ, n); };
+	state.Ptr.prototype.evalComplex = function(typ, n) {
+		var s, _tuple, n$1, ok, _struct, value, _struct$1;
+		s = this;
+		_tuple = (n !== null && n.constructor === (go$ptrType(parse.NumberNode)) ? [n.go$val, true] : [(go$ptrType(parse.NumberNode)).nil, false]); n$1 = _tuple[0]; ok = _tuple[1];
+		if (ok && n$1.IsComplex) {
+			value = (_struct = reflect.New(typ).Elem(), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+			value.SetComplex(n$1.Complex128);
+			return (_struct$1 = value, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		}
+		s.errorf("expected complex; found %s", new (go$sliceType(go$emptyInterface))([n]));
+		throw go$panic(new Go$String("not reached"));
+	};
+	state.prototype.evalComplex = function(typ, n) { return this.go$val.evalComplex(typ, n); };
+	state.Ptr.prototype.evalEmptyInterface = function(dot, n) {
+		var s, n$1, _ref, _type, _struct, _struct$1, _struct$2, _struct$3, _struct$4, _struct$5, _struct$6, _struct$7, _struct$8, _struct$9, _struct$10, _struct$11, _struct$12, _struct$13, _struct$14;
+		s = this;
+		s.at(n);
+		_ref = n;
+		_type = _ref !== null ? _ref.constructor : null;
+		if (_type === (go$ptrType(parse.BoolNode))) {
+			n$1 = _ref.go$val;
+			return (_struct = reflect.ValueOf(new Go$Bool(n$1.True)), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+		} else if (_type === (go$ptrType(parse.DotNode))) {
+			n$1 = _ref.go$val;
+			return (_struct$1 = dot, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		} else if (_type === (go$ptrType(parse.FieldNode))) {
+			n$1 = _ref.go$val;
+			return (_struct$4 = s.evalFieldNode((_struct$2 = dot, new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag)), n$1, (go$sliceType(parse.Node)).nil, (_struct$3 = zero, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag))), new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag));
+		} else if (_type === (go$ptrType(parse.IdentifierNode))) {
+			n$1 = _ref.go$val;
+			return (_struct$7 = s.evalFunction((_struct$5 = dot, new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag)), n$1, n$1, (go$sliceType(parse.Node)).nil, (_struct$6 = zero, new reflect.Value.Ptr(_struct$6.typ, _struct$6.val, _struct$6.flag))), new reflect.Value.Ptr(_struct$7.typ, _struct$7.val, _struct$7.flag));
+		} else if (_type === (go$ptrType(parse.NilNode))) {
+			n$1 = _ref.go$val;
+			s.errorf("evalEmptyInterface: nil (can't happen)", new (go$sliceType(go$emptyInterface))([]));
+		} else if (_type === (go$ptrType(parse.NumberNode))) {
+			n$1 = _ref.go$val;
+			return (_struct$8 = s.idealConstant(n$1), new reflect.Value.Ptr(_struct$8.typ, _struct$8.val, _struct$8.flag));
+		} else if (_type === (go$ptrType(parse.StringNode))) {
+			n$1 = _ref.go$val;
+			return (_struct$9 = reflect.ValueOf(new Go$String(n$1.Text)), new reflect.Value.Ptr(_struct$9.typ, _struct$9.val, _struct$9.flag));
+		} else if (_type === (go$ptrType(parse.VariableNode))) {
+			n$1 = _ref.go$val;
+			return (_struct$12 = s.evalVariableNode((_struct$10 = dot, new reflect.Value.Ptr(_struct$10.typ, _struct$10.val, _struct$10.flag)), n$1, (go$sliceType(parse.Node)).nil, (_struct$11 = zero, new reflect.Value.Ptr(_struct$11.typ, _struct$11.val, _struct$11.flag))), new reflect.Value.Ptr(_struct$12.typ, _struct$12.val, _struct$12.flag));
+		} else if (_type === (go$ptrType(parse.PipeNode))) {
+			n$1 = _ref.go$val;
+			return (_struct$14 = s.evalPipeline((_struct$13 = dot, new reflect.Value.Ptr(_struct$13.typ, _struct$13.val, _struct$13.flag)), n$1), new reflect.Value.Ptr(_struct$14.typ, _struct$14.val, _struct$14.flag));
+		}
+		s.errorf("can't handle assignment of %s to empty interface argument", new (go$sliceType(go$emptyInterface))([n]));
+		throw go$panic(new Go$String("not reached"));
+	};
+	state.prototype.evalEmptyInterface = function(dot, n) { return this.go$val.evalEmptyInterface(dot, n); };
+	indirect = function(v) {
+		var rv, isNil, _struct, _tuple, _struct$1, _struct$2, _struct$3, _tuple$1, _struct$4;
+		rv = new reflect.Value.Ptr();
+		isNil = false;
+		while ((v.Kind() === 22) || (v.Kind() === 20)) {
+			if (v.IsNil()) {
+				_tuple = [(_struct = v, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag)), true]; rv = _tuple[0]; isNil = _tuple[1];
+				return [(_struct$1 = rv, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag)), isNil];
+			}
+			if ((v.Kind() === 20) && v.NumMethod() > 0) {
+				break;
+			}
+			v = (_struct$2 = v.Elem(), new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
+		}
+		_tuple$1 = [(_struct$3 = v, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag)), false]; rv = _tuple$1[0]; isNil = _tuple$1[1];
+		return [(_struct$4 = rv, new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag)), isNil];
+	};
+	state.Ptr.prototype.printValue = function(n, v) {
+		var s, _tuple, _struct, iface, ok;
+		s = this;
+		s.at(n);
+		_tuple = printableValue((_struct = v, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag))); iface = _tuple[0]; ok = _tuple[1];
+		if (!ok) {
+			s.errorf("can't print %s of type %s", new (go$sliceType(go$emptyInterface))([n, v.Type()]));
+		}
+		fmt.Fprint(s.wr, new (go$sliceType(go$emptyInterface))([iface]));
+	};
+	state.prototype.printValue = function(n, v) { return this.go$val.printValue(n, v); };
+	printableValue = function(v) {
+		var _tuple, _struct, _struct$1, _struct$2, _ref;
+		if (v.Kind() === 22) {
+			_tuple = indirect((_struct = v, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag))); v = (_struct$1 = _tuple[0], new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		}
+		if (!v.IsValid()) {
+			return [new Go$String("<no value>"), true];
+		}
+		if (!v.Type().Implements(errorType) && !v.Type().Implements(fmtStringerType)) {
+			if (v.CanAddr() && (reflect.PtrTo(v.Type()).Implements(errorType) || reflect.PtrTo(v.Type()).Implements(fmtStringerType))) {
+				v = (_struct$2 = v.Addr(), new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
+			} else {
+				_ref = v.Kind();
+				if (_ref === 18 || _ref === 19) {
+					return [null, false];
+				}
+			}
+		}
+		return [v.Interface(), true];
+	};
+	rvs.prototype.Len = function() {
+		var x;
+		x = this;
+		return x.length;
+	};
+	go$ptrType(rvs).prototype.Len = function() { return this.go$get().Len(); };
+	rvs.prototype.Swap = function(i, j) {
+		var x, _slice, _index, _struct, _slice$1, _index$1, _struct$1, _tuple, _slice$2, _index$2, _slice$3, _index$3;
+		x = this;
+		_tuple = [(_struct = (_slice = x, _index = j, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag)), (_struct$1 = (_slice$1 = x, _index$1 = i, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag))]; _slice$2 = x; _index$2 = i;(_index$2 >= 0 && _index$2 < _slice$2.length) ? (_slice$2.array[_slice$2.offset + _index$2] = _tuple[0]) : go$throwRuntimeError("index out of range"); _slice$3 = x; _index$3 = j;(_index$3 >= 0 && _index$3 < _slice$3.length) ? (_slice$3.array[_slice$3.offset + _index$3] = _tuple[1]) : go$throwRuntimeError("index out of range");
+	};
+	go$ptrType(rvs).prototype.Swap = function(i, j) { return this.go$get().Swap(i, j); };
+	rvInts.Ptr.prototype.Less = function(i, j) {
+		var _struct, x, x$1, _slice, _index, x$2, _slice$1, _index$1;
+		x = (_struct = this, new rvInts.Ptr(_struct.rvs));
+		return (x$1 = (_slice = x.rvs, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).Int(), x$2 = (_slice$1 = x.rvs, _index$1 = j, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).Int(), (x$1.high < x$2.high || (x$1.high === x$2.high && x$1.low < x$2.low)));
+	};
+	rvInts.prototype.Less = function(i, j) { return this.go$val.Less(i, j); };
+	rvUints.Ptr.prototype.Less = function(i, j) {
+		var _struct, x, x$1, _slice, _index, x$2, _slice$1, _index$1;
+		x = (_struct = this, new rvUints.Ptr(_struct.rvs));
+		return (x$1 = (_slice = x.rvs, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).Uint(), x$2 = (_slice$1 = x.rvs, _index$1 = j, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).Uint(), (x$1.high < x$2.high || (x$1.high === x$2.high && x$1.low < x$2.low)));
+	};
+	rvUints.prototype.Less = function(i, j) { return this.go$val.Less(i, j); };
+	rvFloats.Ptr.prototype.Less = function(i, j) {
+		var _struct, x, _slice, _index, _slice$1, _index$1;
+		x = (_struct = this, new rvFloats.Ptr(_struct.rvs));
+		return (_slice = x.rvs, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).Float() < (_slice$1 = x.rvs, _index$1 = j, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).Float();
+	};
+	rvFloats.prototype.Less = function(i, j) { return this.go$val.Less(i, j); };
+	rvStrings.Ptr.prototype.Less = function(i, j) {
+		var _struct, x, _slice, _index, _slice$1, _index$1;
+		x = (_struct = this, new rvStrings.Ptr(_struct.rvs));
+		return (_slice = x.rvs, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).String() < (_slice$1 = x.rvs, _index$1 = j, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).String();
+	};
+	rvStrings.prototype.Less = function(i, j) { return this.go$val.Less(i, j); };
+	sortKeys = function(v) {
+		var _ref, _slice, _index, x, x$1, x$2, x$3;
+		if (v.length <= 1) {
+			return v;
+		}
+		_ref = (_slice = v, _index = 0, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")).Kind();
+		if (_ref === 13 || _ref === 14) {
+			sort.Sort((x = new rvFloats.Ptr(go$subslice(new rvs(v.array), v.offset, v.offset + v.length)), new x.constructor.Struct(x)));
+		} else if (_ref === 2 || _ref === 3 || _ref === 4 || _ref === 5 || _ref === 6) {
+			sort.Sort((x$1 = new rvInts.Ptr(go$subslice(new rvs(v.array), v.offset, v.offset + v.length)), new x$1.constructor.Struct(x$1)));
+		} else if (_ref === 24) {
+			sort.Sort((x$2 = new rvStrings.Ptr(go$subslice(new rvs(v.array), v.offset, v.offset + v.length)), new x$2.constructor.Struct(x$2)));
+		} else if (_ref === 7 || _ref === 8 || _ref === 9 || _ref === 10 || _ref === 11 || _ref === 12) {
+			sort.Sort((x$3 = new rvUints.Ptr(go$subslice(new rvs(v.array), v.offset, v.offset + v.length)), new x$3.constructor.Struct(x$3)));
+		}
+		return v;
+	};
+	createValueFuncs = function(funcMap) {
+		var m;
+		m = new Go$Map();
+		addValueFuncs(m, funcMap);
+		return m;
+	};
+	addValueFuncs = function(out, in$1) {
+		var _ref, _i, _keys, _entry, fn, name, _struct, v, _struct$1, _key;
+		_ref = in$1;
+		_i = 0;
+		_keys = go$keys(_ref);
+		while (_i < _keys.length) {
+			_entry = _ref[_keys[_i]];
+			fn = _entry.v;
+			name = _entry.k;
+			v = (_struct = reflect.ValueOf(fn), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+			if (!((v.Kind() === 19))) {
+				throw go$panic(new Go$String("value for " + name + " not a function"));
+			}
+			if (!goodFunc(v.Type())) {
+				throw go$panic(fmt.Errorf("can't install method/function %q with %d results", new (go$sliceType(go$emptyInterface))([new Go$String(name), new Go$Int(v.Type().NumOut())])));
+			}
+			_key = name; (out || go$throwRuntimeError("assignment to entry in nil map"))[_key] = { k: _key, v: (_struct$1 = v, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag)) };
+			_i++;
+		}
+	};
+	addFuncs = function(out, in$1) {
+		var _ref, _i, _keys, _entry, fn, name, _key;
+		_ref = in$1;
+		_i = 0;
+		_keys = go$keys(_ref);
+		while (_i < _keys.length) {
+			_entry = _ref[_keys[_i]];
+			fn = _entry.v;
+			name = _entry.k;
+			_key = name; (out || go$throwRuntimeError("assignment to entry in nil map"))[_key] = { k: _key, v: fn };
+			_i++;
+		}
+	};
+	goodFunc = function(typ) {
+		if (typ.NumOut() === 1) {
+			return true;
+		} else if ((typ.NumOut() === 2) && go$interfaceIsEqual(typ.Out(1), errorType)) {
+			return true;
+		}
+		return false;
+	};
+	findFunction = function(name, tmpl) {
+		var _entry, _struct, fn, _struct$1, _entry$1, _struct$2, fn$1, _struct$3;
+		if (!(tmpl === (go$ptrType(Template)).nil) && !(tmpl.common === (go$ptrType(common)).nil)) {
+			fn = (_struct = (_entry = tmpl.common.execFuncs[name], _entry !== undefined ? _entry.v : new reflect.Value.Ptr()), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+			if (fn.IsValid()) {
+				return [(_struct$1 = fn, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag)), true];
+			}
+		}
+		fn$1 = (_struct$2 = (_entry$1 = builtinFuncs[name], _entry$1 !== undefined ? _entry$1.v : new reflect.Value.Ptr()), new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
+		if (fn$1.IsValid()) {
+			return [(_struct$3 = fn$1, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag)), true];
+		}
+		return [new reflect.Value.Ptr((go$ptrType(reflect.rtype)).nil, 0, 0), false];
+	};
+	index = function(item, indices) {
+		var _struct, v, _ref, _i, _slice, _index, i, _struct$1, index$1, isNil, _tuple, _struct$2, _struct$3, _ref$1, x, _ref$2, x$1, x$2, _struct$4, _struct$5, _struct$6, _struct$7, x$3, _struct$8, _struct$9;
+		v = (_struct = reflect.ValueOf(item), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+		_ref = indices;
+		_i = 0;
+		while (_i < _ref.length) {
+			i = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			index$1 = (_struct$1 = reflect.ValueOf(i), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+			isNil = false;
+			_tuple = indirect((_struct$2 = v, new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag))); v = (_struct$3 = _tuple[0], new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag)); isNil = _tuple[1];
+			if (isNil) {
+				return [null, fmt.Errorf("index of nil pointer", new (go$sliceType(go$emptyInterface))([]))];
+			}
+			_ref$1 = v.Kind();
+			if (_ref$1 === 17 || _ref$1 === 23 || _ref$1 === 24) {
+				x = new Go$Int64(0, 0);
+				_ref$2 = index$1.Kind();
+				if (_ref$2 === 2 || _ref$2 === 3 || _ref$2 === 4 || _ref$2 === 5 || _ref$2 === 6) {
+					x = index$1.Int();
+				} else if (_ref$2 === 7 || _ref$2 === 8 || _ref$2 === 9 || _ref$2 === 10 || _ref$2 === 11 || _ref$2 === 12) {
+					x = (x$1 = index$1.Uint(), new Go$Int64(x$1.high, x$1.low));
+				} else {
+					return [null, fmt.Errorf("cannot index slice/array with type %s", new (go$sliceType(go$emptyInterface))([index$1.Type()]))];
+				}
+				if ((x.high < 0 || (x.high === 0 && x.low < 0)) || (x$2 = new Go$Int64(0, v.Len()), (x.high > x$2.high || (x.high === x$2.high && x.low >= x$2.low)))) {
+					return [null, fmt.Errorf("index out of range: %d", new (go$sliceType(go$emptyInterface))([x]))];
+				}
+				v = (_struct$4 = v.Index(((x.low + ((x.high >> 31) * 4294967296)) >> 0)), new reflect.Value.Ptr(_struct$4.typ, _struct$4.val, _struct$4.flag));
+			} else if (_ref$1 === 21) {
+				if (!index$1.IsValid()) {
+					index$1 = (_struct$5 = reflect.Zero(v.Type().Key()), new reflect.Value.Ptr(_struct$5.typ, _struct$5.val, _struct$5.flag));
+				}
+				if (!index$1.Type().AssignableTo(v.Type().Key())) {
+					return [null, fmt.Errorf("%s is not index type for %s", new (go$sliceType(go$emptyInterface))([index$1.Type(), v.Type()]))];
+				}
+				x$3 = (_struct$7 = v.MapIndex((_struct$6 = index$1, new reflect.Value.Ptr(_struct$6.typ, _struct$6.val, _struct$6.flag))), new reflect.Value.Ptr(_struct$7.typ, _struct$7.val, _struct$7.flag));
+				if (x$3.IsValid()) {
+					v = (_struct$8 = x$3, new reflect.Value.Ptr(_struct$8.typ, _struct$8.val, _struct$8.flag));
+				} else {
+					v = (_struct$9 = reflect.Zero(v.Type().Elem()), new reflect.Value.Ptr(_struct$9.typ, _struct$9.val, _struct$9.flag));
+				}
+			} else {
+				return [null, fmt.Errorf("can't index item of type %s", new (go$sliceType(go$emptyInterface))([v.Type()]))];
+			}
+			_i++;
+		}
+		return [v.Interface(), null];
+	};
+	length = function(item) {
+		var _tuple, _struct, _struct$1, v, isNil, _ref;
+		_tuple = indirect((_struct = reflect.ValueOf(item), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag))); v = (_struct$1 = _tuple[0], new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag)); isNil = _tuple[1];
+		if (isNil) {
+			return [0, fmt.Errorf("len of nil pointer", new (go$sliceType(go$emptyInterface))([]))];
+		}
+		_ref = v.Kind();
+		if (_ref === 17 || _ref === 18 || _ref === 21 || _ref === 23 || _ref === 24) {
+			return [v.Len(), null];
+		}
+		return [0, fmt.Errorf("len of type %s", new (go$sliceType(go$emptyInterface))([v.Type()]))];
+	};
+	call = function(fn, args) {
+		var _struct, v, typ, numIn, dddType, argv, _ref, _i, _slice, _index, arg, i, _struct$1, value, argType, _struct$2, _struct$3, _slice$1, _index$1, result, _slice$2, _index$2, _slice$3, _index$3, x, _slice$4, _index$4, _slice$5, _index$5;
+		v = (_struct = reflect.ValueOf(fn), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+		typ = v.Type();
+		if (!((typ.Kind() === 19))) {
+			return [null, fmt.Errorf("non-function of type %s", new (go$sliceType(go$emptyInterface))([typ]))];
+		}
+		if (!goodFunc(typ)) {
+			return [null, fmt.Errorf("function called with %d args; should be 1 or 2", new (go$sliceType(go$emptyInterface))([new Go$Int(typ.NumOut())]))];
+		}
+		numIn = typ.NumIn();
+		dddType = null;
+		if (typ.IsVariadic()) {
+			if (args.length < (numIn - 1 >> 0)) {
+				return [null, fmt.Errorf("wrong number of args: got %d want at least %d", new (go$sliceType(go$emptyInterface))([new Go$Int(args.length), new Go$Int((numIn - 1 >> 0))]))];
+			}
+			dddType = typ.In(numIn - 1 >> 0).Elem();
+		} else {
+			if (!((args.length === numIn))) {
+				return [null, fmt.Errorf("wrong number of args: got %d want %d", new (go$sliceType(go$emptyInterface))([new Go$Int(args.length), new Go$Int(numIn)]))];
+			}
+		}
+		argv = (go$sliceType(reflect.Value)).make(args.length, 0, function() { return new reflect.Value.Ptr(); });
+		_ref = args;
+		_i = 0;
+		while (_i < _ref.length) {
+			arg = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			i = _i;
+			value = (_struct$1 = reflect.ValueOf(arg), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+			argType = null;
+			if (!typ.IsVariadic() || i < (numIn - 1 >> 0)) {
+				argType = typ.In(i);
+			} else {
+				argType = dddType;
+			}
+			if (!value.IsValid() && canBeNil(argType)) {
+				value = (_struct$2 = reflect.Zero(argType), new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
+			}
+			if (!value.Type().AssignableTo(argType)) {
+				return [null, fmt.Errorf("arg %d has type %s; should be %s", new (go$sliceType(go$emptyInterface))([new Go$Int(i), value.Type(), argType]))];
+			}
+			_slice$1 = argv; _index$1 = i;(_index$1 >= 0 && _index$1 < _slice$1.length) ? (_slice$1.array[_slice$1.offset + _index$1] = (_struct$3 = value, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag))) : go$throwRuntimeError("index out of range");
+			_i++;
+		}
+		result = v.Call(argv);
+		if ((result.length === 2) && !(_slice$2 = result, _index$2 = 1, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range")).IsNil()) {
+			return [(_slice$3 = result, _index$3 = 0, (_index$3 >= 0 && _index$3 < _slice$3.length) ? _slice$3.array[_slice$3.offset + _index$3] : go$throwRuntimeError("index out of range")).Interface(), (x = (_slice$4 = result, _index$4 = 1, (_index$4 >= 0 && _index$4 < _slice$4.length) ? _slice$4.array[_slice$4.offset + _index$4] : go$throwRuntimeError("index out of range")).Interface(), (x !== null && go$error.implementedBy.indexOf(x.constructor) !== -1 ? x : go$typeAssertionFailed(x, go$error)))];
+		}
+		return [(_slice$5 = result, _index$5 = 0, (_index$5 >= 0 && _index$5 < _slice$5.length) ? _slice$5.array[_slice$5.offset + _index$5] : go$throwRuntimeError("index out of range")).Interface(), null];
+	};
+	truth = function(a) {
+		var _tuple, _struct, t;
+		_tuple = isTrue((_struct = reflect.ValueOf(a), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag))); t = _tuple[0];
+		return t;
+	};
+	and = function(arg0, args) {
+		var _ref, _i, i, _slice, _index;
+		if (!truth(arg0)) {
+			return arg0;
+		}
+		_ref = args;
+		_i = 0;
+		while (_i < _ref.length) {
+			i = _i;
+			arg0 = (_slice = args, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			if (!truth(arg0)) {
+				break;
+			}
+			_i++;
+		}
+		return arg0;
+	};
+	or = function(arg0, args) {
+		var _ref, _i, i, _slice, _index;
+		if (truth(arg0)) {
+			return arg0;
+		}
+		_ref = args;
+		_i = 0;
+		while (_i < _ref.length) {
+			i = _i;
+			arg0 = (_slice = args, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			if (truth(arg0)) {
+				break;
+			}
+			_i++;
+		}
+		return arg0;
+	};
+	not = function(arg) {
+		var truth$1, _tuple, _struct;
+		truth$1 = false;
+		_tuple = isTrue((_struct = reflect.ValueOf(arg), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag))); truth$1 = _tuple[0];
+		truth$1 = !truth$1;
+		return truth$1;
+	};
+	basicKind = function(v) {
+		var _ref;
+		_ref = v.Kind();
+		if (_ref === 1) {
+			return [1, null];
+		} else if (_ref === 2 || _ref === 3 || _ref === 4 || _ref === 5 || _ref === 6) {
+			return [3, null];
+		} else if (_ref === 7 || _ref === 8 || _ref === 9 || _ref === 10 || _ref === 11 || _ref === 12) {
+			return [7, null];
+		} else if (_ref === 13 || _ref === 14) {
+			return [4, null];
+		} else if (_ref === 15 || _ref === 16) {
+			return [2, null];
+		} else if (_ref === 24) {
+			return [6, null];
+		}
+		return [0, errBadComparisonType];
+	};
+	eq = function(arg1, arg2) {
+		var _struct, v1, _tuple, _struct$1, k1, err, _ref, _i, _slice, _index, arg, _struct$2, v2, _tuple$1, _struct$3, k2, err$1, truth$1, _ref$1, x, x$1, x$2, x$3, x$4, x$5;
+		v1 = (_struct = reflect.ValueOf(arg1), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+		_tuple = basicKind((_struct$1 = v1, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag))); k1 = _tuple[0]; err = _tuple[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			return [false, err];
+		}
+		if (arg2.length === 0) {
+			return [false, errNoComparison];
+		}
+		_ref = arg2;
+		_i = 0;
+		while (_i < _ref.length) {
+			arg = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			v2 = (_struct$2 = reflect.ValueOf(arg), new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
+			_tuple$1 = basicKind((_struct$3 = v2, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag))); k2 = _tuple$1[0]; err$1 = _tuple$1[1];
+			if (!(go$interfaceIsEqual(err$1, null))) {
+				return [false, err$1];
+			}
+			if (!((k1 === k2))) {
+				return [false, errBadComparison];
+			}
+			truth$1 = false;
+			_ref$1 = k1;
+			if (_ref$1 === 1) {
+				truth$1 = v1.Bool() === v2.Bool();
+			} else if (_ref$1 === 2) {
+				truth$1 = (x = v1.Complex(), x$1 = v2.Complex(), (x.real === x$1.real && x.imag === x$1.imag));
+			} else if (_ref$1 === 4) {
+				truth$1 = v1.Float() === v2.Float();
+			} else if (_ref$1 === 3) {
+				truth$1 = (x$2 = v1.Int(), x$3 = v2.Int(), (x$2.high === x$3.high && x$2.low === x$3.low));
+			} else if (_ref$1 === 6) {
+				truth$1 = v1.String() === v2.String();
+			} else if (_ref$1 === 7) {
+				truth$1 = (x$4 = v1.Uint(), x$5 = v2.Uint(), (x$4.high === x$5.high && x$4.low === x$5.low));
+			} else {
+				throw go$panic(new Go$String("invalid kind"));
+			}
+			if (truth$1) {
+				return [true, null];
+			}
+			_i++;
+		}
+		return [false, null];
+	};
+	ne = function(arg1, arg2) {
+		var _tuple, equal, err;
+		_tuple = eq(arg1, new (go$sliceType(go$emptyInterface))([arg2])); equal = _tuple[0]; err = _tuple[1];
+		return [!equal, err];
+	};
+	lt = function(arg1, arg2) {
+		var _struct, v1, _tuple, _struct$1, k1, err, _struct$2, v2, _tuple$1, _struct$3, k2, truth$1, _ref, x, x$1, x$2, x$3;
+		v1 = (_struct = reflect.ValueOf(arg1), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+		_tuple = basicKind((_struct$1 = v1, new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag))); k1 = _tuple[0]; err = _tuple[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			return [false, err];
+		}
+		v2 = (_struct$2 = reflect.ValueOf(arg2), new reflect.Value.Ptr(_struct$2.typ, _struct$2.val, _struct$2.flag));
+		_tuple$1 = basicKind((_struct$3 = v2, new reflect.Value.Ptr(_struct$3.typ, _struct$3.val, _struct$3.flag))); k2 = _tuple$1[0]; err = _tuple$1[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			return [false, err];
+		}
+		if (!((k1 === k2))) {
+			return [false, errBadComparison];
+		}
+		truth$1 = false;
+		_ref = k1;
+		if (_ref === 1 || _ref === 2) {
+			return [false, errBadComparisonType];
+		} else if (_ref === 4) {
+			truth$1 = v1.Float() < v2.Float();
+		} else if (_ref === 3) {
+			truth$1 = (x = v1.Int(), x$1 = v2.Int(), (x.high < x$1.high || (x.high === x$1.high && x.low < x$1.low)));
+		} else if (_ref === 6) {
+			truth$1 = v1.String() < v2.String();
+		} else if (_ref === 7) {
+			truth$1 = (x$2 = v1.Uint(), x$3 = v2.Uint(), (x$2.high < x$3.high || (x$2.high === x$3.high && x$2.low < x$3.low)));
+		} else {
+			throw go$panic(new Go$String("invalid kind"));
+		}
+		return [truth$1, null];
+	};
+	le = function(arg1, arg2) {
+		var _tuple, lessThan, err;
+		_tuple = lt(arg1, arg2); lessThan = _tuple[0]; err = _tuple[1];
+		if (lessThan || !(go$interfaceIsEqual(err, null))) {
+			return [lessThan, err];
+		}
+		return eq(arg1, new (go$sliceType(go$emptyInterface))([arg2]));
+	};
+	gt = function(arg1, arg2) {
+		var _tuple, lessOrEqual, err;
+		_tuple = le(arg1, arg2); lessOrEqual = _tuple[0]; err = _tuple[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			return [false, err];
+		}
+		return [!lessOrEqual, null];
+	};
+	ge = function(arg1, arg2) {
+		var _tuple, lessThan, err;
+		_tuple = lt(arg1, arg2); lessThan = _tuple[0]; err = _tuple[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			return [false, err];
+		}
+		return [!lessThan, null];
+	};
+	HTMLEscape = go$pkg.HTMLEscape = function(w, b) {
+		var last, _ref, _i, _slice, _index, c, i, html, _ref$1;
+		last = 0;
+		_ref = b;
+		_i = 0;
+		while (_i < _ref.length) {
+			c = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			i = _i;
+			html = (go$sliceType(Go$Uint8)).nil;
+			_ref$1 = c;
+			if (_ref$1 === 34) {
+				html = htmlQuot;
+			} else if (_ref$1 === 39) {
+				html = htmlApos;
+			} else if (_ref$1 === 38) {
+				html = htmlAmp;
+			} else if (_ref$1 === 60) {
+				html = htmlLt;
+			} else if (_ref$1 === 62) {
+				html = htmlGt;
+			} else {
+				_i++;
+				continue;
+			}
+			w.Write(go$subslice(b, last, i));
+			w.Write(html);
+			last = i + 1 >> 0;
+			_i++;
+		}
+		w.Write(go$subslice(b, last));
+	};
+	HTMLEscapeString = go$pkg.HTMLEscapeString = function(s) {
+		var b;
+		if (strings.IndexAny(s, "'\"&<>") < 0) {
+			return s;
+		}
+		b = new bytes.Buffer.Ptr();
+		HTMLEscape(b, new (go$sliceType(Go$Uint8))(go$stringToBytes(s)));
+		return b.String();
+	};
+	HTMLEscaper = go$pkg.HTMLEscaper = function(args) {
+		return HTMLEscapeString(evalArgs(args));
+	};
+	JSEscape = go$pkg.JSEscape = function(w, b) {
+		var last, i, _slice, _index, c, _ref, _tuple, t, b$1, _tuple$1, r, size;
+		last = 0;
+		i = 0;
+		while (i < b.length) {
+			c = (_slice = b, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			if (!jsIsSpecial((c >> 0))) {
+				i = i + 1 >> 0;
+				continue;
+			}
+			w.Write(go$subslice(b, last, i));
+			if (c < 128) {
+				_ref = c;
+				if (_ref === 92) {
+					w.Write(jsBackslash);
+				} else if (_ref === 39) {
+					w.Write(jsApos);
+				} else if (_ref === 34) {
+					w.Write(jsQuot);
+				} else if (_ref === 60) {
+					w.Write(jsLt);
+				} else if (_ref === 62) {
+					w.Write(jsGt);
+				} else {
+					w.Write(jsLowUni);
+					_tuple = [c >>> 4 << 24 >>> 24, (c & 15) >>> 0]; t = _tuple[0]; b$1 = _tuple[1];
+					w.Write(go$subslice(hex, t, (t + 1 << 24 >>> 24)));
+					w.Write(go$subslice(hex, b$1, (b$1 + 1 << 24 >>> 24)));
+				}
+			} else {
+				_tuple$1 = utf8.DecodeRune(go$subslice(b, i)); r = _tuple$1[0]; size = _tuple$1[1];
+				if (unicode.IsPrint(r)) {
+					w.Write(go$subslice(b, i, (i + size >> 0)));
+				} else {
+					fmt.Fprintf(w, "\\u%04X", new (go$sliceType(go$emptyInterface))([new Go$Int32(r)]));
+				}
+				i = i + ((size - 1 >> 0)) >> 0;
+			}
+			last = i + 1 >> 0;
+			i = i + 1 >> 0;
+		}
+		w.Write(go$subslice(b, last));
+	};
+	JSEscapeString = go$pkg.JSEscapeString = function(s) {
+		var b;
+		if (strings.IndexFunc(s, jsIsSpecial) < 0) {
+			return s;
+		}
+		b = new bytes.Buffer.Ptr();
+		JSEscape(b, new (go$sliceType(Go$Uint8))(go$stringToBytes(s)));
+		return b.String();
+	};
+	jsIsSpecial = function(r) {
+		var _ref;
+		_ref = r;
+		if (_ref === 92 || _ref === 39 || _ref === 34 || _ref === 60 || _ref === 62) {
+			return true;
+		}
+		return r < 32 || 128 <= r;
+	};
+	JSEscaper = go$pkg.JSEscaper = function(args) {
+		return JSEscapeString(evalArgs(args));
+	};
+	URLQueryEscaper = go$pkg.URLQueryEscaper = function(args) {
+		return url.QueryEscape(evalArgs(args));
+	};
+	evalArgs = function(args) {
+		var ok, s, _tuple, x, _slice, _index, _ref, _i, _slice$1, _index$1, arg, i, _tuple$1, _struct, a, ok$1, _slice$2, _index$2;
+		ok = false;
+		s = "";
+		if (args.length === 1) {
+			_tuple = (x = (_slice = args, _index = 0, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), (x !== null && x.constructor === Go$String ? [x.go$val, true] : ["", false])); s = _tuple[0]; ok = _tuple[1];
+		}
+		if (!ok) {
+			_ref = args;
+			_i = 0;
+			while (_i < _ref.length) {
+				arg = (_slice$1 = _ref, _index$1 = _i, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
+				i = _i;
+				_tuple$1 = printableValue((_struct = reflect.ValueOf(arg), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag))); a = _tuple$1[0]; ok$1 = _tuple$1[1];
+				if (ok$1) {
+					_slice$2 = args; _index$2 = i;(_index$2 >= 0 && _index$2 < _slice$2.length) ? (_slice$2.array[_slice$2.offset + _index$2] = a) : go$throwRuntimeError("index out of range");
+				}
+				_i++;
+			}
+			s = fmt.Sprint(args);
+		}
+		return s;
+	};
+	Template.Ptr.prototype.ParseFiles = function(filenames) {
+		var t;
+		t = this;
+		return parseFiles(t, filenames);
+	};
+	Template.prototype.ParseFiles = function(filenames) { return this.go$val.ParseFiles(filenames); };
+	parseFiles = function(t, filenames) {
+		var _ref, _i, _slice, _index, filename, _tuple, b, err, s, name, tmpl, _tuple$1;
+		if (filenames.length === 0) {
+			return [(go$ptrType(Template)).nil, fmt.Errorf("template: no files named in call to ParseFiles", new (go$sliceType(go$emptyInterface))([]))];
+		}
+		_ref = filenames;
+		_i = 0;
+		while (_i < _ref.length) {
+			filename = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			_tuple = ioutil.ReadFile(filename); b = _tuple[0]; err = _tuple[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				return [(go$ptrType(Template)).nil, err];
+			}
+			s = go$bytesToString(b);
+			name = filepath.Base(filename);
+			tmpl = (go$ptrType(Template)).nil;
+			if (t === (go$ptrType(Template)).nil) {
+				t = New(name);
+			}
+			if (name === t.Name()) {
+				tmpl = t;
+			} else {
+				tmpl = t.New(name);
+			}
+			_tuple$1 = tmpl.Parse(s); err = _tuple$1[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				return [(go$ptrType(Template)).nil, err];
+			}
+			_i++;
+		}
+		return [t, null];
+	};
+	Template.Ptr.prototype.ParseGlob = function(pattern) {
+		var t;
+		t = this;
+		return parseGlob(t, pattern);
+	};
+	Template.prototype.ParseGlob = function(pattern) { return this.go$val.ParseGlob(pattern); };
+	parseGlob = function(t, pattern) {
+		var _tuple, filenames, err;
+		_tuple = filepath.Glob(pattern); filenames = _tuple[0]; err = _tuple[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			return [(go$ptrType(Template)).nil, err];
+		}
+		if (filenames.length === 0) {
+			return [(go$ptrType(Template)).nil, fmt.Errorf("template: pattern matches no files: %#q", new (go$sliceType(go$emptyInterface))([new Go$String(pattern)]))];
+		}
+		return parseFiles(t, filenames);
+	};
+	New = go$pkg.New = function(name) {
+		return new Template.Ptr(name, (go$ptrType(parse.Tree)).nil, (go$ptrType(common)).nil, "", "");
+	};
+	Template.Ptr.prototype.Name = function() {
+		var t;
+		t = this;
+		return t.name;
+	};
+	Template.prototype.Name = function() { return this.go$val.Name(); };
+	Template.Ptr.prototype.New = function(name) {
+		var t;
+		t = this;
+		t.init();
+		return new Template.Ptr(name, (go$ptrType(parse.Tree)).nil, t.common, t.leftDelim, t.rightDelim);
+	};
+	Template.prototype.New = function(name) { return this.go$val.New(name); };
+	Template.Ptr.prototype.init = function() {
+		var t;
+		t = this;
+		if (t.common === (go$ptrType(common)).nil) {
+			t.common = new common.Ptr();
+			t.common.tmpl = new Go$Map();
+			t.common.parseFuncs = new Go$Map();
+			t.common.execFuncs = new Go$Map();
+		}
+	};
+	Template.prototype.init = function() { return this.go$val.init(); };
+	Template.Ptr.prototype.Clone = function() {
+		var t, nt, _key, _ref, _i, _keys, _entry, v, k, tmpl, _key$1, _ref$1, _i$1, _keys$1, _entry$1, v$1, k$1, _key$2, _ref$2, _i$2, _keys$2, _entry$2, v$2, k$2, _struct, _key$3;
+		t = this;
+		nt = t.copy((go$ptrType(common)).nil);
+		nt.init();
+		_key = t.name; (nt.common.tmpl || go$throwRuntimeError("assignment to entry in nil map"))[_key] = { k: _key, v: nt };
+		_ref = t.common.tmpl;
+		_i = 0;
+		_keys = go$keys(_ref);
+		while (_i < _keys.length) {
+			_entry = _ref[_keys[_i]];
+			v = _entry.v;
+			k = _entry.k;
+			if (k === t.name) {
+				_i++;
+				continue;
+			}
+			tmpl = v.copy(nt.common);
+			_key$1 = k; (nt.common.tmpl || go$throwRuntimeError("assignment to entry in nil map"))[_key$1] = { k: _key$1, v: tmpl };
+			_i++;
+		}
+		_ref$1 = t.common.parseFuncs;
+		_i$1 = 0;
+		_keys$1 = go$keys(_ref$1);
+		while (_i$1 < _keys$1.length) {
+			_entry$1 = _ref$1[_keys$1[_i$1]];
+			v$1 = _entry$1.v;
+			k$1 = _entry$1.k;
+			_key$2 = k$1; (nt.common.parseFuncs || go$throwRuntimeError("assignment to entry in nil map"))[_key$2] = { k: _key$2, v: v$1 };
+			_i$1++;
+		}
+		_ref$2 = t.common.execFuncs;
+		_i$2 = 0;
+		_keys$2 = go$keys(_ref$2);
+		while (_i$2 < _keys$2.length) {
+			_entry$2 = _ref$2[_keys$2[_i$2]];
+			v$2 = _entry$2.v;
+			k$2 = _entry$2.k;
+			_key$3 = k$2; (nt.common.execFuncs || go$throwRuntimeError("assignment to entry in nil map"))[_key$3] = { k: _key$3, v: (_struct = v$2, new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag)) };
+			_i$2++;
+		}
+		return [nt, null];
+	};
+	Template.prototype.Clone = function() { return this.go$val.Clone(); };
+	Template.Ptr.prototype.copy = function(c) {
+		var t, nt;
+		t = this;
+		nt = New(t.name);
+		nt.Tree = t.Tree;
+		nt.common = c;
+		nt.leftDelim = t.leftDelim;
+		nt.rightDelim = t.rightDelim;
+		return nt;
+	};
+	Template.prototype.copy = function(c) { return this.go$val.copy(c); };
+	Template.Ptr.prototype.AddParseTree = function(name, tree) {
+		var t, _entry, nt, _key;
+		t = this;
+		if (!((_entry = t.common.tmpl[name], _entry !== undefined ? _entry.v : (go$ptrType(Template)).nil) === (go$ptrType(Template)).nil)) {
+			return [(go$ptrType(Template)).nil, fmt.Errorf("template: redefinition of template %q", new (go$sliceType(go$emptyInterface))([new Go$String(name)]))];
+		}
+		nt = t.New(name);
+		nt.Tree = tree;
+		_key = name; (t.common.tmpl || go$throwRuntimeError("assignment to entry in nil map"))[_key] = { k: _key, v: nt };
+		return [nt, null];
+	};
+	Template.prototype.AddParseTree = function(name, tree) { return this.go$val.AddParseTree(name, tree); };
+	Template.Ptr.prototype.Templates = function() {
+		var t, m, _ref, _i, _keys, _entry, v;
+		t = this;
+		if (t.common === (go$ptrType(common)).nil) {
+			return (go$sliceType((go$ptrType(Template)))).nil;
+		}
+		m = (go$sliceType((go$ptrType(Template)))).make(0, go$keys(t.common.tmpl).length, function() { return (go$ptrType(Template)).nil; });
+		_ref = t.common.tmpl;
+		_i = 0;
+		_keys = go$keys(_ref);
+		while (_i < _keys.length) {
+			_entry = _ref[_keys[_i]];
+			v = _entry.v;
+			m = go$append(m, v);
+			_i++;
+		}
+		return m;
+	};
+	Template.prototype.Templates = function() { return this.go$val.Templates(); };
+	Template.Ptr.prototype.Delims = function(left, right) {
+		var t;
+		t = this;
+		t.leftDelim = left;
+		t.rightDelim = right;
+		return t;
+	};
+	Template.prototype.Delims = function(left, right) { return this.go$val.Delims(left, right); };
+	Template.Ptr.prototype.Funcs = function(funcMap) {
+		var t;
+		t = this;
+		t.init();
+		addValueFuncs(t.common.execFuncs, funcMap);
+		addFuncs(t.common.parseFuncs, funcMap);
+		return t;
+	};
+	Template.prototype.Funcs = function(funcMap) { return this.go$val.Funcs(funcMap); };
+	Template.Ptr.prototype.Lookup = function(name) {
+		var t, _entry;
+		t = this;
+		if (t.common === (go$ptrType(common)).nil) {
+			return (go$ptrType(Template)).nil;
+		}
+		return (_entry = t.common.tmpl[name], _entry !== undefined ? _entry.v : (go$ptrType(Template)).nil);
+	};
+	Template.prototype.Lookup = function(name) { return this.go$val.Lookup(name); };
+	Template.Ptr.prototype.Parse = function(text) {
+		var t, _tuple, trees, err, _ref, _i, _keys, _entry, tree, name, tmpl, _tuple$1, replace, err$1;
+		t = this;
+		t.init();
+		_tuple = parse.Parse(t.name, text, t.leftDelim, t.rightDelim, new (go$sliceType((go$mapType(Go$String, go$emptyInterface))))([t.common.parseFuncs, builtins])); trees = _tuple[0]; err = _tuple[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			return [(go$ptrType(Template)).nil, err];
+		}
+		_ref = trees;
+		_i = 0;
+		_keys = go$keys(_ref);
+		while (_i < _keys.length) {
+			_entry = _ref[_keys[_i]];
+			tree = _entry.v;
+			name = _entry.k;
+			tmpl = t;
+			if (!(name === t.name)) {
+				tmpl = t.New(name);
+			}
+			_tuple$1 = t.associate(tmpl, tree); replace = _tuple$1[0]; err$1 = _tuple$1[1];
+			if (!(go$interfaceIsEqual(err$1, null))) {
+				return [(go$ptrType(Template)).nil, err$1];
+			} else if (replace) {
+				tmpl.Tree = tree;
+			}
+			tmpl.leftDelim = t.leftDelim;
+			tmpl.rightDelim = t.rightDelim;
+			_i++;
+		}
+		return [t, null];
+	};
+	Template.prototype.Parse = function(text) { return this.go$val.Parse(text); };
+	Template.Ptr.prototype.associate = function(new$1, tree) {
+		var t, name, _entry, old, oldIsEmpty, newIsEmpty, _key;
+		t = this;
+		if (!(new$1.common === t.common)) {
+			throw go$panic(new Go$String("internal error: associate not common"));
+		}
+		name = new$1.name;
+		old = (_entry = t.common.tmpl[name], _entry !== undefined ? _entry.v : (go$ptrType(Template)).nil);
+		if (!(old === (go$ptrType(Template)).nil)) {
+			oldIsEmpty = parse.IsEmptyTree(old.Tree.Root);
+			newIsEmpty = parse.IsEmptyTree(tree.Root);
+			if (newIsEmpty) {
+				return [false, null];
+			}
+			if (!oldIsEmpty) {
+				return [false, fmt.Errorf("template: redefinition of template %q", new (go$sliceType(go$emptyInterface))([new Go$String(name)]))];
+			}
+		}
+		_key = name; (t.common.tmpl || go$throwRuntimeError("assignment to entry in nil map"))[_key] = { k: _key, v: new$1 };
+		return [true, null];
+	};
+	Template.prototype.associate = function(new$1, tree) { return this.go$val.associate(new$1, tree); };
+	go$pkg.init = function() {
+		(go$ptrType(state)).methods = [["at", "text/template", [parse.Node], [], false, -1], ["errorf", "text/template", [Go$String, (go$sliceType(go$emptyInterface))], [], true, -1], ["evalArg", "text/template", [reflect.Value, reflect.Type, parse.Node], [reflect.Value], false, -1], ["evalBool", "text/template", [reflect.Type, parse.Node], [reflect.Value], false, -1], ["evalCall", "text/template", [reflect.Value, reflect.Value, parse.Node, Go$String, (go$sliceType(parse.Node)), reflect.Value], [reflect.Value], false, -1], ["evalChainNode", "text/template", [reflect.Value, (go$ptrType(parse.ChainNode)), (go$sliceType(parse.Node)), reflect.Value], [reflect.Value], false, -1], ["evalCommand", "text/template", [reflect.Value, (go$ptrType(parse.CommandNode)), reflect.Value], [reflect.Value], false, -1], ["evalComplex", "text/template", [reflect.Type, parse.Node], [reflect.Value], false, -1], ["evalEmptyInterface", "text/template", [reflect.Value, parse.Node], [reflect.Value], false, -1], ["evalField", "text/template", [reflect.Value, Go$String, parse.Node, (go$sliceType(parse.Node)), reflect.Value, reflect.Value], [reflect.Value], false, -1], ["evalFieldChain", "text/template", [reflect.Value, reflect.Value, parse.Node, (go$sliceType(Go$String)), (go$sliceType(parse.Node)), reflect.Value], [reflect.Value], false, -1], ["evalFieldNode", "text/template", [reflect.Value, (go$ptrType(parse.FieldNode)), (go$sliceType(parse.Node)), reflect.Value], [reflect.Value], false, -1], ["evalFloat", "text/template", [reflect.Type, parse.Node], [reflect.Value], false, -1], ["evalFunction", "text/template", [reflect.Value, (go$ptrType(parse.IdentifierNode)), parse.Node, (go$sliceType(parse.Node)), reflect.Value], [reflect.Value], false, -1], ["evalInteger", "text/template", [reflect.Type, parse.Node], [reflect.Value], false, -1], ["evalPipeline", "text/template", [reflect.Value, (go$ptrType(parse.PipeNode))], [reflect.Value], false, -1], ["evalString", "text/template", [reflect.Type, parse.Node], [reflect.Value], false, -1], ["evalUnsignedInteger", "text/template", [reflect.Type, parse.Node], [reflect.Value], false, -1], ["evalVariableNode", "text/template", [reflect.Value, (go$ptrType(parse.VariableNode)), (go$sliceType(parse.Node)), reflect.Value], [reflect.Value], false, -1], ["idealConstant", "text/template", [(go$ptrType(parse.NumberNode))], [reflect.Value], false, -1], ["mark", "text/template", [], [Go$Int], false, -1], ["notAFunction", "text/template", [(go$sliceType(parse.Node)), reflect.Value], [], false, -1], ["pop", "text/template", [Go$Int], [], false, -1], ["printValue", "text/template", [parse.Node, reflect.Value], [], false, -1], ["push", "text/template", [Go$String, reflect.Value], [], false, -1], ["setVar", "text/template", [Go$Int, reflect.Value], [], false, -1], ["validateType", "text/template", [reflect.Value, reflect.Type], [reflect.Value], false, -1], ["varValue", "text/template", [Go$String], [reflect.Value], false, -1], ["walk", "text/template", [reflect.Value, parse.Node], [], false, -1], ["walkIfOrWith", "text/template", [parse.NodeType, reflect.Value, (go$ptrType(parse.PipeNode)), (go$ptrType(parse.ListNode)), (go$ptrType(parse.ListNode))], [], false, -1], ["walkRange", "text/template", [reflect.Value, (go$ptrType(parse.RangeNode))], [], false, -1], ["walkTemplate", "text/template", [reflect.Value, (go$ptrType(parse.TemplateNode))], [], false, -1]];
+		state.init([["tmpl", "tmpl", "text/template", (go$ptrType(Template)), ""], ["wr", "wr", "text/template", io.Writer, ""], ["node", "node", "text/template", parse.Node, ""], ["vars", "vars", "text/template", (go$sliceType(variable)), ""]]);
+		variable.init([["name", "name", "text/template", Go$String, ""], ["value", "value", "text/template", reflect.Value, ""]]);
+		rvs.methods = [["Len", "", [], [Go$Int], false, -1], ["Swap", "", [Go$Int, Go$Int], [], false, -1]];
+		(go$ptrType(rvs)).methods = [["Len", "", [], [Go$Int], false, -1], ["Swap", "", [Go$Int, Go$Int], [], false, -1]];
+		rvs.init(reflect.Value);
+		rvInts.methods = [["Len", "", [], [Go$Int], false, 0], ["Less", "", [Go$Int, Go$Int], [Go$Bool], false, -1], ["Swap", "", [Go$Int, Go$Int], [], false, 0]];
+		(go$ptrType(rvInts)).methods = [["Len", "", [], [Go$Int], false, 0], ["Less", "", [Go$Int, Go$Int], [Go$Bool], false, -1], ["Swap", "", [Go$Int, Go$Int], [], false, 0]];
+		rvInts.init([["rvs", "", "text/template", rvs, ""]]);
+		rvUints.methods = [["Len", "", [], [Go$Int], false, 0], ["Less", "", [Go$Int, Go$Int], [Go$Bool], false, -1], ["Swap", "", [Go$Int, Go$Int], [], false, 0]];
+		(go$ptrType(rvUints)).methods = [["Len", "", [], [Go$Int], false, 0], ["Less", "", [Go$Int, Go$Int], [Go$Bool], false, -1], ["Swap", "", [Go$Int, Go$Int], [], false, 0]];
+		rvUints.init([["rvs", "", "text/template", rvs, ""]]);
+		rvFloats.methods = [["Len", "", [], [Go$Int], false, 0], ["Less", "", [Go$Int, Go$Int], [Go$Bool], false, -1], ["Swap", "", [Go$Int, Go$Int], [], false, 0]];
+		(go$ptrType(rvFloats)).methods = [["Len", "", [], [Go$Int], false, 0], ["Less", "", [Go$Int, Go$Int], [Go$Bool], false, -1], ["Swap", "", [Go$Int, Go$Int], [], false, 0]];
+		rvFloats.init([["rvs", "", "text/template", rvs, ""]]);
+		rvStrings.methods = [["Len", "", [], [Go$Int], false, 0], ["Less", "", [Go$Int, Go$Int], [Go$Bool], false, -1], ["Swap", "", [Go$Int, Go$Int], [], false, 0]];
+		(go$ptrType(rvStrings)).methods = [["Len", "", [], [Go$Int], false, 0], ["Less", "", [Go$Int, Go$Int], [Go$Bool], false, -1], ["Swap", "", [Go$Int, Go$Int], [], false, 0]];
+		rvStrings.init([["rvs", "", "text/template", rvs, ""]]);
+		FuncMap.init(Go$String, go$emptyInterface);
+		common.init([["tmpl", "tmpl", "text/template", (go$mapType(Go$String, (go$ptrType(Template)))), ""], ["parseFuncs", "parseFuncs", "text/template", FuncMap, ""], ["execFuncs", "execFuncs", "text/template", (go$mapType(Go$String, reflect.Value)), ""]]);
+		Template.methods = [["Copy", "", [], [(go$ptrType(parse.Tree))], false, 1], ["ErrorContext", "", [parse.Node], [Go$String, Go$String], false, 1], ["action", "text/template/parse", [], [parse.Node], false, 1], ["add", "text/template/parse", [(go$mapType(Go$String, (go$ptrType(parse.Tree))))], [], false, 1], ["backup", "text/template/parse", [], [], false, 1], ["backup2", "text/template/parse", [parse.item], [], false, 1], ["backup3", "text/template/parse", [parse.item, parse.item], [], false, 1], ["command", "text/template/parse", [], [(go$ptrType(parse.CommandNode))], false, 1], ["elseControl", "text/template/parse", [], [parse.Node], false, 1], ["endControl", "text/template/parse", [], [parse.Node], false, 1], ["error", "text/template/parse", [go$error], [], false, 1], ["errorf", "text/template/parse", [Go$String, (go$sliceType(go$emptyInterface))], [], true, 1], ["expect", "text/template/parse", [parse.itemType, Go$String], [parse.item], false, 1], ["expectOneOf", "text/template/parse", [parse.itemType, parse.itemType, Go$String], [parse.item], false, 1], ["hasFunction", "text/template/parse", [Go$String], [Go$Bool], false, 1], ["ifControl", "text/template/parse", [], [parse.Node], false, 1], ["itemList", "text/template/parse", [], [(go$ptrType(parse.ListNode)), parse.Node], false, 1], ["next", "text/template/parse", [], [parse.item], false, 1], ["nextNonSpace", "text/template/parse", [], [parse.item], false, 1], ["operand", "text/template/parse", [], [parse.Node], false, 1], ["parse", "text/template/parse", [(go$mapType(Go$String, (go$ptrType(parse.Tree))))], [parse.Node], false, 1], ["parseControl", "text/template/parse", [Go$Bool, Go$String], [parse.Pos, Go$Int, (go$ptrType(parse.PipeNode)), (go$ptrType(parse.ListNode)), (go$ptrType(parse.ListNode))], false, 1], ["parseDefinition", "text/template/parse", [(go$mapType(Go$String, (go$ptrType(parse.Tree))))], [], false, 1], ["peek", "text/template/parse", [], [parse.item], false, 1], ["peekNonSpace", "text/template/parse", [], [parse.item], false, 1], ["pipeline", "text/template/parse", [Go$String], [(go$ptrType(parse.PipeNode))], false, 1], ["popVars", "text/template/parse", [Go$Int], [], false, 1], ["rangeControl", "text/template/parse", [], [parse.Node], false, 1], ["recover", "text/template/parse", [(go$ptrType(go$error))], [], false, 1], ["startParse", "text/template/parse", [(go$sliceType((go$mapType(Go$String, go$emptyInterface)))), (go$ptrType(parse.lexer))], [], false, 1], ["stopParse", "text/template/parse", [], [], false, 1], ["templateControl", "text/template/parse", [], [parse.Node], false, 1], ["term", "text/template/parse", [], [parse.Node], false, 1], ["textOrAction", "text/template/parse", [], [parse.Node], false, 1], ["unexpected", "text/template/parse", [parse.item, Go$String], [], false, 1], ["useVar", "text/template/parse", [parse.Pos, Go$String], [parse.Node], false, 1], ["withControl", "text/template/parse", [], [parse.Node], false, 1]];
+		(go$ptrType(Template)).methods = [["AddParseTree", "", [Go$String, (go$ptrType(parse.Tree))], [(go$ptrType(Template)), go$error], false, -1], ["Clone", "", [], [(go$ptrType(Template)), go$error], false, -1], ["Copy", "", [], [(go$ptrType(parse.Tree))], false, 1], ["Delims", "", [Go$String, Go$String], [(go$ptrType(Template))], false, -1], ["ErrorContext", "", [parse.Node], [Go$String, Go$String], false, 1], ["Execute", "", [io.Writer, go$emptyInterface], [go$error], false, -1], ["ExecuteTemplate", "", [io.Writer, Go$String, go$emptyInterface], [go$error], false, -1], ["Funcs", "", [FuncMap], [(go$ptrType(Template))], false, -1], ["Lookup", "", [Go$String], [(go$ptrType(Template))], false, -1], ["Name", "", [], [Go$String], false, -1], ["New", "", [Go$String], [(go$ptrType(Template))], false, -1], ["Parse", "", [Go$String], [(go$ptrType(Template)), go$error], false, -1], ["ParseFiles", "", [(go$sliceType(Go$String))], [(go$ptrType(Template)), go$error], true, -1], ["ParseGlob", "", [Go$String], [(go$ptrType(Template)), go$error], false, -1], ["Templates", "", [], [(go$sliceType((go$ptrType(Template))))], false, -1], ["associate", "text/template", [(go$ptrType(Template)), (go$ptrType(parse.Tree))], [Go$Bool, go$error], false, -1], ["copy", "text/template", [(go$ptrType(common))], [(go$ptrType(Template))], false, -1], ["init", "text/template", [], [], false, -1], ["action", "text/template/parse", [], [parse.Node], false, 1], ["add", "text/template/parse", [(go$mapType(Go$String, (go$ptrType(parse.Tree))))], [], false, 1], ["backup", "text/template/parse", [], [], false, 1], ["backup2", "text/template/parse", [parse.item], [], false, 1], ["backup3", "text/template/parse", [parse.item, parse.item], [], false, 1], ["command", "text/template/parse", [], [(go$ptrType(parse.CommandNode))], false, 1], ["elseControl", "text/template/parse", [], [parse.Node], false, 1], ["endControl", "text/template/parse", [], [parse.Node], false, 1], ["error", "text/template/parse", [go$error], [], false, 1], ["errorf", "text/template/parse", [Go$String, (go$sliceType(go$emptyInterface))], [], true, 1], ["expect", "text/template/parse", [parse.itemType, Go$String], [parse.item], false, 1], ["expectOneOf", "text/template/parse", [parse.itemType, parse.itemType, Go$String], [parse.item], false, 1], ["hasFunction", "text/template/parse", [Go$String], [Go$Bool], false, 1], ["ifControl", "text/template/parse", [], [parse.Node], false, 1], ["itemList", "text/template/parse", [], [(go$ptrType(parse.ListNode)), parse.Node], false, 1], ["next", "text/template/parse", [], [parse.item], false, 1], ["nextNonSpace", "text/template/parse", [], [parse.item], false, 1], ["operand", "text/template/parse", [], [parse.Node], false, 1], ["parse", "text/template/parse", [(go$mapType(Go$String, (go$ptrType(parse.Tree))))], [parse.Node], false, 1], ["parseControl", "text/template/parse", [Go$Bool, Go$String], [parse.Pos, Go$Int, (go$ptrType(parse.PipeNode)), (go$ptrType(parse.ListNode)), (go$ptrType(parse.ListNode))], false, 1], ["parseDefinition", "text/template/parse", [(go$mapType(Go$String, (go$ptrType(parse.Tree))))], [], false, 1], ["peek", "text/template/parse", [], [parse.item], false, 1], ["peekNonSpace", "text/template/parse", [], [parse.item], false, 1], ["pipeline", "text/template/parse", [Go$String], [(go$ptrType(parse.PipeNode))], false, 1], ["popVars", "text/template/parse", [Go$Int], [], false, 1], ["rangeControl", "text/template/parse", [], [parse.Node], false, 1], ["recover", "text/template/parse", [(go$ptrType(go$error))], [], false, 1], ["startParse", "text/template/parse", [(go$sliceType((go$mapType(Go$String, go$emptyInterface)))), (go$ptrType(parse.lexer))], [], false, 1], ["stopParse", "text/template/parse", [], [], false, 1], ["templateControl", "text/template/parse", [], [parse.Node], false, 1], ["term", "text/template/parse", [], [parse.Node], false, 1], ["textOrAction", "text/template/parse", [], [parse.Node], false, 1], ["unexpected", "text/template/parse", [parse.item, Go$String], [], false, 1], ["useVar", "text/template/parse", [parse.Pos, Go$String], [parse.Node], false, 1], ["withControl", "text/template/parse", [], [parse.Node], false, 1]];
+		Template.init([["name", "name", "text/template", Go$String, ""], ["Tree", "", "", (go$ptrType(parse.Tree)), ""], ["common", "", "text/template", (go$ptrType(common)), ""], ["leftDelim", "leftDelim", "text/template", Go$String, ""], ["rightDelim", "rightDelim", "text/template", Go$String, ""]]);
+		zero = new reflect.Value.Ptr();
+		errorType = reflect.TypeOf((go$ptrType(go$error)).nil).Elem();
+		fmtStringerType = reflect.TypeOf((go$ptrType(fmt.Stringer)).nil).Elem();
+		errBadComparison = errors.New("incompatible types for comparison");
+		errNoComparison = errors.New("missing argument for comparison");
+		errBadComparisonType = errors.New("invalid type for comparison");
+		htmlQuot = new (go$sliceType(Go$Uint8))(go$stringToBytes("&#34;"));
+		htmlApos = new (go$sliceType(Go$Uint8))(go$stringToBytes("&#39;"));
+		htmlAmp = new (go$sliceType(Go$Uint8))(go$stringToBytes("&amp;"));
+		htmlLt = new (go$sliceType(Go$Uint8))(go$stringToBytes("&lt;"));
+		htmlGt = new (go$sliceType(Go$Uint8))(go$stringToBytes("&gt;"));
+		jsLowUni = new (go$sliceType(Go$Uint8))(go$stringToBytes("\\u00"));
+		hex = new (go$sliceType(Go$Uint8))(go$stringToBytes("0123456789ABCDEF"));
+		jsBackslash = new (go$sliceType(Go$Uint8))(go$stringToBytes("\\\\"));
+		jsApos = new (go$sliceType(Go$Uint8))(go$stringToBytes("\\'"));
+		jsQuot = new (go$sliceType(Go$Uint8))(go$stringToBytes("\\\""));
+		jsLt = new (go$sliceType(Go$Uint8))(go$stringToBytes("\\x3C"));
+		jsGt = new (go$sliceType(Go$Uint8))(go$stringToBytes("\\x3E"));
+		var _map, _key;
+		builtins = (_map = new Go$Map(), _key = "and", _map[_key] = { k: _key, v: new (go$funcType([go$emptyInterface, (go$sliceType(go$emptyInterface))], [go$emptyInterface], true))(and) }, _key = "call", _map[_key] = { k: _key, v: new (go$funcType([go$emptyInterface, (go$sliceType(go$emptyInterface))], [go$emptyInterface, go$error], true))(call) }, _key = "html", _map[_key] = { k: _key, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(HTMLEscaper) }, _key = "index", _map[_key] = { k: _key, v: new (go$funcType([go$emptyInterface, (go$sliceType(go$emptyInterface))], [go$emptyInterface, go$error], true))(index) }, _key = "js", _map[_key] = { k: _key, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(JSEscaper) }, _key = "len", _map[_key] = { k: _key, v: new (go$funcType([go$emptyInterface], [Go$Int, go$error], false))(length) }, _key = "not", _map[_key] = { k: _key, v: new (go$funcType([go$emptyInterface], [Go$Bool], false))(not) }, _key = "or", _map[_key] = { k: _key, v: new (go$funcType([go$emptyInterface, (go$sliceType(go$emptyInterface))], [go$emptyInterface], true))(or) }, _key = "print", _map[_key] = { k: _key, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(fmt.Sprint) }, _key = "printf", _map[_key] = { k: _key, v: new (go$funcType([Go$String, (go$sliceType(go$emptyInterface))], [Go$String], true))(fmt.Sprintf) }, _key = "println", _map[_key] = { k: _key, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(fmt.Sprintln) }, _key = "urlquery", _map[_key] = { k: _key, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(URLQueryEscaper) }, _key = "eq", _map[_key] = { k: _key, v: new (go$funcType([go$emptyInterface, (go$sliceType(go$emptyInterface))], [Go$Bool, go$error], true))(eq) }, _key = "ge", _map[_key] = { k: _key, v: new (go$funcType([go$emptyInterface, go$emptyInterface], [Go$Bool, go$error], false))(ge) }, _key = "gt", _map[_key] = { k: _key, v: new (go$funcType([go$emptyInterface, go$emptyInterface], [Go$Bool, go$error], false))(gt) }, _key = "le", _map[_key] = { k: _key, v: new (go$funcType([go$emptyInterface, go$emptyInterface], [Go$Bool, go$error], false))(le) }, _key = "lt", _map[_key] = { k: _key, v: new (go$funcType([go$emptyInterface, go$emptyInterface], [Go$Bool, go$error], false))(lt) }, _key = "ne", _map[_key] = { k: _key, v: new (go$funcType([go$emptyInterface, go$emptyInterface], [Go$Bool, go$error], false))(ne) }, _map);
+		builtinFuncs = createValueFuncs(builtins);
+	}
+	return go$pkg;
+})();
+go$packages["html/template"] = (function() {
+	var go$pkg = {}, strings = go$packages["strings"], fmt = go$packages["fmt"], reflect = go$packages["reflect"], bytes = go$packages["bytes"], unicode = go$packages["unicode"], utf8 = go$packages["unicode/utf8"], html = go$packages["html"], io = go$packages["io"], template = go$packages["text/template"], parse = go$packages["text/template/parse"], json = go$packages["encoding/json"], ioutil = go$packages["io/ioutil"], filepath = go$packages["path/filepath"], sync = go$packages["sync"], CSS, HTML, HTMLAttr, JS, JSStr, URL, context, state, delim, urlPart, jsCtx, element, attr, Error, ErrorCode, escaper, Template, nameSpace, FuncMap, attrType, indirect, indirectToStringerOrError, stringify, isComment, isInTag, endsWithCSSKeyword, isCSSNmchar, decodeCSS, isHex, hexDecode, skipCSSSpace, isCSSSpace, cssEscaper, cssValueFilter, errorf, escapeTemplates, newEscaper, ensurePipelineContains, appendCmd, indexOfStr, escFnsEq, newIdentCmd, nudge, join, contextAfterText, htmlNospaceEscaper, attrEscaper, rcdataEscaper, htmlEscaper, htmlReplacer, stripTags, htmlNameFilter, commentEscaper, nextJSCtx, indirectToJSONMarshaler, jsValEscaper, jsStrEscaper, jsRegexpEscaper, replace, isJSIdentPart, New, Must, parseFiles, parseGlob, tText, tTag, tAttrName, tAfterName, tBeforeValue, tHTMLCmt, tSpecialTagEnd, tAttr, tURL, tJS, tJSDelimited, tBlockCmt, tLineCmt, tCSS, tCSSStr, tError, eatAttrName, asciiAlpha, asciiAlphaNum, eatTagName, eatWhiteSpace, urlFilter, urlEscaper, urlNormalizer, urlProcessor, attrTypeMap, errorType, fmtStringerType, stateNames, delimNames, urlPartNames, elementNames, attrNames, expressionBytes, mozBindingBytes, funcMap, equivEscapers, redundantFuncs, delimEnds, doctypeBytes, htmlReplacementTable, htmlNormReplacementTable, htmlNospaceReplacementTable, htmlNospaceNormReplacementTable, regexpPrecederKeywords, jsonMarshalType, jsStrReplacementTable, jsStrNormReplacementTable, jsRegexpReplacementTable, transitionFunc, commentStart, commentEnd, elementContentType, attrStartStates, specialTagEndMarkers, blockCommentEnd, elementNameMap;
+	CSS = go$pkg.CSS = go$newType(0, "String", "template.CSS", "CSS", "html/template", null);
+	HTML = go$pkg.HTML = go$newType(0, "String", "template.HTML", "HTML", "html/template", null);
+	HTMLAttr = go$pkg.HTMLAttr = go$newType(0, "String", "template.HTMLAttr", "HTMLAttr", "html/template", null);
+	JS = go$pkg.JS = go$newType(0, "String", "template.JS", "JS", "html/template", null);
+	JSStr = go$pkg.JSStr = go$newType(0, "String", "template.JSStr", "JSStr", "html/template", null);
+	URL = go$pkg.URL = go$newType(0, "String", "template.URL", "URL", "html/template", null);
+	context = go$pkg.context = go$newType(0, "Struct", "template.context", "context", "html/template", function(state_, delim_, urlPart_, jsCtx_, attr_, element_, err_) {
+		this.go$val = this;
+		this.state = state_ !== undefined ? state_ : 0;
+		this.delim = delim_ !== undefined ? delim_ : 0;
+		this.urlPart = urlPart_ !== undefined ? urlPart_ : 0;
+		this.jsCtx = jsCtx_ !== undefined ? jsCtx_ : 0;
+		this.attr = attr_ !== undefined ? attr_ : 0;
+		this.element = element_ !== undefined ? element_ : 0;
+		this.err = err_ !== undefined ? err_ : (go$ptrType(Error)).nil;
+	});
+	state = go$pkg.state = go$newType(1, "Uint8", "template.state", "state", "html/template", null);
+	delim = go$pkg.delim = go$newType(1, "Uint8", "template.delim", "delim", "html/template", null);
+	urlPart = go$pkg.urlPart = go$newType(1, "Uint8", "template.urlPart", "urlPart", "html/template", null);
+	jsCtx = go$pkg.jsCtx = go$newType(1, "Uint8", "template.jsCtx", "jsCtx", "html/template", null);
+	element = go$pkg.element = go$newType(1, "Uint8", "template.element", "element", "html/template", null);
+	attr = go$pkg.attr = go$newType(1, "Uint8", "template.attr", "attr", "html/template", null);
+	Error = go$pkg.Error = go$newType(0, "Struct", "template.Error", "Error", "html/template", function(ErrorCode_, Name_, Line_, Description_) {
+		this.go$val = this;
+		this.ErrorCode = ErrorCode_ !== undefined ? ErrorCode_ : 0;
+		this.Name = Name_ !== undefined ? Name_ : "";
+		this.Line = Line_ !== undefined ? Line_ : 0;
+		this.Description = Description_ !== undefined ? Description_ : "";
+	});
+	ErrorCode = go$pkg.ErrorCode = go$newType(4, "Int", "template.ErrorCode", "ErrorCode", "html/template", null);
+	escaper = go$pkg.escaper = go$newType(0, "Struct", "template.escaper", "escaper", "html/template", function(tmpl_, output_, derived_, called_, actionNodeEdits_, templateNodeEdits_, textNodeEdits_) {
+		this.go$val = this;
+		this.tmpl = tmpl_ !== undefined ? tmpl_ : (go$ptrType(Template)).nil;
+		this.output = output_ !== undefined ? output_ : false;
+		this.derived = derived_ !== undefined ? derived_ : false;
+		this.called = called_ !== undefined ? called_ : false;
+		this.actionNodeEdits = actionNodeEdits_ !== undefined ? actionNodeEdits_ : false;
+		this.templateNodeEdits = templateNodeEdits_ !== undefined ? templateNodeEdits_ : false;
+		this.textNodeEdits = textNodeEdits_ !== undefined ? textNodeEdits_ : false;
+	});
+	Template = go$pkg.Template = go$newType(0, "Struct", "template.Template", "Template", "html/template", function(escaped_, text_, Tree_, nameSpace_) {
+		this.go$val = this;
+		this.escaped = escaped_ !== undefined ? escaped_ : false;
+		this.text = text_ !== undefined ? text_ : (go$ptrType(template.Template)).nil;
+		this.Tree = Tree_ !== undefined ? Tree_ : (go$ptrType(parse.Tree)).nil;
+		this.nameSpace = nameSpace_ !== undefined ? nameSpace_ : (go$ptrType(nameSpace)).nil;
+	});
+	nameSpace = go$pkg.nameSpace = go$newType(0, "Struct", "template.nameSpace", "nameSpace", "html/template", function(mu_, set_) {
+		this.go$val = this;
+		this.mu = mu_ !== undefined ? mu_ : new sync.Mutex.Ptr();
+		this.set = set_ !== undefined ? set_ : false;
+	});
+	FuncMap = go$pkg.FuncMap = go$newType(0, "Map", "template.FuncMap", "FuncMap", "html/template", null);
+	attrType = function(name) {
+		var colon, _tuple, _entry, t, ok;
+		name = strings.ToLower(name);
+		if (strings.HasPrefix(name, "data-")) {
+			name = name.substring(5);
+		} else {
+			colon = strings.IndexRune(name, 58);
+			if (!((colon === -1))) {
+				if (name.substring(0, colon) === "xmlns") {
+					return 6;
+				}
+				name = name.substring((colon + 1 >> 0));
+			}
+		}
+		_tuple = (_entry = attrTypeMap[name], _entry !== undefined ? [_entry.v, true] : [0, false]); t = _tuple[0]; ok = _tuple[1];
+		if (ok) {
+			return t;
+		}
+		if (strings.HasPrefix(name, "on")) {
+			return 4;
+		}
+		if (strings.Contains(name, "src") || strings.Contains(name, "uri") || strings.Contains(name, "url")) {
+			return 6;
+		}
+		return 0;
+	};
+	indirect = function(a) {
+		var t, _struct, v, _struct$1;
+		if (go$interfaceIsEqual(a, null)) {
+			return null;
+		}
+		t = reflect.TypeOf(a);
+		if (!((t.Kind() === 22))) {
+			return a;
+		}
+		v = (_struct = reflect.ValueOf(a), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+		while ((v.Kind() === 22) && !v.IsNil()) {
+			v = (_struct$1 = v.Elem(), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		}
+		return v.Interface();
+	};
+	indirectToStringerOrError = function(a) {
+		var _struct, v, _struct$1;
+		if (go$interfaceIsEqual(a, null)) {
+			return null;
+		}
+		v = (_struct = reflect.ValueOf(a), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+		while (!v.Type().Implements(fmtStringerType) && !v.Type().Implements(errorType) && (v.Kind() === 22) && !v.IsNil()) {
+			v = (_struct$1 = v.Elem(), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		}
+		return v.Interface();
+	};
+	stringify = function(args) {
+		var s, _ref, _type, _slice, _index, _ref$1, _i, _slice$1, _index$1, arg, i, _slice$2, _index$2;
+		if (args.length === 1) {
+			_ref = indirect((_slice = args, _index = 0, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")));
+			_type = _ref !== null ? _ref.constructor : null;
+			if (_type === Go$String) {
+				s = _ref.go$val;
+				return [s, 0];
+			} else if (_type === CSS) {
+				s = _ref.go$val;
+				return [s, 1];
+			} else if (_type === HTML) {
+				s = _ref.go$val;
+				return [s, 2];
+			} else if (_type === HTMLAttr) {
+				s = _ref.go$val;
+				return [s, 3];
+			} else if (_type === JS) {
+				s = _ref.go$val;
+				return [s, 4];
+			} else if (_type === JSStr) {
+				s = _ref.go$val;
+				return [s, 5];
+			} else if (_type === URL) {
+				s = _ref.go$val;
+				return [s, 6];
+			}
+		}
+		_ref$1 = args;
+		_i = 0;
+		while (_i < _ref$1.length) {
+			arg = (_slice$1 = _ref$1, _index$1 = _i, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
+			i = _i;
+			_slice$2 = args; _index$2 = i;(_index$2 >= 0 && _index$2 < _slice$2.length) ? (_slice$2.array[_slice$2.offset + _index$2] = indirectToStringerOrError(arg)) : go$throwRuntimeError("index out of range");
+			_i++;
+		}
+		return [fmt.Sprint(args), 0];
+	};
+	context.Ptr.prototype.String = function() {
+		var _struct, c;
+		c = (_struct = this, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err));
+		return fmt.Sprintf("{%v %v %v %v %v %v %v}", new (go$sliceType(go$emptyInterface))([new state(c.state), new delim(c.delim), new urlPart(c.urlPart), new jsCtx(c.jsCtx), new attr(c.attr), new element(c.element), c.err]));
+	};
+	context.prototype.String = function() { return this.go$val.String(); };
+	context.Ptr.prototype.eq = function(d) {
+		var _struct, c;
+		c = (_struct = this, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err));
+		return (c.state === d.state) && (c.delim === d.delim) && (c.urlPart === d.urlPart) && (c.jsCtx === d.jsCtx) && (c.attr === d.attr) && (c.element === d.element) && c.err === d.err;
+	};
+	context.prototype.eq = function(d) { return this.go$val.eq(d); };
+	context.Ptr.prototype.mangle = function(templateName) {
+		var _struct, c, s;
+		c = (_struct = this, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err));
+		if (c.state === 0) {
+			return templateName;
+		}
+		s = templateName + "$htmltemplate_" + (new state(c.state)).String();
+		if (!((c.delim === 0))) {
+			s = s + ("_" + (new delim(c.delim)).String());
+		}
+		if (!((c.urlPart === 0))) {
+			s = s + ("_" + (new urlPart(c.urlPart)).String());
+		}
+		if (!((c.jsCtx === 0))) {
+			s = s + ("_" + (new jsCtx(c.jsCtx)).String());
+		}
+		if (!((c.attr === 0))) {
+			s = s + ("_" + (new attr(c.attr)).String());
+		}
+		if (!((c.element === 0))) {
+			s = s + ("_" + (new element(c.element)).String());
+		}
+		return s;
+	};
+	context.prototype.mangle = function(templateName) { return this.go$val.mangle(templateName); };
+	state.prototype.String = function() {
+		var s;
+		s = this.go$val;
+		if ((s >> 0) < 24) {
+			return stateNames[s];
+		}
+		return fmt.Sprintf("illegal state %d", new (go$sliceType(go$emptyInterface))([new Go$Int((s >> 0))]));
+	};
+	go$ptrType(state).prototype.String = function() { return new state(this.go$get()).String(); };
+	isComment = function(s) {
+		var _ref;
+		_ref = s;
+		if (_ref === 5 || _ref === 13 || _ref === 14 || _ref === 21 || _ref === 22) {
+			return true;
+		}
+		return false;
+	};
+	isInTag = function(s) {
+		var _ref;
+		_ref = s;
+		if (_ref === 1 || _ref === 2 || _ref === 3 || _ref === 4 || _ref === 7) {
+			return true;
+		}
+		return false;
+	};
+	delim.prototype.String = function() {
+		var d;
+		d = this.go$val;
+		if ((d >> 0) < 4) {
+			return delimNames[d];
+		}
+		return fmt.Sprintf("illegal delim %d", new (go$sliceType(go$emptyInterface))([new Go$Int((d >> 0))]));
+	};
+	go$ptrType(delim).prototype.String = function() { return new delim(this.go$get()).String(); };
+	urlPart.prototype.String = function() {
+		var u;
+		u = this.go$val;
+		if ((u >> 0) < 4) {
+			return urlPartNames[u];
+		}
+		return fmt.Sprintf("illegal urlPart %d", new (go$sliceType(go$emptyInterface))([new Go$Int((u >> 0))]));
+	};
+	go$ptrType(urlPart).prototype.String = function() { return new urlPart(this.go$get()).String(); };
+	jsCtx.prototype.String = function() {
+		var c, _ref;
+		c = this.go$val;
+		_ref = c;
+		if (_ref === 0) {
+			return "jsCtxRegexp";
+		} else if (_ref === 1) {
+			return "jsCtxDivOp";
+		} else if (_ref === 2) {
+			return "jsCtxUnknown";
+		}
+		return fmt.Sprintf("illegal jsCtx %d", new (go$sliceType(go$emptyInterface))([new Go$Int((c >> 0))]));
+	};
+	go$ptrType(jsCtx).prototype.String = function() { return new jsCtx(this.go$get()).String(); };
+	element.prototype.String = function() {
+		var e;
+		e = this.go$val;
+		if ((e >> 0) < 5) {
+			return elementNames[e];
+		}
+		return fmt.Sprintf("illegal element %d", new (go$sliceType(go$emptyInterface))([new Go$Int((e >> 0))]));
+	};
+	go$ptrType(element).prototype.String = function() { return new element(this.go$get()).String(); };
+	attr.prototype.String = function() {
+		var a;
+		a = this.go$val;
+		if ((a >> 0) < 4) {
+			return attrNames[a];
+		}
+		return fmt.Sprintf("illegal attr %d", new (go$sliceType(go$emptyInterface))([new Go$Int((a >> 0))]));
+	};
+	go$ptrType(attr).prototype.String = function() { return new attr(this.go$get()).String(); };
+	endsWithCSSKeyword = function(b, kw) {
+		var i, _tuple, r;
+		i = b.length - kw.length >> 0;
+		if (i < 0) {
+			return false;
+		}
+		if (!((i === 0))) {
+			_tuple = utf8.DecodeLastRune(go$subslice(b, 0, i)); r = _tuple[0];
+			if (isCSSNmchar(r)) {
+				return false;
+			}
+		}
+		return go$bytesToString(bytes.ToLower(go$subslice(b, i))) === kw;
+	};
+	isCSSNmchar = function(r) {
+		return 97 <= r && r <= 122 || 65 <= r && r <= 90 || 48 <= r && r <= 57 || (r === 45) || (r === 95) || 128 <= r && r <= 55295 || 57344 <= r && r <= 65533 || 65536 <= r && r <= 1114111;
+	};
+	decodeCSS = function(s) {
+		var i, b, i$1, _tuple, _slice, _index, j, _slice$1, _index$1, r, _q, _tuple$1, n, _tuple$2, _tuple$3, n$1, _tuple$4;
+		i = bytes.IndexByte(s, 92);
+		if (i === -1) {
+			return s;
+		}
+		b = (go$sliceType(Go$Uint8)).make(0, s.length, function() { return 0; });
+		while (!((s.length === 0))) {
+			i$1 = bytes.IndexByte(s, 92);
+			if (i$1 === -1) {
+				i$1 = s.length;
+			}
+			_tuple = [go$appendSlice(b, go$subslice(s, 0, i$1)), go$subslice(s, i$1)]; b = _tuple[0]; s = _tuple[1];
+			if (s.length < 2) {
+				break;
+			}
+			if (isHex((_slice = s, _index = 1, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")))) {
+				j = 2;
+				while (j < s.length && j < 7 && isHex((_slice$1 = s, _index$1 = j, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")))) {
+					j = j + 1 >> 0;
+				}
+				r = hexDecode(go$subslice(s, 1, j));
+				if (r > 1114111) {
+					_tuple$1 = [(_q = r / 16, (_q === _q && _q !== 1/0 && _q !== -1/0) ? _q >> 0 : go$throwRuntimeError("integer divide by zero")), j - 1 >> 0]; r = _tuple$1[0]; j = _tuple$1[1];
+				}
+				n = utf8.EncodeRune(go$subslice(b, b.length, b.capacity), r);
+				_tuple$2 = [go$subslice(b, 0, (b.length + n >> 0)), skipCSSSpace(go$subslice(s, j))]; b = _tuple$2[0]; s = _tuple$2[1];
+			} else {
+				_tuple$3 = utf8.DecodeRune(go$subslice(s, 1)); n$1 = _tuple$3[1];
+				_tuple$4 = [go$appendSlice(b, go$subslice(s, 1, (1 + n$1 >> 0))), go$subslice(s, (1 + n$1 >> 0))]; b = _tuple$4[0]; s = _tuple$4[1];
+			}
+		}
+		return b;
+	};
+	isHex = function(c) {
+		return 48 <= c && c <= 57 || 97 <= c && c <= 102 || 65 <= c && c <= 70;
+	};
+	hexDecode = function(s) {
+		var n, _ref, _i, _slice, _index, c;
+		n = 0;
+		_ref = s;
+		_i = 0;
+		while (_i < _ref.length) {
+			c = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			n = n << 4 >> 0;
+			if (48 <= c && c <= 57) {
+				n = n | (((c - 48 << 24 >>> 24) >> 0));
+			} else if (97 <= c && c <= 102) {
+				n = n | ((((c - 97 << 24 >>> 24) >> 0) + 10 >> 0));
+			} else if (65 <= c && c <= 70) {
+				n = n | ((((c - 65 << 24 >>> 24) >> 0) + 10 >> 0));
+			} else {
+				throw go$panic(new Go$String(fmt.Sprintf("Bad hex digit in %q", new (go$sliceType(go$emptyInterface))([s]))));
+			}
+			_i++;
+		}
+		return n;
+	};
+	skipCSSSpace = function(c) {
+		var _ref, _slice, _index, _slice$1, _index$1;
+		if (c.length === 0) {
+			return c;
+		}
+		_ref = (_slice = c, _index = 0, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+		if (_ref === 9 || _ref === 10 || _ref === 12 || _ref === 32) {
+			return go$subslice(c, 1);
+		} else if (_ref === 13) {
+			if (c.length >= 2 && ((_slice$1 = c, _index$1 = 1, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")) === 10)) {
+				return go$subslice(c, 2);
+			}
+			return go$subslice(c, 1);
+		}
+		return c;
+	};
+	isCSSSpace = function(b) {
+		var _ref;
+		_ref = b;
+		if (_ref === 9 || _ref === 10 || _ref === 12 || _ref === 13 || _ref === 32) {
+			return true;
+		}
+		return false;
+	};
+	cssEscaper = function(args) {
+		var _tuple, s, b, written, _ref, _i, _rune, r, i, repl, _ref$1;
+		_tuple = stringify(args); s = _tuple[0];
+		b = new bytes.Buffer.Ptr();
+		written = 0;
+		_ref = s;
+		_i = 0;
+		while (_i < _ref.length) {
+			_rune = go$decodeRune(_ref, _i);
+			r = _rune[0];
+			i = _i;
+			repl = "";
+			_ref$1 = r;
+			if (_ref$1 === 0) {
+				repl = "\\0";
+			} else if (_ref$1 === 9) {
+				repl = "\\9";
+			} else if (_ref$1 === 10) {
+				repl = "\\a";
+			} else if (_ref$1 === 12) {
+				repl = "\\c";
+			} else if (_ref$1 === 13) {
+				repl = "\\d";
+			} else if (_ref$1 === 34) {
+				repl = "\\22";
+			} else if (_ref$1 === 38) {
+				repl = "\\26";
+			} else if (_ref$1 === 39) {
+				repl = "\\27";
+			} else if (_ref$1 === 40) {
+				repl = "\\28";
+			} else if (_ref$1 === 41) {
+				repl = "\\29";
+			} else if (_ref$1 === 43) {
+				repl = "\\2b";
+			} else if (_ref$1 === 47) {
+				repl = "\\2f";
+			} else if (_ref$1 === 58) {
+				repl = "\\3a";
+			} else if (_ref$1 === 59) {
+				repl = "\\3b";
+			} else if (_ref$1 === 60) {
+				repl = "\\3c";
+			} else if (_ref$1 === 62) {
+				repl = "\\3e";
+			} else if (_ref$1 === 92) {
+				repl = "\\\\";
+			} else if (_ref$1 === 123) {
+				repl = "\\7b";
+			} else if (_ref$1 === 125) {
+				repl = "\\7d";
+			} else {
+				_i += _rune[1];
+				continue;
+			}
+			b.WriteString(s.substring(written, i));
+			b.WriteString(repl);
+			written = i + utf8.RuneLen(r) >> 0;
+			if (!(repl === "\\\\") && ((written === s.length) || isHex(s.charCodeAt(written)) || isCSSSpace(s.charCodeAt(written)))) {
+				b.WriteByte(32);
+			}
+			_i += _rune[1];
+		}
+		if (written === 0) {
+			return s;
+		}
+		b.WriteString(s.substring(written));
+		return b.String();
+	};
+	cssValueFilter = function(args) {
+		var _tuple, s, t, _tuple$1, b, id, _ref, _i, _slice, _index, c, i, _ref$1, _slice$1, _index$1;
+		_tuple = stringify(args); s = _tuple[0]; t = _tuple[1];
+		if (t === 1) {
+			return s;
+		}
+		_tuple$1 = [decodeCSS(new (go$sliceType(Go$Uint8))(go$stringToBytes(s))), (go$sliceType(Go$Uint8)).make(0, 64, function() { return 0; })]; b = _tuple$1[0]; id = _tuple$1[1];
+		_ref = b;
+		_i = 0;
+		while (_i < _ref.length) {
+			c = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			i = _i;
+			_ref$1 = c;
+			if (_ref$1 === 0 || _ref$1 === 34 || _ref$1 === 39 || _ref$1 === 40 || _ref$1 === 41 || _ref$1 === 47 || _ref$1 === 59 || _ref$1 === 64 || _ref$1 === 91 || _ref$1 === 92 || _ref$1 === 93 || _ref$1 === 96 || _ref$1 === 123 || _ref$1 === 125) {
+				return "ZgotmplZ";
+			} else if (_ref$1 === 45) {
+				if (!((i === 0)) && ((_slice$1 = b, _index$1 = (i - 1 >> 0), (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")) === 45)) {
+					return "ZgotmplZ";
+				}
+			} else {
+				if (c < 128 && isCSSNmchar((c >> 0))) {
+					id = go$append(id, c);
+				}
+			}
+			_i++;
+		}
+		id = bytes.ToLower(id);
+		if (!((bytes.Index(id, expressionBytes) === -1)) || !((bytes.Index(id, mozBindingBytes) === -1))) {
+			return "ZgotmplZ";
+		}
+		return go$bytesToString(b);
+	};
+	Error.Ptr.prototype.Error = function() {
+		var e;
+		e = this;
+		if (!((e.Line === 0))) {
+			return fmt.Sprintf("html/template:%s:%d: %s", new (go$sliceType(go$emptyInterface))([new Go$String(e.Name), new Go$Int(e.Line), new Go$String(e.Description)]));
+		} else if (!(e.Name === "")) {
+			return fmt.Sprintf("html/template:%s: %s", new (go$sliceType(go$emptyInterface))([new Go$String(e.Name), new Go$String(e.Description)]));
+		}
+		return "html/template: " + e.Description;
+	};
+	Error.prototype.Error = function() { return this.go$val.Error(); };
+	errorf = function(k, line, f, args) {
+		return new Error.Ptr(k, "", line, fmt.Sprintf(f, args));
+	};
+	escapeTemplates = function(tmpl, names) {
+		var e, _ref, _i, _slice, _index, name, _tuple, _struct, c, err, _tuple$1, _ref$1, _i$1, _slice$1, _index$1, name$1, _entry, t;
+		e = newEscaper(tmpl);
+		_ref = names;
+		_i = 0;
+		while (_i < _ref.length) {
+			name = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			_tuple = e.escapeTree(new context.Ptr(0, 0, 0, 0, 0, 0, (go$ptrType(Error)).nil), name, 0); c = (_struct = _tuple[0], new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err));
+			err = null;
+			if (!(c.err === (go$ptrType(Error)).nil)) {
+				_tuple$1 = [c.err, name]; err = _tuple$1[0]; c.err.Name = _tuple$1[1];
+			} else if (!((c.state === 0))) {
+				err = new Error.Ptr(4, name, 0, fmt.Sprintf("ends in a non-text context: %v", new (go$sliceType(go$emptyInterface))([new c.constructor.Struct(c)])));
+			}
+			if (!(go$interfaceIsEqual(err, null))) {
+				_ref$1 = names;
+				_i$1 = 0;
+				while (_i$1 < _ref$1.length) {
+					name$1 = (_slice$1 = _ref$1, _index$1 = _i$1, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
+					t = (_entry = tmpl.nameSpace.set[name$1], _entry !== undefined ? _entry.v : (go$ptrType(Template)).nil);
+					if (!(t === (go$ptrType(Template)).nil)) {
+						t.text.Tree = (go$ptrType(parse.Tree)).nil;
+						t.Tree = (go$ptrType(parse.Tree)).nil;
+					}
+					_i$1++;
+				}
+				return err;
+			}
+			tmpl.escaped = true;
+			tmpl.Tree = tmpl.text.Tree;
+			_i++;
+		}
+		e.commit();
+		return null;
+	};
+	newEscaper = function(t) {
+		var _map, _key, _map$1, _key$1, _map$2, _key$2, _map$3, _key$3, _map$4, _key$4, _map$5, _key$5;
+		return new escaper.Ptr(t, (_map = new Go$Map(), _map), (_map$1 = new Go$Map(), _map$1), (_map$2 = new Go$Map(), _map$2), (_map$3 = new Go$Map(), _map$3), (_map$4 = new Go$Map(), _map$4), (_map$5 = new Go$Map(), _map$5));
+	};
+	escaper.Ptr.prototype.escape = function(c, n) {
+		var e, n$1, _ref, _type, _struct, _struct$1, _struct$2, _struct$3, _struct$4, _struct$5, _struct$6, _struct$7, _struct$8, _struct$9, _struct$10, _struct$11, _struct$12, _struct$13;
+		e = this;
+		_ref = n;
+		_type = _ref !== null ? _ref.constructor : null;
+		if (_type === (go$ptrType(parse.ActionNode))) {
+			n$1 = _ref.go$val;
+			return (_struct$1 = e.escapeAction((_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), n$1), new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err));
+		} else if (_type === (go$ptrType(parse.IfNode))) {
+			n$1 = _ref.go$val;
+			return (_struct$3 = e.escapeBranch((_struct$2 = c, new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err)), n$1.BranchNode, "if"), new context.Ptr(_struct$3.state, _struct$3.delim, _struct$3.urlPart, _struct$3.jsCtx, _struct$3.attr, _struct$3.element, _struct$3.err));
+		} else if (_type === (go$ptrType(parse.ListNode))) {
+			n$1 = _ref.go$val;
+			return (_struct$5 = e.escapeList((_struct$4 = c, new context.Ptr(_struct$4.state, _struct$4.delim, _struct$4.urlPart, _struct$4.jsCtx, _struct$4.attr, _struct$4.element, _struct$4.err)), n$1), new context.Ptr(_struct$5.state, _struct$5.delim, _struct$5.urlPart, _struct$5.jsCtx, _struct$5.attr, _struct$5.element, _struct$5.err));
+		} else if (_type === (go$ptrType(parse.RangeNode))) {
+			n$1 = _ref.go$val;
+			return (_struct$7 = e.escapeBranch((_struct$6 = c, new context.Ptr(_struct$6.state, _struct$6.delim, _struct$6.urlPart, _struct$6.jsCtx, _struct$6.attr, _struct$6.element, _struct$6.err)), n$1.BranchNode, "range"), new context.Ptr(_struct$7.state, _struct$7.delim, _struct$7.urlPart, _struct$7.jsCtx, _struct$7.attr, _struct$7.element, _struct$7.err));
+		} else if (_type === (go$ptrType(parse.TemplateNode))) {
+			n$1 = _ref.go$val;
+			return (_struct$9 = e.escapeTemplate((_struct$8 = c, new context.Ptr(_struct$8.state, _struct$8.delim, _struct$8.urlPart, _struct$8.jsCtx, _struct$8.attr, _struct$8.element, _struct$8.err)), n$1), new context.Ptr(_struct$9.state, _struct$9.delim, _struct$9.urlPart, _struct$9.jsCtx, _struct$9.attr, _struct$9.element, _struct$9.err));
+		} else if (_type === (go$ptrType(parse.TextNode))) {
+			n$1 = _ref.go$val;
+			return (_struct$11 = e.escapeText((_struct$10 = c, new context.Ptr(_struct$10.state, _struct$10.delim, _struct$10.urlPart, _struct$10.jsCtx, _struct$10.attr, _struct$10.element, _struct$10.err)), n$1), new context.Ptr(_struct$11.state, _struct$11.delim, _struct$11.urlPart, _struct$11.jsCtx, _struct$11.attr, _struct$11.element, _struct$11.err));
+		} else if (_type === (go$ptrType(parse.WithNode))) {
+			n$1 = _ref.go$val;
+			return (_struct$13 = e.escapeBranch((_struct$12 = c, new context.Ptr(_struct$12.state, _struct$12.delim, _struct$12.urlPart, _struct$12.jsCtx, _struct$12.attr, _struct$12.element, _struct$12.err)), n$1.BranchNode, "with"), new context.Ptr(_struct$13.state, _struct$13.delim, _struct$13.urlPart, _struct$13.jsCtx, _struct$13.attr, _struct$13.element, _struct$13.err));
+		}
+		throw go$panic(new Go$String("escaping " + n.String() + " is unimplemented"));
+	};
+	escaper.prototype.escape = function(c, n) { return this.go$val.escape(c, n); };
+	escaper.Ptr.prototype.escapeAction = function(c, n) {
+		var e, _struct, _struct$1, _struct$2, s, _ref, _struct$3, _ref$1, _ref$2, _ref$3, _ref$4, _struct$4;
+		e = this;
+		if (!((n.Pipe.Decl.length === 0))) {
+			return (_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err));
+		}
+		c = (_struct$2 = nudge((_struct$1 = c, new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err))), new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err));
+		s = (go$sliceType(Go$String)).make(0, 3, function() { return ""; });
+		_ref = c.state;
+		if (_ref === 23) {
+			return (_struct$3 = c, new context.Ptr(_struct$3.state, _struct$3.delim, _struct$3.urlPart, _struct$3.jsCtx, _struct$3.attr, _struct$3.element, _struct$3.err));
+		} else if (_ref === 8 || _ref === 16 || _ref === 17 || _ref === 18 || _ref === 19 || _ref === 20) {
+			_ref$1 = c.urlPart;
+			if (_ref$1 === 0) {
+				s = go$append(s, "html_template_urlfilter");
+				_ref$2 = c.state;
+				if (_ref$2 === 16 || _ref$2 === 17) {
+					s = go$append(s, "html_template_cssescaper");
+				} else {
+					s = go$append(s, "html_template_urlnormalizer");
+				}
+			} else if (_ref$1 === 1) {
+				_ref$3 = c.state;
+				if (_ref$3 === 16 || _ref$3 === 17) {
+					s = go$append(s, "html_template_cssescaper");
+				} else {
+					s = go$append(s, "html_template_urlnormalizer");
+				}
+			} else if (_ref$1 === 2) {
+				s = go$append(s, "html_template_urlescaper");
+			} else if (_ref$1 === 3) {
+				return new context.Ptr(23, 0, 0, 0, 0, 0, errorf(1, n.Line, "%s appears in an ambiguous URL context", new (go$sliceType(go$emptyInterface))([n])));
+			} else {
+				throw go$panic(new Go$String((new urlPart(c.urlPart)).String()));
+			}
+		} else if (_ref === 9) {
+			s = go$append(s, "html_template_jsvalescaper");
+			c.jsCtx = 1;
+		} else if (_ref === 10 || _ref === 11) {
+			s = go$append(s, "html_template_jsstrescaper");
+		} else if (_ref === 12) {
+			s = go$append(s, "html_template_jsregexpescaper");
+		} else if (_ref === 15) {
+			s = go$append(s, "html_template_cssvaluefilter");
+		} else if (_ref === 0) {
+			s = go$append(s, "html_template_htmlescaper");
+		} else if (_ref === 6) {
+			s = go$append(s, "html_template_rcdataescaper");
+		} else if (_ref === 7) {
+		} else if (_ref === 2 || _ref === 1) {
+			c.state = 2;
+			s = go$append(s, "html_template_htmlnamefilter");
+		} else {
+			if (isComment(c.state)) {
+				s = go$append(s, "html_template_commentescaper");
+			} else {
+				throw go$panic(new Go$String("unexpected state " + (new state(c.state)).String()));
+			}
+		}
+		_ref$4 = c.delim;
+		if (_ref$4 === 0) {
+		} else if (_ref$4 === 3) {
+			s = go$append(s, "html_template_nospaceescaper");
+		} else {
+			s = go$append(s, "html_template_attrescaper");
+		}
+		e.editActionNode(n, s);
+		return (_struct$4 = c, new context.Ptr(_struct$4.state, _struct$4.delim, _struct$4.urlPart, _struct$4.jsCtx, _struct$4.attr, _struct$4.element, _struct$4.err));
+	};
+	escaper.prototype.escapeAction = function(c, n) { return this.go$val.escapeAction(c, n); };
+	ensurePipelineContains = function(p, s) {
+		var n, idents, i, _slice, _index, cmd, _tuple, x, _slice$1, _index$1, ok, dups, _ref, _i, _slice$2, _index$2, id, _slice$3, _index$3, x$1, _slice$4, _index$4, newCmds, _ref$1, _i$1, _slice$5, _index$5, id$1, _slice$6, _index$6, pos, x$2, _slice$7, _index$7, i$1, _ref$2, _i$2, _slice$8, _index$8, name, _ref$3, _i$3, _slice$9, _index$9, name$1;
+		if (s.length === 0) {
+			return;
+		}
+		n = p.Cmds.length;
+		idents = p.Cmds;
+		i = n - 1 >> 0;
+		while (i >= 0) {
+			cmd = (_slice = p.Cmds, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			if (!((cmd.Args.length === 0))) {
+				_tuple = (x = (_slice$1 = cmd.Args, _index$1 = 0, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")), (x !== null && x.constructor === (go$ptrType(parse.IdentifierNode)) ? [x.go$val, true] : [(go$ptrType(parse.IdentifierNode)).nil, false])); ok = _tuple[1];
+				if (ok) {
+					i = i - 1 >> 0;
+					continue;
+				}
+			}
+			idents = go$subslice(p.Cmds, (i + 1 >> 0));
+			i = i - 1 >> 0;
+		}
+		dups = 0;
+		_ref = idents;
+		_i = 0;
+		while (_i < _ref.length) {
+			id = (_slice$2 = _ref, _index$2 = _i, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range"));
+			if (escFnsEq((_slice$3 = s, _index$3 = dups, (_index$3 >= 0 && _index$3 < _slice$3.length) ? _slice$3.array[_slice$3.offset + _index$3] : go$throwRuntimeError("index out of range")), ((x$1 = (_slice$4 = id.Args, _index$4 = 0, (_index$4 >= 0 && _index$4 < _slice$4.length) ? _slice$4.array[_slice$4.offset + _index$4] : go$throwRuntimeError("index out of range")), (x$1 !== null && x$1.constructor === (go$ptrType(parse.IdentifierNode)) ? x$1.go$val : go$typeAssertionFailed(x$1, (go$ptrType(parse.IdentifierNode)))))).Ident)) {
+				dups = dups + 1 >> 0;
+				if (dups === s.length) {
+					return;
+				}
+			}
+			_i++;
+		}
+		newCmds = (go$sliceType((go$ptrType(parse.CommandNode)))).make(n - idents.length >> 0, (n + s.length >> 0) - dups >> 0, function() { return (go$ptrType(parse.CommandNode)).nil; });
+		go$copySlice(newCmds, p.Cmds);
+		_ref$1 = idents;
+		_i$1 = 0;
+		while (_i$1 < _ref$1.length) {
+			id$1 = (_slice$5 = _ref$1, _index$5 = _i$1, (_index$5 >= 0 && _index$5 < _slice$5.length) ? _slice$5.array[_slice$5.offset + _index$5] : go$throwRuntimeError("index out of range"));
+			pos = (_slice$6 = id$1.Args, _index$6 = 0, (_index$6 >= 0 && _index$6 < _slice$6.length) ? _slice$6.array[_slice$6.offset + _index$6] : go$throwRuntimeError("index out of range")).Position();
+			i$1 = indexOfStr(((x$2 = (_slice$7 = id$1.Args, _index$7 = 0, (_index$7 >= 0 && _index$7 < _slice$7.length) ? _slice$7.array[_slice$7.offset + _index$7] : go$throwRuntimeError("index out of range")), (x$2 !== null && x$2.constructor === (go$ptrType(parse.IdentifierNode)) ? x$2.go$val : go$typeAssertionFailed(x$2, (go$ptrType(parse.IdentifierNode)))))).Ident, s, escFnsEq);
+			if (!((i$1 === -1))) {
+				_ref$2 = go$subslice(s, 0, i$1);
+				_i$2 = 0;
+				while (_i$2 < _ref$2.length) {
+					name = (_slice$8 = _ref$2, _index$8 = _i$2, (_index$8 >= 0 && _index$8 < _slice$8.length) ? _slice$8.array[_slice$8.offset + _index$8] : go$throwRuntimeError("index out of range"));
+					newCmds = appendCmd(newCmds, newIdentCmd(name, pos));
+					_i$2++;
+				}
+				s = go$subslice(s, (i$1 + 1 >> 0));
+			}
+			newCmds = appendCmd(newCmds, id$1);
+			_i$1++;
+		}
+		_ref$3 = s;
+		_i$3 = 0;
+		while (_i$3 < _ref$3.length) {
+			name$1 = (_slice$9 = _ref$3, _index$9 = _i$3, (_index$9 >= 0 && _index$9 < _slice$9.length) ? _slice$9.array[_slice$9.offset + _index$9] : go$throwRuntimeError("index out of range"));
+			newCmds = appendCmd(newCmds, newIdentCmd(name$1, (new parse.Pos(p.Pos)).Position()));
+			_i$3++;
+		}
+		p.Cmds = newCmds;
+	};
+	appendCmd = function(cmds, cmd) {
+		var n, _tuple, x, _slice, _index, _slice$1, _index$1, last, ok, _tuple$1, x$1, _slice$2, _index$2, next, _entry, _entry$1;
+		n = cmds.length;
+		if (!((n === 0))) {
+			_tuple = (x = (_slice = (_slice$1 = cmds, _index$1 = (n - 1 >> 0), (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")).Args, _index = 0, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), (x !== null && x.constructor === (go$ptrType(parse.IdentifierNode)) ? [x.go$val, true] : [(go$ptrType(parse.IdentifierNode)).nil, false])); last = _tuple[0]; ok = _tuple[1];
+			_tuple$1 = (x$1 = (_slice$2 = cmd.Args, _index$2 = 0, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range")), (x$1 !== null && x$1.constructor === (go$ptrType(parse.IdentifierNode)) ? [x$1.go$val, true] : [(go$ptrType(parse.IdentifierNode)).nil, false])); next = _tuple$1[0];
+			if (ok && (_entry = (_entry$1 = redundantFuncs[last.Ident], _entry$1 !== undefined ? _entry$1.v : false)[next.Ident], _entry !== undefined ? _entry.v : false)) {
+				return cmds;
+			}
+		}
+		return go$append(cmds, cmd);
+	};
+	indexOfStr = function(s, strs, eq) {
+		var _ref, _i, _slice, _index, t, i;
+		_ref = strs;
+		_i = 0;
+		while (_i < _ref.length) {
+			t = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			i = _i;
+			if (eq(s, t)) {
+				return i;
+			}
+			_i++;
+		}
+		return -1;
+	};
+	escFnsEq = function(a, b) {
+		var _entry, e, _entry$1, e$1;
+		e = (_entry = equivEscapers[a], _entry !== undefined ? _entry.v : "");
+		if (!(e === "")) {
+			a = e;
+		}
+		e$1 = (_entry$1 = equivEscapers[b], _entry$1 !== undefined ? _entry$1.v : "");
+		if (!(e$1 === "")) {
+			b = e$1;
+		}
+		return a === b;
+	};
+	newIdentCmd = function(identifier, pos) {
+		return new parse.CommandNode.Ptr(4, 0, new (go$sliceType(parse.Node))([parse.NewIdentifier(identifier).SetPos(pos)]));
+	};
+	nudge = function(c) {
+		var _ref, _tuple, _tuple$1, _struct;
+		_ref = c.state;
+		if (_ref === 1) {
+			c.state = 2;
+		} else if (_ref === 4) {
+			_tuple = [attrStartStates[c.attr], 3, 0]; c.state = _tuple[0]; c.delim = _tuple[1]; c.attr = _tuple[2];
+		} else if (_ref === 3) {
+			_tuple$1 = [2, 0]; c.state = _tuple$1[0]; c.attr = _tuple$1[1];
+		}
+		return (_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err));
+	};
+	join = function(a, b, line, nodeName) {
+		var _struct, _struct$1, _struct$2, _struct$3, _struct$4, c, _struct$5, _struct$6, _struct$7, _struct$8, _struct$9, _struct$10, _struct$11, _struct$12, _struct$13, _tuple, c$1, d, _struct$14, _struct$15, _struct$16, _struct$17, _struct$18, e, _struct$19;
+		if (a.state === 23) {
+			return (_struct = a, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err));
+		}
+		if (b.state === 23) {
+			return (_struct$1 = b, new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err));
+		}
+		if (a.eq((_struct$2 = b, new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err)))) {
+			return (_struct$3 = a, new context.Ptr(_struct$3.state, _struct$3.delim, _struct$3.urlPart, _struct$3.jsCtx, _struct$3.attr, _struct$3.element, _struct$3.err));
+		}
+		c = (_struct$4 = a, new context.Ptr(_struct$4.state, _struct$4.delim, _struct$4.urlPart, _struct$4.jsCtx, _struct$4.attr, _struct$4.element, _struct$4.err));
+		c.urlPart = b.urlPart;
+		if (c.eq((_struct$5 = b, new context.Ptr(_struct$5.state, _struct$5.delim, _struct$5.urlPart, _struct$5.jsCtx, _struct$5.attr, _struct$5.element, _struct$5.err)))) {
+			c.urlPart = 3;
+			return (_struct$6 = c, new context.Ptr(_struct$6.state, _struct$6.delim, _struct$6.urlPart, _struct$6.jsCtx, _struct$6.attr, _struct$6.element, _struct$6.err));
+		}
+		c = (_struct$7 = a, new context.Ptr(_struct$7.state, _struct$7.delim, _struct$7.urlPart, _struct$7.jsCtx, _struct$7.attr, _struct$7.element, _struct$7.err));
+		c.jsCtx = b.jsCtx;
+		if (c.eq((_struct$8 = b, new context.Ptr(_struct$8.state, _struct$8.delim, _struct$8.urlPart, _struct$8.jsCtx, _struct$8.attr, _struct$8.element, _struct$8.err)))) {
+			c.jsCtx = 2;
+			return (_struct$9 = c, new context.Ptr(_struct$9.state, _struct$9.delim, _struct$9.urlPart, _struct$9.jsCtx, _struct$9.attr, _struct$9.element, _struct$9.err));
+		}
+		_tuple = [(_struct$11 = nudge((_struct$10 = a, new context.Ptr(_struct$10.state, _struct$10.delim, _struct$10.urlPart, _struct$10.jsCtx, _struct$10.attr, _struct$10.element, _struct$10.err))), new context.Ptr(_struct$11.state, _struct$11.delim, _struct$11.urlPart, _struct$11.jsCtx, _struct$11.attr, _struct$11.element, _struct$11.err)), (_struct$13 = nudge((_struct$12 = b, new context.Ptr(_struct$12.state, _struct$12.delim, _struct$12.urlPart, _struct$12.jsCtx, _struct$12.attr, _struct$12.element, _struct$12.err))), new context.Ptr(_struct$13.state, _struct$13.delim, _struct$13.urlPart, _struct$13.jsCtx, _struct$13.attr, _struct$13.element, _struct$13.err))]; c$1 = _tuple[0]; d = _tuple[1];
+		if (!(c$1.eq((_struct$14 = a, new context.Ptr(_struct$14.state, _struct$14.delim, _struct$14.urlPart, _struct$14.jsCtx, _struct$14.attr, _struct$14.element, _struct$14.err))) && d.eq((_struct$15 = b, new context.Ptr(_struct$15.state, _struct$15.delim, _struct$15.urlPart, _struct$15.jsCtx, _struct$15.attr, _struct$15.element, _struct$15.err))))) {
+			e = (_struct$18 = join((_struct$16 = c$1, new context.Ptr(_struct$16.state, _struct$16.delim, _struct$16.urlPart, _struct$16.jsCtx, _struct$16.attr, _struct$16.element, _struct$16.err)), (_struct$17 = d, new context.Ptr(_struct$17.state, _struct$17.delim, _struct$17.urlPart, _struct$17.jsCtx, _struct$17.attr, _struct$17.element, _struct$17.err)), line, nodeName), new context.Ptr(_struct$18.state, _struct$18.delim, _struct$18.urlPart, _struct$18.jsCtx, _struct$18.attr, _struct$18.element, _struct$18.err));
+			if (!((e.state === 23))) {
+				return (_struct$19 = e, new context.Ptr(_struct$19.state, _struct$19.delim, _struct$19.urlPart, _struct$19.jsCtx, _struct$19.attr, _struct$19.element, _struct$19.err));
+			}
+		}
+		return new context.Ptr(23, 0, 0, 0, 0, 0, errorf(3, line, "{{%s}} branches end in different contexts: %v, %v", new (go$sliceType(go$emptyInterface))([new Go$String(nodeName), new a.constructor.Struct(a), new b.constructor.Struct(b)])));
+	};
+	escaper.Ptr.prototype.escapeBranch = function(c, n, nodeName) {
+		var e, _struct, _struct$1, c0, _tuple, _struct$2, _struct$3, c1, _struct$4, _struct$5, _struct$6, _struct$7, _struct$8, _struct$9, c1$1, _struct$10, _struct$11, _struct$12;
+		e = this;
+		c0 = (_struct$1 = e.escapeList((_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), n.List), new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err));
+		if (nodeName === "range" && !((c0.state === 23))) {
+			_tuple = e.escapeListConditionally((_struct$2 = c0, new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err)), n.List, go$throwNilPointerError); c1 = (_struct$3 = _tuple[0], new context.Ptr(_struct$3.state, _struct$3.delim, _struct$3.urlPart, _struct$3.jsCtx, _struct$3.attr, _struct$3.element, _struct$3.err));
+			c0 = (_struct$6 = join((_struct$4 = c0, new context.Ptr(_struct$4.state, _struct$4.delim, _struct$4.urlPart, _struct$4.jsCtx, _struct$4.attr, _struct$4.element, _struct$4.err)), (_struct$5 = c1, new context.Ptr(_struct$5.state, _struct$5.delim, _struct$5.urlPart, _struct$5.jsCtx, _struct$5.attr, _struct$5.element, _struct$5.err)), n.Line, nodeName), new context.Ptr(_struct$6.state, _struct$6.delim, _struct$6.urlPart, _struct$6.jsCtx, _struct$6.attr, _struct$6.element, _struct$6.err));
+			if (c0.state === 23) {
+				c0.err.Line = n.Line;
+				c0.err.Description = "on range loop re-entry: " + c0.err.Description;
+				return (_struct$7 = c0, new context.Ptr(_struct$7.state, _struct$7.delim, _struct$7.urlPart, _struct$7.jsCtx, _struct$7.attr, _struct$7.element, _struct$7.err));
+			}
+		}
+		c1$1 = (_struct$9 = e.escapeList((_struct$8 = c, new context.Ptr(_struct$8.state, _struct$8.delim, _struct$8.urlPart, _struct$8.jsCtx, _struct$8.attr, _struct$8.element, _struct$8.err)), n.ElseList), new context.Ptr(_struct$9.state, _struct$9.delim, _struct$9.urlPart, _struct$9.jsCtx, _struct$9.attr, _struct$9.element, _struct$9.err));
+		return (_struct$12 = join((_struct$10 = c0, new context.Ptr(_struct$10.state, _struct$10.delim, _struct$10.urlPart, _struct$10.jsCtx, _struct$10.attr, _struct$10.element, _struct$10.err)), (_struct$11 = c1$1, new context.Ptr(_struct$11.state, _struct$11.delim, _struct$11.urlPart, _struct$11.jsCtx, _struct$11.attr, _struct$11.element, _struct$11.err)), n.Line, nodeName), new context.Ptr(_struct$12.state, _struct$12.delim, _struct$12.urlPart, _struct$12.jsCtx, _struct$12.attr, _struct$12.element, _struct$12.err));
+	};
+	escaper.prototype.escapeBranch = function(c, n, nodeName) { return this.go$val.escapeBranch(c, n, nodeName); };
+	escaper.Ptr.prototype.escapeList = function(c, n) {
+		var e, _struct, _ref, _i, _slice, _index, m, _struct$1, _struct$2, _struct$3;
+		e = this;
+		if (n === (go$ptrType(parse.ListNode)).nil) {
+			return (_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err));
+		}
+		_ref = n.Nodes;
+		_i = 0;
+		while (_i < _ref.length) {
+			m = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			c = (_struct$2 = e.escape((_struct$1 = c, new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)), m), new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err));
+			_i++;
+		}
+		return (_struct$3 = c, new context.Ptr(_struct$3.state, _struct$3.delim, _struct$3.urlPart, _struct$3.jsCtx, _struct$3.attr, _struct$3.element, _struct$3.err));
+	};
+	escaper.prototype.escapeList = function(c, n) { return this.go$val.escapeList(c, n); };
+	escaper.Ptr.prototype.escapeListConditionally = function(c, n, filter) {
+		var e, e1, _ref, _i, _keys, _entry, v, k, _struct, _key, _struct$1, _struct$2, _struct$3, ok, _ref$1, _i$1, _keys$1, _entry$1, v$1, k$1, _struct$4, _key$1, _ref$2, _i$2, _keys$2, _entry$2, v$2, k$2, _key$2, _ref$3, _i$3, _keys$3, _entry$3, v$3, k$3, _key$3, _ref$4, _i$4, _keys$4, _entry$4, v$4, k$4, _ref$5, _i$5, _keys$5, _entry$5, v$5, k$5, _ref$6, _i$6, _keys$6, _entry$6, v$6, k$6, _struct$5;
+		e = this;
+		e1 = newEscaper(e.tmpl);
+		_ref = e.output;
+		_i = 0;
+		_keys = go$keys(_ref);
+		while (_i < _keys.length) {
+			_entry = _ref[_keys[_i]];
+			v = _entry.v;
+			k = _entry.k;
+			_key = k; (e1.output || go$throwRuntimeError("assignment to entry in nil map"))[_key] = { k: _key, v: (_struct = v, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)) };
+			_i++;
+		}
+		c = (_struct$2 = e1.escapeList((_struct$1 = c, new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)), n), new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err));
+		ok = !(filter === go$throwNilPointerError) && filter(e1, (_struct$3 = c, new context.Ptr(_struct$3.state, _struct$3.delim, _struct$3.urlPart, _struct$3.jsCtx, _struct$3.attr, _struct$3.element, _struct$3.err)));
+		if (ok) {
+			_ref$1 = e1.output;
+			_i$1 = 0;
+			_keys$1 = go$keys(_ref$1);
+			while (_i$1 < _keys$1.length) {
+				_entry$1 = _ref$1[_keys$1[_i$1]];
+				v$1 = _entry$1.v;
+				k$1 = _entry$1.k;
+				_key$1 = k$1; (e.output || go$throwRuntimeError("assignment to entry in nil map"))[_key$1] = { k: _key$1, v: (_struct$4 = v$1, new context.Ptr(_struct$4.state, _struct$4.delim, _struct$4.urlPart, _struct$4.jsCtx, _struct$4.attr, _struct$4.element, _struct$4.err)) };
+				_i$1++;
+			}
+			_ref$2 = e1.derived;
+			_i$2 = 0;
+			_keys$2 = go$keys(_ref$2);
+			while (_i$2 < _keys$2.length) {
+				_entry$2 = _ref$2[_keys$2[_i$2]];
+				v$2 = _entry$2.v;
+				k$2 = _entry$2.k;
+				_key$2 = k$2; (e.derived || go$throwRuntimeError("assignment to entry in nil map"))[_key$2] = { k: _key$2, v: v$2 };
+				_i$2++;
+			}
+			_ref$3 = e1.called;
+			_i$3 = 0;
+			_keys$3 = go$keys(_ref$3);
+			while (_i$3 < _keys$3.length) {
+				_entry$3 = _ref$3[_keys$3[_i$3]];
+				v$3 = _entry$3.v;
+				k$3 = _entry$3.k;
+				_key$3 = k$3; (e.called || go$throwRuntimeError("assignment to entry in nil map"))[_key$3] = { k: _key$3, v: v$3 };
+				_i$3++;
+			}
+			_ref$4 = e1.actionNodeEdits;
+			_i$4 = 0;
+			_keys$4 = go$keys(_ref$4);
+			while (_i$4 < _keys$4.length) {
+				_entry$4 = _ref$4[_keys$4[_i$4]];
+				v$4 = _entry$4.v;
+				k$4 = _entry$4.k;
+				e.editActionNode(k$4, v$4);
+				_i$4++;
+			}
+			_ref$5 = e1.templateNodeEdits;
+			_i$5 = 0;
+			_keys$5 = go$keys(_ref$5);
+			while (_i$5 < _keys$5.length) {
+				_entry$5 = _ref$5[_keys$5[_i$5]];
+				v$5 = _entry$5.v;
+				k$5 = _entry$5.k;
+				e.editTemplateNode(k$5, v$5);
+				_i$5++;
+			}
+			_ref$6 = e1.textNodeEdits;
+			_i$6 = 0;
+			_keys$6 = go$keys(_ref$6);
+			while (_i$6 < _keys$6.length) {
+				_entry$6 = _ref$6[_keys$6[_i$6]];
+				v$6 = _entry$6.v;
+				k$6 = _entry$6.k;
+				e.editTextNode(k$6, v$6);
+				_i$6++;
+			}
+		}
+		return [(_struct$5 = c, new context.Ptr(_struct$5.state, _struct$5.delim, _struct$5.urlPart, _struct$5.jsCtx, _struct$5.attr, _struct$5.element, _struct$5.err)), ok];
+	};
+	escaper.prototype.escapeListConditionally = function(c, n, filter) { return this.go$val.escapeListConditionally(c, n, filter); };
+	escaper.Ptr.prototype.escapeTemplate = function(c, n) {
+		var e, _tuple, _struct, _struct$1, name, _struct$2;
+		e = this;
+		_tuple = e.escapeTree((_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), n.Name, n.Line); c = (_struct$1 = _tuple[0], new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)); name = _tuple[1];
+		if (!(name === n.Name)) {
+			e.editTemplateNode(n, name);
+		}
+		return (_struct$2 = c, new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err));
+	};
+	escaper.prototype.escapeTemplate = function(c, n) { return this.go$val.escapeTemplate(c, n); };
+	escaper.Ptr.prototype.escapeTree = function(c, name, line) {
+		var e, dname, _key, _tuple, _entry, _struct, out, ok, _struct$1, t, _entry$1, dt, _key$1, _struct$2, _struct$3;
+		e = this;
+		dname = c.mangle(name);
+		_key = dname; (e.called || go$throwRuntimeError("assignment to entry in nil map"))[_key] = { k: _key, v: true };
+		_tuple = (_entry = e.output[dname], _entry !== undefined ? [_entry.v, true] : [new context.Ptr(), false]); out = (_struct = _tuple[0], new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)); ok = _tuple[1];
+		if (ok) {
+			return [(_struct$1 = out, new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)), dname];
+		}
+		t = e.template(name);
+		if (t === (go$ptrType(template.Template)).nil) {
+			if (!((_entry$1 = e.tmpl.nameSpace.set[name], _entry$1 !== undefined ? _entry$1.v : (go$ptrType(Template)).nil) === (go$ptrType(Template)).nil)) {
+				return [new context.Ptr(23, 0, 0, 0, 0, 0, errorf(5, line, "%q is an incomplete or empty template", new (go$sliceType(go$emptyInterface))([new Go$String(name)]))), dname];
+			}
+			return [new context.Ptr(23, 0, 0, 0, 0, 0, errorf(5, line, "no such template %q", new (go$sliceType(go$emptyInterface))([new Go$String(name)]))), dname];
+		}
+		if (!(dname === name)) {
+			dt = e.template(dname);
+			if (dt === (go$ptrType(template.Template)).nil) {
+				dt = template.New(dname);
+				dt.Tree = new parse.Tree.Ptr(dname, "", t.Tree.Root.CopyList(), "", (go$sliceType((go$mapType(Go$String, go$emptyInterface)))).nil, (go$ptrType(parse.lexer)).nil, go$makeNativeArray("Struct", 3, function() { return new parse.item.Ptr(); }), 0, (go$sliceType(Go$String)).nil);
+				_key$1 = dname; (e.derived || go$throwRuntimeError("assignment to entry in nil map"))[_key$1] = { k: _key$1, v: dt };
+			}
+			t = dt;
+		}
+		return [(_struct$3 = e.computeOutCtx((_struct$2 = c, new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err)), t), new context.Ptr(_struct$3.state, _struct$3.delim, _struct$3.urlPart, _struct$3.jsCtx, _struct$3.attr, _struct$3.element, _struct$3.err)), dname];
+	};
+	escaper.prototype.escapeTree = function(c, name, line) { return this.go$val.escapeTree(c, name, line); };
+	escaper.Ptr.prototype.computeOutCtx = function(c, t) {
+		var e, _tuple, _struct, _struct$1, c1, ok, _tuple$1, _struct$2, _struct$3, c2, ok2, _struct$4, _tuple$2, _struct$5;
+		e = this;
+		_tuple = e.escapeTemplateBody((_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), t); c1 = (_struct$1 = _tuple[0], new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)); ok = _tuple[1];
+		if (!ok) {
+			_tuple$1 = e.escapeTemplateBody((_struct$2 = c1, new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err)), t); c2 = (_struct$3 = _tuple$1[0], new context.Ptr(_struct$3.state, _struct$3.delim, _struct$3.urlPart, _struct$3.jsCtx, _struct$3.attr, _struct$3.element, _struct$3.err)); ok2 = _tuple$1[1];
+			if (ok2) {
+				_tuple$2 = [(_struct$4 = c2, new context.Ptr(_struct$4.state, _struct$4.delim, _struct$4.urlPart, _struct$4.jsCtx, _struct$4.attr, _struct$4.element, _struct$4.err)), true]; c1 = _tuple$2[0]; ok = _tuple$2[1];
+			}
+		}
+		if (!ok && !((c1.state === 23))) {
+			return new context.Ptr(23, 0, 0, 0, 0, 0, errorf(6, 0, "cannot compute output context for template %s", new (go$sliceType(go$emptyInterface))([new Go$String(t.Name())])));
+		}
+		return (_struct$5 = c1, new context.Ptr(_struct$5.state, _struct$5.delim, _struct$5.urlPart, _struct$5.jsCtx, _struct$5.attr, _struct$5.element, _struct$5.err));
+	};
+	escaper.prototype.computeOutCtx = function(c, t) { return this.go$val.computeOutCtx(c, t); };
+	escaper.Ptr.prototype.escapeTemplateBody = function(c, t) {
+		var e, filter, _struct, _key, _struct$1;
+		e = this;
+		filter = (function(e1, c1) {
+			var _entry, _struct;
+			if (c1.state === 23) {
+				return false;
+			}
+			if (!(_entry = e1.called[t.Name()], _entry !== undefined ? _entry.v : false)) {
+				return true;
+			}
+			return c.eq((_struct = c1, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)));
+		});
+		_key = t.Name(); (e.output || go$throwRuntimeError("assignment to entry in nil map"))[_key] = { k: _key, v: (_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)) };
+		return e.escapeListConditionally((_struct$1 = c, new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)), t.Tree.Root, filter);
+	};
+	escaper.prototype.escapeTemplateBody = function(c, t) { return this.go$val.escapeTemplateBody(c, t); };
+	escaper.Ptr.prototype.escapeText = function(c, n) {
+		var e, _tuple, s, written, i, b, _tuple$1, _struct, _struct$1, c1, nread, i1, end, j, _slice, _index, j$1, _slice$1, _index$1, _ref, cs, _struct$2, _tuple$2, _struct$3;
+		e = this;
+		_tuple = [n.Text, 0, 0, new bytes.Buffer.Ptr()]; s = _tuple[0]; written = _tuple[1]; i = _tuple[2]; b = _tuple[3];
+		while (!((i === s.length))) {
+			_tuple$1 = contextAfterText((_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), go$subslice(s, i)); c1 = (_struct$1 = _tuple$1[0], new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)); nread = _tuple$1[1];
+			i1 = i + nread >> 0;
+			if ((c.state === 0) || (c.state === 6)) {
+				end = i1;
+				if (!((c1.state === c.state))) {
+					j = end - 1 >> 0;
+					while (j >= i) {
+						if ((_slice = s, _index = j, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) === 60) {
+							end = j;
+							break;
+						}
+						j = j - 1 >> 0;
+					}
+				}
+				j$1 = i;
+				while (j$1 < end) {
+					if (((_slice$1 = s, _index$1 = j$1, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")) === 60) && !bytes.HasPrefix(bytes.ToUpper(go$subslice(s, j$1)), doctypeBytes)) {
+						b.Write(go$subslice(s, written, j$1));
+						b.WriteString("&lt;");
+						written = j$1 + 1 >> 0;
+					}
+					j$1 = j$1 + 1 >> 0;
+				}
+			} else if (isComment(c.state) && (c.delim === 0)) {
+				_ref = c.state;
+				if (_ref === 13) {
+					if (!((bytes.IndexAny(go$subslice(s, written, i1), "\n\r\xE2\x80\xA8\xE2\x80\xA9") === -1))) {
+						b.WriteByte(10);
+					} else {
+						b.WriteByte(32);
+					}
+				} else if (_ref === 21) {
+					b.WriteByte(32);
+				}
+				written = i1;
+			}
+			if (!((c.state === c1.state)) && isComment(c1.state) && (c1.delim === 0)) {
+				cs = i1 - 2 >> 0;
+				if (c1.state === 5) {
+					cs = cs - 2 >> 0;
+				}
+				b.Write(go$subslice(s, written, cs));
+				written = i1;
+			}
+			if ((i === i1) && (c.state === c1.state)) {
+				throw go$panic(new Go$String(fmt.Sprintf("infinite loop from %v to %v on %q..%q", new (go$sliceType(go$emptyInterface))([new c.constructor.Struct(c), new c1.constructor.Struct(c1), go$subslice(s, 0, i), go$subslice(s, i)]))));
+			}
+			_tuple$2 = [(_struct$2 = c1, new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err)), i1]; c = _tuple$2[0]; i = _tuple$2[1];
+		}
+		if (!((written === 0)) && !((c.state === 23))) {
+			if (!isComment(c.state) || !((c.delim === 0))) {
+				b.Write(go$subslice(n.Text, written));
+			}
+			e.editTextNode(n, b.Bytes());
+		}
+		return (_struct$3 = c, new context.Ptr(_struct$3.state, _struct$3.delim, _struct$3.urlPart, _struct$3.jsCtx, _struct$3.attr, _struct$3.element, _struct$3.err));
+	};
+	escaper.prototype.escapeText = function(c, n) { return this.go$val.escapeText(c, n); };
+	contextAfterText = function(c, s) {
+		var _tuple, _struct, _struct$1, c1, i, _struct$2, _struct$3, i$1, j, u, _tuple$1, _struct$4, _struct$5, c1$1, i1, _struct$6, _tuple$2, _struct$7;
+		if (c.delim === 0) {
+			_tuple = tSpecialTagEnd((_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), s); c1 = (_struct$1 = _tuple[0], new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)); i = _tuple[1];
+			if (i === 0) {
+				return [(_struct$2 = c1, new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err)), 0];
+			}
+			return transitionFunc[c.state]((_struct$3 = c, new context.Ptr(_struct$3.state, _struct$3.delim, _struct$3.urlPart, _struct$3.jsCtx, _struct$3.attr, _struct$3.element, _struct$3.err)), go$subslice(s, 0, i));
+		}
+		i$1 = bytes.IndexAny(s, delimEnds[c.delim]);
+		if (i$1 === -1) {
+			i$1 = s.length;
+		}
+		if (c.delim === 3) {
+			j = bytes.IndexAny(go$subslice(s, 0, i$1), "\"'<=`");
+			if (j >= 0) {
+				return [new context.Ptr(23, 0, 0, 0, 0, 0, errorf(2, 0, "%q in unquoted attr: %q", new (go$sliceType(go$emptyInterface))([go$subslice(s, j, (j + 1 >> 0)), go$subslice(s, 0, i$1)]))), s.length];
+			}
+		}
+		if (i$1 === s.length) {
+			u = new (go$sliceType(Go$Uint8))(go$stringToBytes(html.UnescapeString(go$bytesToString(s))));
+			while (!((u.length === 0))) {
+				_tuple$1 = transitionFunc[c.state]((_struct$4 = c, new context.Ptr(_struct$4.state, _struct$4.delim, _struct$4.urlPart, _struct$4.jsCtx, _struct$4.attr, _struct$4.element, _struct$4.err)), u); c1$1 = (_struct$5 = _tuple$1[0], new context.Ptr(_struct$5.state, _struct$5.delim, _struct$5.urlPart, _struct$5.jsCtx, _struct$5.attr, _struct$5.element, _struct$5.err)); i1 = _tuple$1[1];
+				_tuple$2 = [(_struct$6 = c1$1, new context.Ptr(_struct$6.state, _struct$6.delim, _struct$6.urlPart, _struct$6.jsCtx, _struct$6.attr, _struct$6.element, _struct$6.err)), go$subslice(u, i1)]; c = _tuple$2[0]; u = _tuple$2[1];
+			}
+			return [(_struct$7 = c, new context.Ptr(_struct$7.state, _struct$7.delim, _struct$7.urlPart, _struct$7.jsCtx, _struct$7.attr, _struct$7.element, _struct$7.err)), s.length];
+		}
+		if (!((c.delim === 3))) {
+			i$1 = i$1 + 1 >> 0;
+		}
+		return [new context.Ptr(1, 0, 0, 0, 0, c.element, (go$ptrType(Error)).nil), i$1];
+	};
+	escaper.Ptr.prototype.editActionNode = function(n, cmds) {
+		var e, _tuple, _entry, ok, _key;
+		e = this;
+		_tuple = (_entry = e.actionNodeEdits[n.go$key()], _entry !== undefined ? [_entry.v, true] : [(go$sliceType(Go$String)).nil, false]); ok = _tuple[1];
+		if (ok) {
+			throw go$panic(new Go$String(fmt.Sprintf("node %s shared between templates", new (go$sliceType(go$emptyInterface))([n]))));
+		}
+		_key = n; (e.actionNodeEdits || go$throwRuntimeError("assignment to entry in nil map"))[_key.go$key()] = { k: _key, v: cmds };
+	};
+	escaper.prototype.editActionNode = function(n, cmds) { return this.go$val.editActionNode(n, cmds); };
+	escaper.Ptr.prototype.editTemplateNode = function(n, callee) {
+		var e, _tuple, _entry, ok, _key;
+		e = this;
+		_tuple = (_entry = e.templateNodeEdits[n.go$key()], _entry !== undefined ? [_entry.v, true] : ["", false]); ok = _tuple[1];
+		if (ok) {
+			throw go$panic(new Go$String(fmt.Sprintf("node %s shared between templates", new (go$sliceType(go$emptyInterface))([n]))));
+		}
+		_key = n; (e.templateNodeEdits || go$throwRuntimeError("assignment to entry in nil map"))[_key.go$key()] = { k: _key, v: callee };
+	};
+	escaper.prototype.editTemplateNode = function(n, callee) { return this.go$val.editTemplateNode(n, callee); };
+	escaper.Ptr.prototype.editTextNode = function(n, text) {
+		var e, _tuple, _entry, ok, _key;
+		e = this;
+		_tuple = (_entry = e.textNodeEdits[n.go$key()], _entry !== undefined ? [_entry.v, true] : [(go$sliceType(Go$Uint8)).nil, false]); ok = _tuple[1];
+		if (ok) {
+			throw go$panic(new Go$String(fmt.Sprintf("node %s shared between templates", new (go$sliceType(go$emptyInterface))([n]))));
+		}
+		_key = n; (e.textNodeEdits || go$throwRuntimeError("assignment to entry in nil map"))[_key.go$key()] = { k: _key, v: text };
+	};
+	escaper.prototype.editTextNode = function(n, text) { return this.go$val.editTextNode(n, text); };
+	escaper.Ptr.prototype.commit = function() {
+		var e, _ref, _i, _keys, _entry, name, _ref$1, _i$1, _keys$1, _entry$1, t, _tuple, err, _ref$2, _i$2, _keys$2, _entry$2, s, n, _ref$3, _i$3, _keys$3, _entry$3, name$1, n$1, _ref$4, _i$4, _keys$4, _entry$4, s$1, n$2;
+		e = this;
+		_ref = e.output;
+		_i = 0;
+		_keys = go$keys(_ref);
+		while (_i < _keys.length) {
+			_entry = _ref[_keys[_i]];
+			name = _entry.k;
+			e.template(name).Funcs(funcMap);
+			_i++;
+		}
+		_ref$1 = e.derived;
+		_i$1 = 0;
+		_keys$1 = go$keys(_ref$1);
+		while (_i$1 < _keys$1.length) {
+			_entry$1 = _ref$1[_keys$1[_i$1]];
+			t = _entry$1.v;
+			_tuple = e.tmpl.text.AddParseTree(t.Name(), t.Tree); err = _tuple[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				throw go$panic(new Go$String("error adding derived template"));
+			}
+			_i$1++;
+		}
+		_ref$2 = e.actionNodeEdits;
+		_i$2 = 0;
+		_keys$2 = go$keys(_ref$2);
+		while (_i$2 < _keys$2.length) {
+			_entry$2 = _ref$2[_keys$2[_i$2]];
+			s = _entry$2.v;
+			n = _entry$2.k;
+			ensurePipelineContains(n.Pipe, s);
+			_i$2++;
+		}
+		_ref$3 = e.templateNodeEdits;
+		_i$3 = 0;
+		_keys$3 = go$keys(_ref$3);
+		while (_i$3 < _keys$3.length) {
+			_entry$3 = _ref$3[_keys$3[_i$3]];
+			name$1 = _entry$3.v;
+			n$1 = _entry$3.k;
+			n$1.Name = name$1;
+			_i$3++;
+		}
+		_ref$4 = e.textNodeEdits;
+		_i$4 = 0;
+		_keys$4 = go$keys(_ref$4);
+		while (_i$4 < _keys$4.length) {
+			_entry$4 = _ref$4[_keys$4[_i$4]];
+			s$1 = _entry$4.v;
+			n$2 = _entry$4.k;
+			n$2.Text = s$1;
+			_i$4++;
+		}
+	};
+	escaper.prototype.commit = function() { return this.go$val.commit(); };
+	escaper.Ptr.prototype.template = function(name) {
+		var e, t, _entry;
+		e = this;
+		t = e.tmpl.text.Lookup(name);
+		if (t === (go$ptrType(template.Template)).nil) {
+			t = (_entry = e.derived[name], _entry !== undefined ? _entry.v : (go$ptrType(template.Template)).nil);
+		}
+		return t;
+	};
+	escaper.prototype.template = function(name) { return this.go$val.template(name); };
+	htmlNospaceEscaper = function(args) {
+		var _tuple, s, t;
+		_tuple = stringify(args); s = _tuple[0]; t = _tuple[1];
+		if (t === 2) {
+			return htmlReplacer(stripTags(s), htmlNospaceNormReplacementTable, false);
+		}
+		return htmlReplacer(s, htmlNospaceReplacementTable, false);
+	};
+	attrEscaper = function(args) {
+		var _tuple, s, t;
+		_tuple = stringify(args); s = _tuple[0]; t = _tuple[1];
+		if (t === 2) {
+			return htmlReplacer(stripTags(s), htmlNormReplacementTable, true);
+		}
+		return htmlReplacer(s, htmlReplacementTable, true);
+	};
+	rcdataEscaper = function(args) {
+		var _tuple, s, t;
+		_tuple = stringify(args); s = _tuple[0]; t = _tuple[1];
+		if (t === 2) {
+			return htmlReplacer(s, htmlNormReplacementTable, true);
+		}
+		return htmlReplacer(s, htmlReplacementTable, true);
+	};
+	htmlEscaper = function(args) {
+		var _tuple, s, t;
+		_tuple = stringify(args); s = _tuple[0]; t = _tuple[1];
+		if (t === 2) {
+			return s;
+		}
+		return htmlReplacer(s, htmlReplacementTable, true);
+	};
+	htmlReplacer = function(s, replacementTable, badRunes) {
+		var _tuple, written, b, _ref, _i, _rune, r, i, _slice, _index, repl;
+		_tuple = [0, new bytes.Buffer.Ptr()]; written = _tuple[0]; b = _tuple[1];
+		_ref = s;
+		_i = 0;
+		while (_i < _ref.length) {
+			_rune = go$decodeRune(_ref, _i);
+			r = _rune[0];
+			i = _i;
+			if ((r >> 0) < replacementTable.length) {
+				repl = (_slice = replacementTable, _index = r, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+				if (!((repl.length === 0))) {
+					b.WriteString(s.substring(written, i));
+					b.WriteString(repl);
+					written = i + utf8.RuneLen(r) >> 0;
+				}
+			} else if (badRunes) {
+			} else if (64976 <= r && r <= 65007 || 65520 <= r && r <= 65535) {
+				fmt.Fprintf(b, "%s&#x%x;", new (go$sliceType(go$emptyInterface))([new Go$String(s.substring(written, i)), new Go$Int32(r)]));
+				written = i + utf8.RuneLen(r) >> 0;
+			}
+			_i += _rune[1];
+		}
+		if (written === 0) {
+			return s;
+		}
+		b.WriteString(s.substring(written));
+		return b.String();
+	};
+	stripTags = function(html$1) {
+		var b, _tuple, s, c, i, allText, st, _tuple$1, _struct, _struct$1, d, nread, i1, j, j1, _slice, _index, _struct$2, _tuple$2, i1$1, _tuple$3;
+		b = new bytes.Buffer.Ptr();
+		_tuple = [new (go$sliceType(Go$Uint8))(go$stringToBytes(html$1)), new context.Ptr(0, 0, 0, 0, 0, 0, (go$ptrType(Error)).nil), 0, true]; s = _tuple[0]; c = _tuple[1]; i = _tuple[2]; allText = _tuple[3];
+		while (!((i === s.length))) {
+			if (c.delim === 0) {
+				st = c.state;
+				if (!((c.element === 0)) && !isInTag(st)) {
+					st = 6;
+				}
+				_tuple$1 = transitionFunc[st]((_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), go$subslice(s, i)); d = (_struct$1 = _tuple$1[0], new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)); nread = _tuple$1[1];
+				i1 = i + nread >> 0;
+				if ((c.state === 0) || (c.state === 6)) {
+					j = i1;
+					if (!((d.state === c.state))) {
+						j1 = j - 1 >> 0;
+						while (j1 >= i) {
+							if ((_slice = s, _index = j1, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) === 60) {
+								j = j1;
+								break;
+							}
+							j1 = j1 - 1 >> 0;
+						}
+					}
+					b.Write(go$subslice(s, i, j));
+				} else {
+					allText = false;
+				}
+				_tuple$2 = [(_struct$2 = d, new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err)), i1]; c = _tuple$2[0]; i = _tuple$2[1];
+				continue;
+			}
+			i1$1 = i + bytes.IndexAny(go$subslice(s, i), delimEnds[c.delim]) >> 0;
+			if (i1$1 < i) {
+				break;
+			}
+			if (!((c.delim === 3))) {
+				i1$1 = i1$1 + 1 >> 0;
+			}
+			_tuple$3 = [new context.Ptr(1, 0, 0, 0, 0, c.element, (go$ptrType(Error)).nil), i1$1]; c = _tuple$3[0]; i = _tuple$3[1];
+		}
+		if (allText) {
+			return html$1;
+		} else if ((c.state === 0) || (c.state === 6)) {
+			b.Write(go$subslice(s, i));
+		}
+		return b.String();
+	};
+	htmlNameFilter = function(args) {
+		var _tuple, s, t, t$1, _ref, _i, _rune, r;
+		_tuple = stringify(args); s = _tuple[0]; t = _tuple[1];
+		if (t === 3) {
+			return s;
+		}
+		if (s.length === 0) {
+			return "ZgotmplZ";
+		}
+		s = strings.ToLower(s);
+		t$1 = attrType(s);
+		if (!((t$1 === 0))) {
+			return "ZgotmplZ";
+		}
+		_ref = s;
+		_i = 0;
+		while (_i < _ref.length) {
+			_rune = go$decodeRune(_ref, _i);
+			r = _rune[0];
+			if (48 <= r && r <= 57) {
+			} else if (97 <= r && r <= 122) {
+			} else {
+				return "ZgotmplZ";
+			}
+			_i += _rune[1];
+		}
+		return s;
+	};
+	commentEscaper = function(args) {
+		return "";
+	};
+	nextJSCtx = function(s, preceding) {
+		var _slice, _index, _tuple, c, n, _ref, start, _slice$1, _index$1, _slice$2, _index$2, _slice$3, _index$3, j, _slice$4, _index$4, _entry;
+		s = bytes.TrimRight(s, "\t\n\f\r \xE2\x80\xA8\xE2\x80\xA9");
+		if (s.length === 0) {
+			return preceding;
+		}
+		_tuple = [(_slice = s, _index = (s.length - 1 >> 0), (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")), s.length]; c = _tuple[0]; n = _tuple[1];
+		_ref = c;
+		if (_ref === 43 || _ref === 45) {
+			start = n - 1 >> 0;
+			while (start > 0 && ((_slice$1 = s, _index$1 = (start - 1 >> 0), (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")) === c)) {
+				start = start - 1 >> 0;
+			}
+			if ((((n - start >> 0)) & 1) === 1) {
+				return 0;
+			}
+			return 1;
+		} else if (_ref === 46) {
+			if (!((n === 1)) && 48 <= (_slice$2 = s, _index$2 = (n - 2 >> 0), (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range")) && (_slice$3 = s, _index$3 = (n - 2 >> 0), (_index$3 >= 0 && _index$3 < _slice$3.length) ? _slice$3.array[_slice$3.offset + _index$3] : go$throwRuntimeError("index out of range")) <= 57) {
+				return 1;
+			}
+			return 0;
+		} else if (_ref === 44 || _ref === 60 || _ref === 62 || _ref === 61 || _ref === 42 || _ref === 37 || _ref === 38 || _ref === 124 || _ref === 94 || _ref === 63) {
+			return 0;
+		} else if (_ref === 33 || _ref === 126) {
+			return 0;
+		} else if (_ref === 40 || _ref === 91) {
+			return 0;
+		} else if (_ref === 58 || _ref === 59 || _ref === 123) {
+			return 0;
+		} else if (_ref === 125) {
+			return 0;
+		} else {
+			j = n;
+			while (j > 0 && isJSIdentPart(((_slice$4 = s, _index$4 = (j - 1 >> 0), (_index$4 >= 0 && _index$4 < _slice$4.length) ? _slice$4.array[_slice$4.offset + _index$4] : go$throwRuntimeError("index out of range")) >> 0))) {
+				j = j - 1 >> 0;
+			}
+			if ((_entry = regexpPrecederKeywords[go$bytesToString(go$subslice(s, j))], _entry !== undefined ? _entry.v : false)) {
+				return 0;
+			}
+		}
+		return 1;
+	};
+	indirectToJSONMarshaler = function(a) {
+		var _struct, v, _struct$1;
+		v = (_struct = reflect.ValueOf(a), new reflect.Value.Ptr(_struct.typ, _struct.val, _struct.flag));
+		while (!v.Type().Implements(jsonMarshalType) && (v.Kind() === 22) && !v.IsNil()) {
+			v = (_struct$1 = v.Elem(), new reflect.Value.Ptr(_struct$1.typ, _struct$1.val, _struct$1.flag));
+		}
+		return v.Interface();
+	};
+	jsValEscaper = function(args) {
+		var a, _slice, _index, t, _ref, _type, _ref$1, _i, _slice$1, _index$1, arg, i, _slice$2, _index$2, _tuple, b, err, _tuple$1, first, _tuple$2, last, buf, pad, written, i$1, _tuple$3, rune, n, repl;
+		a = null;
+		if (args.length === 1) {
+			a = indirectToJSONMarshaler((_slice = args, _index = 0, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")));
+			_ref = a;
+			_type = _ref !== null ? _ref.constructor : null;
+			if (_type === JS) {
+				t = _ref.go$val;
+				return t;
+			} else if (_type === JSStr) {
+				t = _ref.go$val;
+				return "\"" + t + "\"";
+			} else if (json.Marshaler.implementedBy.indexOf(_type) !== -1) {
+				t = _ref;
+			} else if (fmt.Stringer.implementedBy.indexOf(_type) !== -1) {
+				t = _ref;
+				a = new Go$String(t.String());
+			}
+		} else {
+			_ref$1 = args;
+			_i = 0;
+			while (_i < _ref$1.length) {
+				arg = (_slice$1 = _ref$1, _index$1 = _i, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
+				i = _i;
+				_slice$2 = args; _index$2 = i;(_index$2 >= 0 && _index$2 < _slice$2.length) ? (_slice$2.array[_slice$2.offset + _index$2] = indirectToJSONMarshaler(arg)) : go$throwRuntimeError("index out of range");
+				_i++;
+			}
+			a = new Go$String(fmt.Sprint(args));
+		}
+		_tuple = json.Marshal(a); b = _tuple[0]; err = _tuple[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			return fmt.Sprintf(" /* %s */null ", new (go$sliceType(go$emptyInterface))([new Go$String(strings.Replace(err.Error(), "*/", "* /", -1))]));
+		}
+		if (b.length === 0) {
+			return " null ";
+		}
+		_tuple$1 = utf8.DecodeRune(b); first = _tuple$1[0];
+		_tuple$2 = utf8.DecodeLastRune(b); last = _tuple$2[0];
+		buf = new bytes.Buffer.Ptr();
+		pad = isJSIdentPart(first) || isJSIdentPart(last);
+		if (pad) {
+			buf.WriteByte(32);
+		}
+		written = 0;
+		i$1 = 0;
+		while (i$1 < b.length) {
+			_tuple$3 = utf8.DecodeRune(go$subslice(b, i$1)); rune = _tuple$3[0]; n = _tuple$3[1];
+			repl = "";
+			if (rune === 8232) {
+				repl = "\\u2028";
+			} else if (rune === 8233) {
+				repl = "\\u2029";
+			}
+			if (!(repl === "")) {
+				buf.Write(go$subslice(b, written, i$1));
+				buf.WriteString(repl);
+				written = i$1 + n >> 0;
+			}
+			i$1 = i$1 + (n) >> 0;
+		}
+		if (!((buf.Len() === 0))) {
+			buf.Write(go$subslice(b, written));
+			if (pad) {
+				buf.WriteByte(32);
+			}
+			b = buf.Bytes();
+		}
+		return go$bytesToString(b);
+	};
+	jsStrEscaper = function(args) {
+		var _tuple, s, t;
+		_tuple = stringify(args); s = _tuple[0]; t = _tuple[1];
+		if (t === 5) {
+			return replace(s, jsStrNormReplacementTable);
+		}
+		return replace(s, jsStrReplacementTable);
+	};
+	jsRegexpEscaper = function(args) {
+		var _tuple, s;
+		_tuple = stringify(args); s = _tuple[0];
+		s = replace(s, jsRegexpReplacementTable);
+		if (s === "") {
+			return "(?:)";
+		}
+		return s;
+	};
+	replace = function(s, replacementTable) {
+		var b, written, _ref, _i, _rune, r, i, repl, _slice, _index, _slice$1, _index$1;
+		b = new bytes.Buffer.Ptr();
+		written = 0;
+		_ref = s;
+		_i = 0;
+		while (_i < _ref.length) {
+			_rune = go$decodeRune(_ref, _i);
+			r = _rune[0];
+			i = _i;
+			repl = "";
+			if ((r >> 0) < replacementTable.length && !((_slice = replacementTable, _index = r, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) === "")) {
+				repl = (_slice$1 = replacementTable, _index$1 = r, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
+			} else if (r === 8232) {
+				repl = "\\u2028";
+			} else if (r === 8233) {
+				repl = "\\u2029";
+			} else {
+				_i += _rune[1];
+				continue;
+			}
+			b.WriteString(s.substring(written, i));
+			b.WriteString(repl);
+			written = i + utf8.RuneLen(r) >> 0;
+			_i += _rune[1];
+		}
+		if (written === 0) {
+			return s;
+		}
+		b.WriteString(s.substring(written));
+		return b.String();
+	};
+	isJSIdentPart = function(r) {
+		if (r === 36) {
+			return true;
+		} else if (48 <= r && r <= 57) {
+			return true;
+		} else if (65 <= r && r <= 90) {
+			return true;
+		} else if (r === 95) {
+			return true;
+		} else if (97 <= r && r <= 122) {
+			return true;
+		}
+		return false;
+	};
+	Template.Ptr.prototype.Templates = function() {
+		var t, ns, m, _ref, _i, _keys, _entry, v;
+		var go$deferred = [];
+		try {
+			t = this;
+			ns = t.nameSpace;
+			ns.mu.Lock();
+			go$deferred.push({ recv: ns.mu, method: "Unlock", args: [] });
+			m = (go$sliceType((go$ptrType(Template)))).make(0, go$keys(ns.set).length, function() { return (go$ptrType(Template)).nil; });
+			_ref = ns.set;
+			_i = 0;
+			_keys = go$keys(_ref);
+			while (_i < _keys.length) {
+				_entry = _ref[_keys[_i]];
+				v = _entry.v;
+				m = go$append(m, v);
+				_i++;
+			}
+			return m;
+		} catch(go$err) {
+			go$pushErr(go$err);
+			return (go$sliceType((go$ptrType(Template)))).nil;
+		} finally {
+			go$callDeferred(go$deferred);
+		}
+	};
+	Template.prototype.Templates = function() { return this.go$val.Templates(); };
+	Template.Ptr.prototype.escape = function() {
+		var t, err;
+		var go$deferred = [];
+		try {
+			t = this;
+			t.nameSpace.mu.Lock();
+			go$deferred.push({ recv: t.nameSpace.mu, method: "Unlock", args: [] });
+			if (!t.escaped) {
+				err = escapeTemplates(t, new (go$sliceType(Go$String))([t.Name()]));
+				if (!(go$interfaceIsEqual(err, null))) {
+					return err;
+				}
+				t.escaped = true;
+			}
+			return null;
+		} catch(go$err) {
+			go$pushErr(go$err);
+			return null;
+		} finally {
+			go$callDeferred(go$deferred);
+		}
+	};
+	Template.prototype.escape = function() { return this.go$val.escape(); };
+	Template.Ptr.prototype.Execute = function(wr, data) {
+		var t, err;
+		t = this;
+		err = t.escape();
+		if (!(go$interfaceIsEqual(err, null))) {
+			return err;
+		}
+		return t.text.Execute(wr, data);
+	};
+	Template.prototype.Execute = function(wr, data) { return this.go$val.Execute(wr, data); };
+	Template.Ptr.prototype.ExecuteTemplate = function(wr, name, data) {
+		var t, _tuple, tmpl, err;
+		t = this;
+		_tuple = t.lookupAndEscapeTemplate(name); tmpl = _tuple[0]; err = _tuple[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			return err;
+		}
+		return tmpl.text.Execute(wr, data);
+	};
+	Template.prototype.ExecuteTemplate = function(wr, name, data) { return this.go$val.ExecuteTemplate(wr, name, data); };
+	Template.Ptr.prototype.lookupAndEscapeTemplate = function(name) {
+		var tmpl, err, t, _entry, _tuple, _tuple$1, _tuple$2;
+		tmpl = (go$ptrType(Template)).nil;
+		err = null;
+		var go$deferred = [];
+		try {
+			t = this;
+			t.nameSpace.mu.Lock();
+			go$deferred.push({ recv: t.nameSpace.mu, method: "Unlock", args: [] });
+			tmpl = (_entry = t.nameSpace.set[name], _entry !== undefined ? _entry.v : (go$ptrType(Template)).nil);
+			if (tmpl === (go$ptrType(Template)).nil) {
+				_tuple = [(go$ptrType(Template)).nil, fmt.Errorf("html/template: %q is undefined", new (go$sliceType(go$emptyInterface))([new Go$String(name)]))]; tmpl = _tuple[0]; err = _tuple[1];
+				return [tmpl, err];
+			}
+			if (tmpl.text.Tree === (go$ptrType(parse.Tree)).nil || tmpl.text.Tree.Root === (go$ptrType(parse.ListNode)).nil) {
+				_tuple$1 = [(go$ptrType(Template)).nil, fmt.Errorf("html/template: %q is an incomplete template", new (go$sliceType(go$emptyInterface))([new Go$String(name)]))]; tmpl = _tuple$1[0]; err = _tuple$1[1];
+				return [tmpl, err];
+			}
+			if (t.text.Lookup(name) === (go$ptrType(template.Template)).nil) {
+				throw go$panic(new Go$String("html/template internal error: template escaping out of sync"));
+			}
+			if (!(tmpl === (go$ptrType(Template)).nil) && !tmpl.escaped) {
+				err = escapeTemplates(tmpl, new (go$sliceType(Go$String))([name]));
+			}
+			_tuple$2 = [tmpl, err]; tmpl = _tuple$2[0]; err = _tuple$2[1];
+			return [tmpl, err];
+		} catch(go$err) {
+			go$pushErr(go$err);
+		} finally {
+			go$callDeferred(go$deferred);
+			return [tmpl, err];
+		}
+	};
+	Template.prototype.lookupAndEscapeTemplate = function(name) { return this.go$val.lookupAndEscapeTemplate(name); };
+	Template.Ptr.prototype.Parse = function(src) {
+		var t, _tuple, ret, err, _ref, _i, _slice, _index, v, name, _entry, tmpl;
+		var go$deferred = [];
+		try {
+			t = this;
+			t.nameSpace.mu.Lock();
+			t.escaped = false;
+			t.nameSpace.mu.Unlock();
+			_tuple = t.text.Parse(src); ret = _tuple[0]; err = _tuple[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				return [(go$ptrType(Template)).nil, err];
+			}
+			t.nameSpace.mu.Lock();
+			go$deferred.push({ recv: t.nameSpace.mu, method: "Unlock", args: [] });
+			_ref = ret.Templates();
+			_i = 0;
+			while (_i < _ref.length) {
+				v = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+				name = v.Name();
+				tmpl = (_entry = t.nameSpace.set[name], _entry !== undefined ? _entry.v : (go$ptrType(Template)).nil);
+				if (tmpl === (go$ptrType(Template)).nil) {
+					tmpl = t.new$(name);
+				}
+				tmpl.escaped = false;
+				tmpl.text = v;
+				tmpl.Tree = v.Tree;
+				_i++;
+			}
+			return [t, null];
+		} catch(go$err) {
+			go$pushErr(go$err);
+			return [(go$ptrType(Template)).nil, null];
+		} finally {
+			go$callDeferred(go$deferred);
+		}
+	};
+	Template.prototype.Parse = function(src) { return this.go$val.Parse(src); };
+	Template.Ptr.prototype.AddParseTree = function(name, tree) {
+		var t, _tuple, text, err, ret, _key;
+		var go$deferred = [];
+		try {
+			t = this;
+			t.nameSpace.mu.Lock();
+			go$deferred.push({ recv: t.nameSpace.mu, method: "Unlock", args: [] });
+			if (t.escaped) {
+				return [(go$ptrType(Template)).nil, fmt.Errorf("html/template: cannot AddParseTree to %q after it has executed", new (go$sliceType(go$emptyInterface))([new Go$String(t.Name())]))];
+			}
+			_tuple = t.text.AddParseTree(name, tree); text = _tuple[0]; err = _tuple[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				return [(go$ptrType(Template)).nil, err];
+			}
+			ret = new Template.Ptr(false, text, text.Tree, t.nameSpace);
+			_key = name; (t.nameSpace.set || go$throwRuntimeError("assignment to entry in nil map"))[_key] = { k: _key, v: ret };
+			return [ret, null];
+		} catch(go$err) {
+			go$pushErr(go$err);
+			return [(go$ptrType(Template)).nil, null];
+		} finally {
+			go$callDeferred(go$deferred);
+		}
+	};
+	Template.prototype.AddParseTree = function(name, tree) { return this.go$val.AddParseTree(name, tree); };
+	Template.Ptr.prototype.Clone = function() {
+		var t, _tuple, textClone, err, ret, _ref, _i, _slice, _index, x, name, _entry, src, _key;
+		var go$deferred = [];
+		try {
+			t = this;
+			t.nameSpace.mu.Lock();
+			go$deferred.push({ recv: t.nameSpace.mu, method: "Unlock", args: [] });
+			if (t.escaped) {
+				return [(go$ptrType(Template)).nil, fmt.Errorf("html/template: cannot Clone %q after it has executed", new (go$sliceType(go$emptyInterface))([new Go$String(t.Name())]))];
+			}
+			_tuple = t.text.Clone(); textClone = _tuple[0]; err = _tuple[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				return [(go$ptrType(Template)).nil, err];
+			}
+			ret = new Template.Ptr(false, textClone, textClone.Tree, new nameSpace.Ptr(new sync.Mutex.Ptr(), new Go$Map()));
+			_ref = textClone.Templates();
+			_i = 0;
+			while (_i < _ref.length) {
+				x = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+				name = x.Name();
+				src = (_entry = t.nameSpace.set[name], _entry !== undefined ? _entry.v : (go$ptrType(Template)).nil);
+				if (src === (go$ptrType(Template)).nil || src.escaped) {
+					return [(go$ptrType(Template)).nil, fmt.Errorf("html/template: cannot Clone %q after it has executed", new (go$sliceType(go$emptyInterface))([new Go$String(t.Name())]))];
+				}
+				x.Tree = x.Tree.Copy();
+				_key = name; (ret.nameSpace.set || go$throwRuntimeError("assignment to entry in nil map"))[_key] = { k: _key, v: new Template.Ptr(false, x, x.Tree, ret.nameSpace) };
+				_i++;
+			}
+			return [ret, null];
+		} catch(go$err) {
+			go$pushErr(go$err);
+			return [(go$ptrType(Template)).nil, null];
+		} finally {
+			go$callDeferred(go$deferred);
+		}
+	};
+	Template.prototype.Clone = function() { return this.go$val.Clone(); };
+	New = go$pkg.New = function(name) {
+		var tmpl, _key;
+		tmpl = new Template.Ptr(false, template.New(name), (go$ptrType(parse.Tree)).nil, new nameSpace.Ptr(new sync.Mutex.Ptr(), new Go$Map()));
+		_key = name; (tmpl.nameSpace.set || go$throwRuntimeError("assignment to entry in nil map"))[_key] = { k: _key, v: tmpl };
+		return tmpl;
+	};
+	Template.Ptr.prototype.New = function(name) {
+		var t;
+		var go$deferred = [];
+		try {
+			t = this;
+			t.nameSpace.mu.Lock();
+			go$deferred.push({ recv: t.nameSpace.mu, method: "Unlock", args: [] });
+			return t.new$(name);
+		} catch(go$err) {
+			go$pushErr(go$err);
+			return (go$ptrType(Template)).nil;
+		} finally {
+			go$callDeferred(go$deferred);
+		}
+	};
+	Template.prototype.New = function(name) { return this.go$val.New(name); };
+	Template.Ptr.prototype.new$ = function(name) {
+		var t, tmpl, _key;
+		t = this;
+		tmpl = new Template.Ptr(false, t.text.New(name), (go$ptrType(parse.Tree)).nil, t.nameSpace);
+		_key = name; (tmpl.nameSpace.set || go$throwRuntimeError("assignment to entry in nil map"))[_key] = { k: _key, v: tmpl };
+		return tmpl;
+	};
+	Template.prototype.new$ = function(name) { return this.go$val.new$(name); };
+	Template.Ptr.prototype.Name = function() {
+		var t;
+		t = this;
+		return t.text.Name();
+	};
+	Template.prototype.Name = function() { return this.go$val.Name(); };
+	Template.Ptr.prototype.Funcs = function(funcMap$1) {
+		var t;
+		t = this;
+		t.text.Funcs(funcMap$1);
+		return t;
+	};
+	Template.prototype.Funcs = function(funcMap$1) { return this.go$val.Funcs(funcMap$1); };
+	Template.Ptr.prototype.Delims = function(left, right) {
+		var t;
+		t = this;
+		t.text.Delims(left, right);
+		return t;
+	};
+	Template.prototype.Delims = function(left, right) { return this.go$val.Delims(left, right); };
+	Template.Ptr.prototype.Lookup = function(name) {
+		var t, _entry;
+		var go$deferred = [];
+		try {
+			t = this;
+			t.nameSpace.mu.Lock();
+			go$deferred.push({ recv: t.nameSpace.mu, method: "Unlock", args: [] });
+			return (_entry = t.nameSpace.set[name], _entry !== undefined ? _entry.v : (go$ptrType(Template)).nil);
+		} catch(go$err) {
+			go$pushErr(go$err);
+			return (go$ptrType(Template)).nil;
+		} finally {
+			go$callDeferred(go$deferred);
+		}
+	};
+	Template.prototype.Lookup = function(name) { return this.go$val.Lookup(name); };
+	Must = go$pkg.Must = function(t, err) {
+		if (!(go$interfaceIsEqual(err, null))) {
+			throw go$panic(err);
+		}
+		return t;
+	};
+	Template.Ptr.prototype.ParseFiles = function(filenames) {
+		var t;
+		t = this;
+		return parseFiles(t, filenames);
+	};
+	Template.prototype.ParseFiles = function(filenames) { return this.go$val.ParseFiles(filenames); };
+	parseFiles = function(t, filenames) {
+		var _ref, _i, _slice, _index, filename, _tuple, b, err, s, name, tmpl, _tuple$1;
+		if (filenames.length === 0) {
+			return [(go$ptrType(Template)).nil, fmt.Errorf("html/template: no files named in call to ParseFiles", new (go$sliceType(go$emptyInterface))([]))];
+		}
+		_ref = filenames;
+		_i = 0;
+		while (_i < _ref.length) {
+			filename = (_slice = _ref, _index = _i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			_tuple = ioutil.ReadFile(filename); b = _tuple[0]; err = _tuple[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				return [(go$ptrType(Template)).nil, err];
+			}
+			s = go$bytesToString(b);
+			name = filepath.Base(filename);
+			tmpl = (go$ptrType(Template)).nil;
+			if (t === (go$ptrType(Template)).nil) {
+				t = New(name);
+			}
+			if (name === t.Name()) {
+				tmpl = t;
+			} else {
+				tmpl = t.New(name);
+			}
+			_tuple$1 = tmpl.Parse(s); err = _tuple$1[1];
+			if (!(go$interfaceIsEqual(err, null))) {
+				return [(go$ptrType(Template)).nil, err];
+			}
+			_i++;
+		}
+		return [t, null];
+	};
+	Template.Ptr.prototype.ParseGlob = function(pattern) {
+		var t;
+		t = this;
+		return parseGlob(t, pattern);
+	};
+	Template.prototype.ParseGlob = function(pattern) { return this.go$val.ParseGlob(pattern); };
+	parseGlob = function(t, pattern) {
+		var _tuple, filenames, err;
+		_tuple = filepath.Glob(pattern); filenames = _tuple[0]; err = _tuple[1];
+		if (!(go$interfaceIsEqual(err, null))) {
+			return [(go$ptrType(Template)).nil, err];
+		}
+		if (filenames.length === 0) {
+			return [(go$ptrType(Template)).nil, fmt.Errorf("html/template: pattern matches no files: %#q", new (go$sliceType(go$emptyInterface))([new Go$String(pattern)]))];
+		}
+		return parseFiles(t, filenames);
+	};
+	tText = function(c, s) {
+		var k, i, _struct, end, _slice, _index, _struct$1, _tuple, _tuple$1, j, e;
+		k = 0;
+		while (true) {
+			i = k + bytes.IndexByte(go$subslice(s, k), 60) >> 0;
+			if (i < k || ((i + 1 >> 0) === s.length)) {
+				return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), s.length];
+			} else if ((i + 4 >> 0) <= s.length && bytes.Equal(commentStart, go$subslice(s, i, (i + 4 >> 0)))) {
+				return [new context.Ptr(5, 0, 0, 0, 0, 0, (go$ptrType(Error)).nil), i + 4 >> 0];
+			}
+			i = i + 1 >> 0;
+			end = false;
+			if ((_slice = s, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) === 47) {
+				if ((i + 1 >> 0) === s.length) {
+					return [(_struct$1 = c, new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)), s.length];
+				}
+				_tuple = [true, i + 1 >> 0]; end = _tuple[0]; i = _tuple[1];
+			}
+			_tuple$1 = eatTagName(s, i); j = _tuple$1[0]; e = _tuple$1[1];
+			if (!((j === i))) {
+				if (end) {
+					e = 0;
+				}
+				return [new context.Ptr(1, 0, 0, 0, 0, e, (go$ptrType(Error)).nil), j];
+			}
+			k = j;
+		}
+	};
+	tTag = function(c, s) {
+		var i, _struct, _slice, _index, _tuple, j, err, _tuple$1, state$1, attr$1, _ref;
+		i = eatWhiteSpace(s, 0);
+		if (i === s.length) {
+			return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), s.length];
+		}
+		if ((_slice = s, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) === 62) {
+			return [new context.Ptr(elementContentType[c.element], 0, 0, 0, 0, c.element, (go$ptrType(Error)).nil), i + 1 >> 0];
+		}
+		_tuple = eatAttrName(s, i); j = _tuple[0]; err = _tuple[1];
+		if (!(err === (go$ptrType(Error)).nil)) {
+			return [new context.Ptr(23, 0, 0, 0, 0, 0, err), s.length];
+		}
+		_tuple$1 = [1, 0]; state$1 = _tuple$1[0]; attr$1 = _tuple$1[1];
+		if (i === j) {
+			return [new context.Ptr(23, 0, 0, 0, 0, 0, errorf(2, 0, "expected space, attr name, or end of tag, but got %q", new (go$sliceType(go$emptyInterface))([go$subslice(s, i)]))), s.length];
+		}
+		_ref = attrType(go$bytesToString(go$subslice(s, i, j)));
+		if (_ref === 6) {
+			attr$1 = 3;
+		} else if (_ref === 1) {
+			attr$1 = 2;
+		} else if (_ref === 4) {
+			attr$1 = 1;
+		}
+		if (j === s.length) {
+			state$1 = 2;
+		} else {
+			state$1 = 3;
+		}
+		return [new context.Ptr(state$1, 0, 0, 0, attr$1, c.element, (go$ptrType(Error)).nil), j];
+	};
+	tAttrName = function(c, s) {
+		var _tuple, i, err, _struct;
+		_tuple = eatAttrName(s, 0); i = _tuple[0]; err = _tuple[1];
+		if (!(err === (go$ptrType(Error)).nil)) {
+			return [new context.Ptr(23, 0, 0, 0, 0, 0, err), s.length];
+		} else if (!((i === s.length))) {
+			c.state = 3;
+		}
+		return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), i];
+	};
+	tAfterName = function(c, s) {
+		var i, _slice, _index, _struct, _struct$1, _struct$2;
+		i = eatWhiteSpace(s, 0);
+		if (i === s.length) {
+			return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), s.length];
+		} else if (!(((_slice = s, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) === 61))) {
+			c.state = 1;
+			return [(_struct$1 = c, new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)), i];
+		}
+		c.state = 4;
+		return [(_struct$2 = c, new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err)), i + 1 >> 0];
+	};
+	tBeforeValue = function(c, s) {
+		var i, _struct, delim$1, _ref, _slice, _index, _tuple, _tuple$1, _tuple$2, _struct$1;
+		i = eatWhiteSpace(s, 0);
+		if (i === s.length) {
+			return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), s.length];
+		}
+		delim$1 = 3;
+		_ref = (_slice = s, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+		if (_ref === 39) {
+			_tuple = [2, i + 1 >> 0]; delim$1 = _tuple[0]; i = _tuple[1];
+		} else if (_ref === 34) {
+			_tuple$1 = [1, i + 1 >> 0]; delim$1 = _tuple$1[0]; i = _tuple$1[1];
+		}
+		_tuple$2 = [attrStartStates[c.attr], delim$1, 0]; c.state = _tuple$2[0]; c.delim = _tuple$2[1]; c.attr = _tuple$2[2];
+		return [(_struct$1 = c, new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)), i];
+	};
+	tHTMLCmt = function(c, s) {
+		var i, _struct;
+		i = bytes.Index(s, commentEnd);
+		if (!((i === -1))) {
+			return [new context.Ptr(0, 0, 0, 0, 0, 0, (go$ptrType(Error)).nil), i + 3 >> 0];
+		}
+		return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), s.length];
+	};
+	tSpecialTagEnd = function(c, s) {
+		var i, _struct;
+		if (!((c.element === 0))) {
+			i = strings.Index(strings.ToLower(go$bytesToString(s)), specialTagEndMarkers[c.element]);
+			if (!((i === -1))) {
+				return [new context.Ptr(0, 0, 0, 0, 0, 0, (go$ptrType(Error)).nil), i];
+			}
+		}
+		return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), s.length];
+	};
+	tAttr = function(c, s) {
+		var _struct;
+		return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), s.length];
+	};
+	tURL = function(c, s) {
+		var _struct;
+		if (bytes.IndexAny(s, "#?") >= 0) {
+			c.urlPart = 2;
+		} else if (!((s.length === eatWhiteSpace(s, 0))) && (c.urlPart === 0)) {
+			c.urlPart = 1;
+		}
+		return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), s.length];
+	};
+	tJS = function(c, s) {
+		var i, _struct, _ref, _slice, _index, _tuple, _tuple$1, _slice$1, _index$1, _slice$2, _index$2, _tuple$2, _tuple$3, _struct$1;
+		i = bytes.IndexAny(s, "\"'/");
+		if (i === -1) {
+			c.jsCtx = nextJSCtx(s, c.jsCtx);
+			return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), s.length];
+		}
+		c.jsCtx = nextJSCtx(go$subslice(s, 0, i), c.jsCtx);
+		_ref = (_slice = s, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+		if (_ref === 34) {
+			_tuple = [10, 0]; c.state = _tuple[0]; c.jsCtx = _tuple[1];
+		} else if (_ref === 39) {
+			_tuple$1 = [11, 0]; c.state = _tuple$1[0]; c.jsCtx = _tuple$1[1];
+		} else if (_ref === 47) {
+			if ((i + 1 >> 0) < s.length && ((_slice$1 = s, _index$1 = (i + 1 >> 0), (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")) === 47)) {
+				_tuple$2 = [14, i + 1 >> 0]; c.state = _tuple$2[0]; i = _tuple$2[1];
+			} else if ((i + 1 >> 0) < s.length && ((_slice$2 = s, _index$2 = (i + 1 >> 0), (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range")) === 42)) {
+				_tuple$3 = [13, i + 1 >> 0]; c.state = _tuple$3[0]; i = _tuple$3[1];
+			} else if (c.jsCtx === 0) {
+				c.state = 12;
+			} else if (c.jsCtx === 1) {
+				c.jsCtx = 0;
+			} else {
+				return [new context.Ptr(23, 0, 0, 0, 0, 0, errorf(10, 0, "'/' could start a division or regexp: %.32q", new (go$sliceType(go$emptyInterface))([go$subslice(s, i)]))), s.length];
+			}
+		} else {
+			throw go$panic(new Go$String("unreachable"));
+		}
+		return [(_struct$1 = c, new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)), i + 1 >> 0];
+	};
+	tJSDelimited = function(c, s) {
+		var specials, _ref, _tuple, k, inCharset, i, _ref$1, _slice, _index, _tuple$1, _struct, _struct$1;
+		specials = "\\\"";
+		_ref = c.state;
+		if (_ref === 11) {
+			specials = "\\'";
+		} else if (_ref === 12) {
+			specials = "\\/[]";
+		}
+		_tuple = [0, false]; k = _tuple[0]; inCharset = _tuple[1];
+		while (true) {
+			i = k + bytes.IndexAny(go$subslice(s, k), specials) >> 0;
+			if (i < k) {
+				break;
+			}
+			_ref$1 = (_slice = s, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			if (_ref$1 === 92) {
+				i = i + 1 >> 0;
+				if (i === s.length) {
+					return [new context.Ptr(23, 0, 0, 0, 0, 0, errorf(8, 0, "unfinished escape sequence in JS string: %q", new (go$sliceType(go$emptyInterface))([s]))), s.length];
+				}
+			} else if (_ref$1 === 91) {
+				inCharset = true;
+			} else if (_ref$1 === 93) {
+				inCharset = false;
+			} else {
+				if (!inCharset) {
+					_tuple$1 = [9, 1]; c.state = _tuple$1[0]; c.jsCtx = _tuple$1[1];
+					return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), i + 1 >> 0];
+				}
+			}
+			k = i + 1 >> 0;
+		}
+		if (inCharset) {
+			return [new context.Ptr(23, 0, 0, 0, 0, 0, errorf(7, 0, "unfinished JS regexp charset: %q", new (go$sliceType(go$emptyInterface))([s]))), s.length];
+		}
+		return [(_struct$1 = c, new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)), s.length];
+	};
+	tBlockCmt = function(c, s) {
+		var i, _struct, _ref, _struct$1;
+		i = bytes.Index(s, blockCommentEnd);
+		if (i === -1) {
+			return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), s.length];
+		}
+		_ref = c.state;
+		if (_ref === 13) {
+			c.state = 9;
+		} else if (_ref === 21) {
+			c.state = 15;
+		} else {
+			throw go$panic(new Go$String((new state(c.state)).String()));
+		}
+		return [(_struct$1 = c, new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)), i + 2 >> 0];
+	};
+	tLineCmt = function(c, s) {
+		var lineTerminators, endState, _ref, _tuple, _tuple$1, i, _struct, _struct$1;
+		lineTerminators = "";
+		endState = 0;
+		_ref = c.state;
+		if (_ref === 14) {
+			_tuple = ["\n\r\xE2\x80\xA8\xE2\x80\xA9", 9]; lineTerminators = _tuple[0]; endState = _tuple[1];
+		} else if (_ref === 22) {
+			_tuple$1 = ["\n\f\r", 15]; lineTerminators = _tuple$1[0]; endState = _tuple$1[1];
+		} else {
+			throw go$panic(new Go$String((new state(c.state)).String()));
+		}
+		i = bytes.IndexAny(s, lineTerminators);
+		if (i === -1) {
+			return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), s.length];
+		}
+		c.state = endState;
+		return [(_struct$1 = c, new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)), i];
+	};
+	tCSS = function(c, s) {
+		var k, i, _struct, _ref, _slice, _index, p, j, _slice$1, _index$1, _slice$2, _index$2, _tuple, _tuple$1, _struct$1, _ref$1, _slice$3, _index$3, _struct$2, _struct$3, _struct$4, _struct$5;
+		k = 0;
+		while (true) {
+			i = k + bytes.IndexAny(go$subslice(s, k), "(\"'/") >> 0;
+			if (i < k) {
+				return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), s.length];
+			}
+			_ref = (_slice = s, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			if (_ref === 40) {
+				p = bytes.TrimRight(go$subslice(s, 0, i), "\t\n\f\r ");
+				if (endsWithCSSKeyword(p, "url")) {
+					j = s.length - bytes.TrimLeft(go$subslice(s, (i + 1 >> 0)), "\t\n\f\r ").length >> 0;
+					if (!((j === s.length)) && ((_slice$1 = s, _index$1 = j, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")) === 34)) {
+						_tuple = [18, j + 1 >> 0]; c.state = _tuple[0]; j = _tuple[1];
+					} else if (!((j === s.length)) && ((_slice$2 = s, _index$2 = j, (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range")) === 39)) {
+						_tuple$1 = [19, j + 1 >> 0]; c.state = _tuple$1[0]; j = _tuple$1[1];
+					} else {
+						c.state = 20;
+					}
+					return [(_struct$1 = c, new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)), j];
+				}
+			} else if (_ref === 47) {
+				if ((i + 1 >> 0) < s.length) {
+					_ref$1 = (_slice$3 = s, _index$3 = (i + 1 >> 0), (_index$3 >= 0 && _index$3 < _slice$3.length) ? _slice$3.array[_slice$3.offset + _index$3] : go$throwRuntimeError("index out of range"));
+					if (_ref$1 === 47) {
+						c.state = 22;
+						return [(_struct$2 = c, new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err)), i + 2 >> 0];
+					} else if (_ref$1 === 42) {
+						c.state = 21;
+						return [(_struct$3 = c, new context.Ptr(_struct$3.state, _struct$3.delim, _struct$3.urlPart, _struct$3.jsCtx, _struct$3.attr, _struct$3.element, _struct$3.err)), i + 2 >> 0];
+					}
+				}
+			} else if (_ref === 34) {
+				c.state = 16;
+				return [(_struct$4 = c, new context.Ptr(_struct$4.state, _struct$4.delim, _struct$4.urlPart, _struct$4.jsCtx, _struct$4.attr, _struct$4.element, _struct$4.err)), i + 1 >> 0];
+			} else if (_ref === 39) {
+				c.state = 17;
+				return [(_struct$5 = c, new context.Ptr(_struct$5.state, _struct$5.delim, _struct$5.urlPart, _struct$5.jsCtx, _struct$5.attr, _struct$5.element, _struct$5.err)), i + 1 >> 0];
+			}
+			k = i + 1 >> 0;
+		}
+	};
+	tCSSStr = function(c, s) {
+		var endAndEsc, _ref, k, i, _tuple, _struct, _struct$1, c$1, nread, _struct$2, _slice, _index, _struct$3, _tuple$1, _struct$4, _struct$5;
+		endAndEsc = "";
+		_ref = c.state;
+		if (_ref === 16 || _ref === 18) {
+			endAndEsc = "\\\"";
+		} else if (_ref === 17 || _ref === 19) {
+			endAndEsc = "\\'";
+		} else if (_ref === 20) {
+			endAndEsc = "\\\t\n\f\r )";
+		} else {
+			throw go$panic(new Go$String((new state(c.state)).String()));
+		}
+		k = 0;
+		while (true) {
+			i = k + bytes.IndexAny(go$subslice(s, k), endAndEsc) >> 0;
+			if (i < k) {
+				_tuple = tURL((_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), decodeCSS(go$subslice(s, k))); c$1 = (_struct$1 = _tuple[0], new context.Ptr(_struct$1.state, _struct$1.delim, _struct$1.urlPart, _struct$1.jsCtx, _struct$1.attr, _struct$1.element, _struct$1.err)); nread = _tuple[1];
+				return [(_struct$2 = c$1, new context.Ptr(_struct$2.state, _struct$2.delim, _struct$2.urlPart, _struct$2.jsCtx, _struct$2.attr, _struct$2.element, _struct$2.err)), k + nread >> 0];
+			}
+			if ((_slice = s, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")) === 92) {
+				i = i + 1 >> 0;
+				if (i === s.length) {
+					return [new context.Ptr(23, 0, 0, 0, 0, 0, errorf(8, 0, "unfinished escape sequence in CSS string: %q", new (go$sliceType(go$emptyInterface))([s]))), s.length];
+				}
+			} else {
+				c.state = 15;
+				return [(_struct$3 = c, new context.Ptr(_struct$3.state, _struct$3.delim, _struct$3.urlPart, _struct$3.jsCtx, _struct$3.attr, _struct$3.element, _struct$3.err)), i + 1 >> 0];
+			}
+			_tuple$1 = tURL((_struct$4 = c, new context.Ptr(_struct$4.state, _struct$4.delim, _struct$4.urlPart, _struct$4.jsCtx, _struct$4.attr, _struct$4.element, _struct$4.err)), decodeCSS(go$subslice(s, 0, (i + 1 >> 0)))); c = (_struct$5 = _tuple$1[0], new context.Ptr(_struct$5.state, _struct$5.delim, _struct$5.urlPart, _struct$5.jsCtx, _struct$5.attr, _struct$5.element, _struct$5.err));
+			k = i + 1 >> 0;
+		}
+	};
+	tError = function(c, s) {
+		var _struct;
+		return [(_struct = c, new context.Ptr(_struct.state, _struct.delim, _struct.urlPart, _struct.jsCtx, _struct.attr, _struct.element, _struct.err)), s.length];
+	};
+	eatAttrName = function(s, i) {
+		var j, _ref, _slice, _index;
+		j = i;
+		while (j < s.length) {
+			_ref = (_slice = s, _index = j, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			if (_ref === 32 || _ref === 9 || _ref === 10 || _ref === 12 || _ref === 13 || _ref === 61 || _ref === 62) {
+				return [j, (go$ptrType(Error)).nil];
+			} else if (_ref === 39 || _ref === 34 || _ref === 60) {
+				return [-1, errorf(2, 0, "%q in attribute name: %.32q", new (go$sliceType(go$emptyInterface))([go$subslice(s, j, (j + 1 >> 0)), s]))];
+			} else {
+			}
+			j = j + 1 >> 0;
+		}
+		return [s.length, (go$ptrType(Error)).nil];
+	};
+	asciiAlpha = function(c) {
+		return 65 <= c && c <= 90 || 97 <= c && c <= 122;
+	};
+	asciiAlphaNum = function(c) {
+		return asciiAlpha(c) || 48 <= c && c <= 57;
+	};
+	eatTagName = function(s, i) {
+		var _slice, _index, j, _slice$1, _index$1, x, _slice$2, _index$2, _entry;
+		if ((i === s.length) || !asciiAlpha((_slice = s, _index = i, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range")))) {
+			return [i, 0];
+		}
+		j = i + 1 >> 0;
+		while (j < s.length) {
+			x = (_slice$1 = s, _index$1 = j, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range"));
+			if (asciiAlphaNum(x)) {
+				j = j + 1 >> 0;
+				continue;
+			}
+			if (((x === 58) || (x === 45)) && (j + 1 >> 0) < s.length && asciiAlphaNum((_slice$2 = s, _index$2 = (j + 1 >> 0), (_index$2 >= 0 && _index$2 < _slice$2.length) ? _slice$2.array[_slice$2.offset + _index$2] : go$throwRuntimeError("index out of range")))) {
+				j = j + 2 >> 0;
+				continue;
+			}
+			break;
+		}
+		return [j, (_entry = elementNameMap[strings.ToLower(go$bytesToString(go$subslice(s, i, j)))], _entry !== undefined ? _entry.v : 0)];
+	};
+	eatWhiteSpace = function(s, i) {
+		var j, _ref, _slice, _index;
+		j = i;
+		while (j < s.length) {
+			_ref = (_slice = s, _index = j, (_index >= 0 && _index < _slice.length) ? _slice.array[_slice.offset + _index] : go$throwRuntimeError("index out of range"));
+			if (_ref === 32 || _ref === 9 || _ref === 10 || _ref === 12 || _ref === 13) {
+			} else {
+				return j;
+			}
+			j = j + 1 >> 0;
+		}
+		return s.length;
+	};
+	urlFilter = function(args) {
+		var _tuple, s, t, i, protocol;
+		_tuple = stringify(args); s = _tuple[0]; t = _tuple[1];
+		if (t === 6) {
+			return s;
+		}
+		i = strings.IndexRune(s, 58);
+		if (i >= 0 && strings.IndexRune(s.substring(0, i), 47) < 0) {
+			protocol = strings.ToLower(s.substring(0, i));
+			if (!(protocol === "http") && !(protocol === "https") && !(protocol === "mailto")) {
+				return "#ZgotmplZ";
+			}
+		}
+		return s;
+	};
+	urlEscaper = function(args) {
+		return urlProcessor(false, args);
+	};
+	urlNormalizer = function(args) {
+		return urlProcessor(true, args);
+	};
+	urlProcessor = function(norm, args) {
+		var _tuple, s, t, b, written, _tuple$1, i, n, c, _ref;
+		_tuple = stringify(args); s = _tuple[0]; t = _tuple[1];
+		if (t === 6) {
+			norm = true;
+		}
+		b = new bytes.Buffer.Ptr();
+		written = 0;
+		_tuple$1 = [0, s.length]; i = _tuple$1[0]; n = _tuple$1[1];
+		while (i < n) {
+			c = s.charCodeAt(i);
+			_ref = c;
+			if (_ref === 33 || _ref === 35 || _ref === 36 || _ref === 38 || _ref === 42 || _ref === 43 || _ref === 44 || _ref === 47 || _ref === 58 || _ref === 59 || _ref === 61 || _ref === 63 || _ref === 64 || _ref === 91 || _ref === 93) {
+				if (norm) {
+					i = i + 1 >> 0;
+					continue;
+				}
+			} else if (_ref === 45 || _ref === 46 || _ref === 95 || _ref === 126) {
+				i = i + 1 >> 0;
+				continue;
+			} else if (_ref === 37) {
+				if (norm && (i + 2 >> 0) < s.length && isHex(s.charCodeAt((i + 1 >> 0))) && isHex(s.charCodeAt((i + 2 >> 0)))) {
+					i = i + 1 >> 0;
+					continue;
+				}
+			} else {
+				if (97 <= c && c <= 122) {
+					i = i + 1 >> 0;
+					continue;
+				}
+				if (65 <= c && c <= 90) {
+					i = i + 1 >> 0;
+					continue;
+				}
+				if (48 <= c && c <= 57) {
+					i = i + 1 >> 0;
+					continue;
+				}
+			}
+			b.WriteString(s.substring(written, i));
+			fmt.Fprintf(b, "%%%02x", new (go$sliceType(go$emptyInterface))([new Go$Uint8(c)]));
+			written = i + 1 >> 0;
+			i = i + 1 >> 0;
+		}
+		if (written === 0) {
+			return s;
+		}
+		b.WriteString(s.substring(written));
+		return b.String();
+	};
+	go$pkg.init = function() {
+		context.methods = [["String", "", [], [Go$String], false, -1], ["eq", "html/template", [context], [Go$Bool], false, -1], ["mangle", "html/template", [Go$String], [Go$String], false, -1]];
+		(go$ptrType(context)).methods = [["String", "", [], [Go$String], false, -1], ["eq", "html/template", [context], [Go$Bool], false, -1], ["mangle", "html/template", [Go$String], [Go$String], false, -1]];
+		context.init([["state", "state", "html/template", state, ""], ["delim", "delim", "html/template", delim, ""], ["urlPart", "urlPart", "html/template", urlPart, ""], ["jsCtx", "jsCtx", "html/template", jsCtx, ""], ["attr", "attr", "html/template", attr, ""], ["element", "element", "html/template", element, ""], ["err", "err", "html/template", (go$ptrType(Error)), ""]]);
+		state.methods = [["String", "", [], [Go$String], false, -1]];
+		(go$ptrType(state)).methods = [["String", "", [], [Go$String], false, -1]];
+		delim.methods = [["String", "", [], [Go$String], false, -1]];
+		(go$ptrType(delim)).methods = [["String", "", [], [Go$String], false, -1]];
+		urlPart.methods = [["String", "", [], [Go$String], false, -1]];
+		(go$ptrType(urlPart)).methods = [["String", "", [], [Go$String], false, -1]];
+		jsCtx.methods = [["String", "", [], [Go$String], false, -1]];
+		(go$ptrType(jsCtx)).methods = [["String", "", [], [Go$String], false, -1]];
+		element.methods = [["String", "", [], [Go$String], false, -1]];
+		(go$ptrType(element)).methods = [["String", "", [], [Go$String], false, -1]];
+		attr.methods = [["String", "", [], [Go$String], false, -1]];
+		(go$ptrType(attr)).methods = [["String", "", [], [Go$String], false, -1]];
+		(go$ptrType(Error)).methods = [["Error", "", [], [Go$String], false, -1]];
+		Error.init([["ErrorCode", "ErrorCode", "", ErrorCode, ""], ["Name", "Name", "", Go$String, ""], ["Line", "Line", "", Go$Int, ""], ["Description", "Description", "", Go$String, ""]]);
+		(go$ptrType(escaper)).methods = [["commit", "html/template", [], [], false, -1], ["computeOutCtx", "html/template", [context, (go$ptrType(template.Template))], [context], false, -1], ["editActionNode", "html/template", [(go$ptrType(parse.ActionNode)), (go$sliceType(Go$String))], [], false, -1], ["editTemplateNode", "html/template", [(go$ptrType(parse.TemplateNode)), Go$String], [], false, -1], ["editTextNode", "html/template", [(go$ptrType(parse.TextNode)), (go$sliceType(Go$Uint8))], [], false, -1], ["escape", "html/template", [context, parse.Node], [context], false, -1], ["escapeAction", "html/template", [context, (go$ptrType(parse.ActionNode))], [context], false, -1], ["escapeBranch", "html/template", [context, (go$ptrType(parse.BranchNode)), Go$String], [context], false, -1], ["escapeList", "html/template", [context, (go$ptrType(parse.ListNode))], [context], false, -1], ["escapeListConditionally", "html/template", [context, (go$ptrType(parse.ListNode)), (go$funcType([(go$ptrType(escaper)), context], [Go$Bool], false))], [context, Go$Bool], false, -1], ["escapeTemplate", "html/template", [context, (go$ptrType(parse.TemplateNode))], [context], false, -1], ["escapeTemplateBody", "html/template", [context, (go$ptrType(template.Template))], [context, Go$Bool], false, -1], ["escapeText", "html/template", [context, (go$ptrType(parse.TextNode))], [context], false, -1], ["escapeTree", "html/template", [context, Go$String, Go$Int], [context, Go$String], false, -1], ["template", "html/template", [Go$String], [(go$ptrType(template.Template))], false, -1]];
+		escaper.init([["tmpl", "tmpl", "html/template", (go$ptrType(Template)), ""], ["output", "output", "html/template", (go$mapType(Go$String, context)), ""], ["derived", "derived", "html/template", (go$mapType(Go$String, (go$ptrType(template.Template)))), ""], ["called", "called", "html/template", (go$mapType(Go$String, Go$Bool)), ""], ["actionNodeEdits", "actionNodeEdits", "html/template", (go$mapType((go$ptrType(parse.ActionNode)), (go$sliceType(Go$String)))), ""], ["templateNodeEdits", "templateNodeEdits", "html/template", (go$mapType((go$ptrType(parse.TemplateNode)), Go$String)), ""], ["textNodeEdits", "textNodeEdits", "html/template", (go$mapType((go$ptrType(parse.TextNode)), (go$sliceType(Go$Uint8)))), ""]]);
+		(go$ptrType(Template)).methods = [["AddParseTree", "", [Go$String, (go$ptrType(parse.Tree))], [(go$ptrType(Template)), go$error], false, -1], ["Clone", "", [], [(go$ptrType(Template)), go$error], false, -1], ["Delims", "", [Go$String, Go$String], [(go$ptrType(Template))], false, -1], ["Execute", "", [io.Writer, go$emptyInterface], [go$error], false, -1], ["ExecuteTemplate", "", [io.Writer, Go$String, go$emptyInterface], [go$error], false, -1], ["Funcs", "", [FuncMap], [(go$ptrType(Template))], false, -1], ["Lookup", "", [Go$String], [(go$ptrType(Template))], false, -1], ["Name", "", [], [Go$String], false, -1], ["New", "", [Go$String], [(go$ptrType(Template))], false, -1], ["Parse", "", [Go$String], [(go$ptrType(Template)), go$error], false, -1], ["ParseFiles", "", [(go$sliceType(Go$String))], [(go$ptrType(Template)), go$error], true, -1], ["ParseGlob", "", [Go$String], [(go$ptrType(Template)), go$error], false, -1], ["Templates", "", [], [(go$sliceType((go$ptrType(Template))))], false, -1], ["escape", "html/template", [], [go$error], false, -1], ["lookupAndEscapeTemplate", "html/template", [Go$String], [(go$ptrType(Template)), go$error], false, -1], ["new", "html/template", [Go$String], [(go$ptrType(Template))], false, -1]];
+		Template.init([["escaped", "escaped", "html/template", Go$Bool, ""], ["text", "text", "html/template", (go$ptrType(template.Template)), ""], ["Tree", "Tree", "", (go$ptrType(parse.Tree)), ""], ["nameSpace", "", "html/template", (go$ptrType(nameSpace)), ""]]);
+		nameSpace.init([["mu", "mu", "html/template", sync.Mutex, ""], ["set", "set", "html/template", (go$mapType(Go$String, (go$ptrType(Template)))), ""]]);
+		FuncMap.init(Go$String, go$emptyInterface);
+		var _map, _key;
+		attrTypeMap = (_map = new Go$Map(), _key = "accept", _map[_key] = { k: _key, v: 0 }, _key = "accept-charset", _map[_key] = { k: _key, v: 7 }, _key = "action", _map[_key] = { k: _key, v: 6 }, _key = "alt", _map[_key] = { k: _key, v: 0 }, _key = "archive", _map[_key] = { k: _key, v: 6 }, _key = "async", _map[_key] = { k: _key, v: 7 }, _key = "autocomplete", _map[_key] = { k: _key, v: 0 }, _key = "autofocus", _map[_key] = { k: _key, v: 0 }, _key = "autoplay", _map[_key] = { k: _key, v: 0 }, _key = "background", _map[_key] = { k: _key, v: 6 }, _key = "border", _map[_key] = { k: _key, v: 0 }, _key = "checked", _map[_key] = { k: _key, v: 0 }, _key = "cite", _map[_key] = { k: _key, v: 6 }, _key = "challenge", _map[_key] = { k: _key, v: 7 }, _key = "charset", _map[_key] = { k: _key, v: 7 }, _key = "class", _map[_key] = { k: _key, v: 0 }, _key = "classid", _map[_key] = { k: _key, v: 6 }, _key = "codebase", _map[_key] = { k: _key, v: 6 }, _key = "cols", _map[_key] = { k: _key, v: 0 }, _key = "colspan", _map[_key] = { k: _key, v: 0 }, _key = "content", _map[_key] = { k: _key, v: 7 }, _key = "contenteditable", _map[_key] = { k: _key, v: 0 }, _key = "contextmenu", _map[_key] = { k: _key, v: 0 }, _key = "controls", _map[_key] = { k: _key, v: 0 }, _key = "coords", _map[_key] = { k: _key, v: 0 }, _key = "crossorigin", _map[_key] = { k: _key, v: 7 }, _key = "data", _map[_key] = { k: _key, v: 6 }, _key = "datetime", _map[_key] = { k: _key, v: 0 }, _key = "default", _map[_key] = { k: _key, v: 0 }, _key = "defer", _map[_key] = { k: _key, v: 7 }, _key = "dir", _map[_key] = { k: _key, v: 0 }, _key = "dirname", _map[_key] = { k: _key, v: 0 }, _key = "disabled", _map[_key] = { k: _key, v: 0 }, _key = "draggable", _map[_key] = { k: _key, v: 0 }, _key = "dropzone", _map[_key] = { k: _key, v: 0 }, _key = "enctype", _map[_key] = { k: _key, v: 7 }, _key = "for", _map[_key] = { k: _key, v: 0 }, _key = "form", _map[_key] = { k: _key, v: 7 }, _key = "formaction", _map[_key] = { k: _key, v: 6 }, _key = "formenctype", _map[_key] = { k: _key, v: 7 }, _key = "formmethod", _map[_key] = { k: _key, v: 7 }, _key = "formnovalidate", _map[_key] = { k: _key, v: 7 }, _key = "formtarget", _map[_key] = { k: _key, v: 0 }, _key = "headers", _map[_key] = { k: _key, v: 0 }, _key = "height", _map[_key] = { k: _key, v: 0 }, _key = "hidden", _map[_key] = { k: _key, v: 0 }, _key = "high", _map[_key] = { k: _key, v: 0 }, _key = "href", _map[_key] = { k: _key, v: 6 }, _key = "hreflang", _map[_key] = { k: _key, v: 0 }, _key = "http-equiv", _map[_key] = { k: _key, v: 7 }, _key = "icon", _map[_key] = { k: _key, v: 6 }, _key = "id", _map[_key] = { k: _key, v: 0 }, _key = "ismap", _map[_key] = { k: _key, v: 0 }, _key = "keytype", _map[_key] = { k: _key, v: 7 }, _key = "kind", _map[_key] = { k: _key, v: 0 }, _key = "label", _map[_key] = { k: _key, v: 0 }, _key = "lang", _map[_key] = { k: _key, v: 0 }, _key = "language", _map[_key] = { k: _key, v: 7 }, _key = "list", _map[_key] = { k: _key, v: 0 }, _key = "longdesc", _map[_key] = { k: _key, v: 6 }, _key = "loop", _map[_key] = { k: _key, v: 0 }, _key = "low", _map[_key] = { k: _key, v: 0 }, _key = "manifest", _map[_key] = { k: _key, v: 6 }, _key = "max", _map[_key] = { k: _key, v: 0 }, _key = "maxlength", _map[_key] = { k: _key, v: 0 }, _key = "media", _map[_key] = { k: _key, v: 0 }, _key = "mediagroup", _map[_key] = { k: _key, v: 0 }, _key = "method", _map[_key] = { k: _key, v: 7 }, _key = "min", _map[_key] = { k: _key, v: 0 }, _key = "multiple", _map[_key] = { k: _key, v: 0 }, _key = "name", _map[_key] = { k: _key, v: 0 }, _key = "novalidate", _map[_key] = { k: _key, v: 7 }, _key = "open", _map[_key] = { k: _key, v: 0 }, _key = "optimum", _map[_key] = { k: _key, v: 0 }, _key = "pattern", _map[_key] = { k: _key, v: 7 }, _key = "placeholder", _map[_key] = { k: _key, v: 0 }, _key = "poster", _map[_key] = { k: _key, v: 6 }, _key = "profile", _map[_key] = { k: _key, v: 6 }, _key = "preload", _map[_key] = { k: _key, v: 0 }, _key = "pubdate", _map[_key] = { k: _key, v: 0 }, _key = "radiogroup", _map[_key] = { k: _key, v: 0 }, _key = "readonly", _map[_key] = { k: _key, v: 0 }, _key = "rel", _map[_key] = { k: _key, v: 7 }, _key = "required", _map[_key] = { k: _key, v: 0 }, _key = "reversed", _map[_key] = { k: _key, v: 0 }, _key = "rows", _map[_key] = { k: _key, v: 0 }, _key = "rowspan", _map[_key] = { k: _key, v: 0 }, _key = "sandbox", _map[_key] = { k: _key, v: 7 }, _key = "spellcheck", _map[_key] = { k: _key, v: 0 }, _key = "scope", _map[_key] = { k: _key, v: 0 }, _key = "scoped", _map[_key] = { k: _key, v: 0 }, _key = "seamless", _map[_key] = { k: _key, v: 0 }, _key = "selected", _map[_key] = { k: _key, v: 0 }, _key = "shape", _map[_key] = { k: _key, v: 0 }, _key = "size", _map[_key] = { k: _key, v: 0 }, _key = "sizes", _map[_key] = { k: _key, v: 0 }, _key = "span", _map[_key] = { k: _key, v: 0 }, _key = "src", _map[_key] = { k: _key, v: 6 }, _key = "srcdoc", _map[_key] = { k: _key, v: 2 }, _key = "srclang", _map[_key] = { k: _key, v: 0 }, _key = "start", _map[_key] = { k: _key, v: 0 }, _key = "step", _map[_key] = { k: _key, v: 0 }, _key = "style", _map[_key] = { k: _key, v: 1 }, _key = "tabindex", _map[_key] = { k: _key, v: 0 }, _key = "target", _map[_key] = { k: _key, v: 0 }, _key = "title", _map[_key] = { k: _key, v: 0 }, _key = "type", _map[_key] = { k: _key, v: 7 }, _key = "usemap", _map[_key] = { k: _key, v: 6 }, _key = "value", _map[_key] = { k: _key, v: 7 }, _key = "width", _map[_key] = { k: _key, v: 0 }, _key = "wrap", _map[_key] = { k: _key, v: 0 }, _key = "xmlns", _map[_key] = { k: _key, v: 6 }, _map);
+		errorType = reflect.TypeOf((go$ptrType(go$error)).nil).Elem();
+		fmtStringerType = reflect.TypeOf((go$ptrType(fmt.Stringer)).nil).Elem();
+		stateNames = go$toNativeArray("String", ["stateText", "stateTag", "stateAttrName", "stateAfterName", "stateBeforeValue", "stateHTMLCmt", "stateRCDATA", "stateAttr", "stateURL", "stateJS", "stateJSDqStr", "stateJSSqStr", "stateJSRegexp", "stateJSBlockCmt", "stateJSLineCmt", "stateCSS", "stateCSSDqStr", "stateCSSSqStr", "stateCSSDqURL", "stateCSSSqURL", "stateCSSURL", "stateCSSBlockCmt", "stateCSSLineCmt", "stateError"]);
+		delimNames = go$toNativeArray("String", ["delimNone", "delimDoubleQuote", "delimSingleQuote", "delimSpaceOrTagEnd"]);
+		urlPartNames = go$toNativeArray("String", ["urlPartNone", "urlPartPreQuery", "urlPartQueryOrFrag", "urlPartUnknown"]);
+		elementNames = go$toNativeArray("String", ["elementNone", "elementScript", "elementStyle", "elementTextarea", "elementTitle"]);
+		attrNames = go$toNativeArray("String", ["attrNone", "attrScript", "attrStyle", "attrURL"]);
+		expressionBytes = new (go$sliceType(Go$Uint8))(go$stringToBytes("expression"));
+		mozBindingBytes = new (go$sliceType(Go$Uint8))(go$stringToBytes("mozbinding"));
+		htmlNospaceReplacementTable = new (go$sliceType(Go$String))(["&#xfffd;", "", "", "", "", "", "", "", "", "&#9;", "&#10;", "&#11;", "&#12;", "&#13;", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "&#32;", "", "&#34;", "", "", "", "&amp;", "&#39;", "", "", "", "&#43;", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "&lt;", "&#61;", "&gt;", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "&#96;"]);
+		htmlNospaceNormReplacementTable = new (go$sliceType(Go$String))(["&#xfffd;", "", "", "", "", "", "", "", "", "&#9;", "&#10;", "&#11;", "&#12;", "&#13;", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "&#32;", "", "&#34;", "", "", "", "", "&#39;", "", "", "", "&#43;", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "&lt;", "&#61;", "&gt;", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "&#96;"]);
+		delimEnds = go$toNativeArray("String", ["", "\"", "'", " \t\n\f\r>"]);
+		commentStart = new (go$sliceType(Go$Uint8))(go$stringToBytes("<!--"));
+		var _map$1, _key$1;
+		elementNameMap = (_map$1 = new Go$Map(), _key$1 = "script", _map$1[_key$1] = { k: _key$1, v: 1 }, _key$1 = "style", _map$1[_key$1] = { k: _key$1, v: 2 }, _key$1 = "textarea", _map$1[_key$1] = { k: _key$1, v: 3 }, _key$1 = "title", _map$1[_key$1] = { k: _key$1, v: 4 }, _map$1);
+		elementContentType = go$toNativeArray("Uint8", [0, 9, 15, 6, 6]);
+		attrStartStates = go$toNativeArray("Uint8", [7, 9, 15, 8]);
+		commentEnd = new (go$sliceType(Go$Uint8))(go$stringToBytes("-->"));
+		specialTagEndMarkers = go$toNativeArray("String", ["", "</script", "</style", "</textarea", "</title"]);
+		var _map$2, _key$2;
+		regexpPrecederKeywords = (_map$2 = new Go$Map(), _key$2 = "break", _map$2[_key$2] = { k: _key$2, v: true }, _key$2 = "case", _map$2[_key$2] = { k: _key$2, v: true }, _key$2 = "continue", _map$2[_key$2] = { k: _key$2, v: true }, _key$2 = "delete", _map$2[_key$2] = { k: _key$2, v: true }, _key$2 = "do", _map$2[_key$2] = { k: _key$2, v: true }, _key$2 = "else", _map$2[_key$2] = { k: _key$2, v: true }, _key$2 = "finally", _map$2[_key$2] = { k: _key$2, v: true }, _key$2 = "in", _map$2[_key$2] = { k: _key$2, v: true }, _key$2 = "instanceof", _map$2[_key$2] = { k: _key$2, v: true }, _key$2 = "return", _map$2[_key$2] = { k: _key$2, v: true }, _key$2 = "throw", _map$2[_key$2] = { k: _key$2, v: true }, _key$2 = "try", _map$2[_key$2] = { k: _key$2, v: true }, _key$2 = "typeof", _map$2[_key$2] = { k: _key$2, v: true }, _key$2 = "void", _map$2[_key$2] = { k: _key$2, v: true }, _map$2);
+		blockCommentEnd = new (go$sliceType(Go$Uint8))(go$stringToBytes("*/"));
+		transitionFunc = go$toNativeArray("Func", [tText, tTag, tAttrName, tAfterName, tBeforeValue, tHTMLCmt, tSpecialTagEnd, tAttr, tURL, tJS, tJSDelimited, tJSDelimited, tJSDelimited, tBlockCmt, tLineCmt, tCSS, tCSSStr, tCSSStr, tCSSStr, tCSSStr, tCSSStr, tBlockCmt, tLineCmt, tError]);
+		htmlReplacementTable = new (go$sliceType(Go$String))(["\xEF\xBF\xBD", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "&#34;", "", "", "", "&amp;", "&#39;", "", "", "", "&#43;", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "&lt;", "", "&gt;"]);
+		htmlNormReplacementTable = new (go$sliceType(Go$String))(["\xEF\xBF\xBD", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "&#34;", "", "", "", "", "&#39;", "", "", "", "&#43;", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "&lt;", "", "&gt;"]);
+		jsonMarshalType = reflect.TypeOf((go$ptrType(json.Marshaler)).nil).Elem();
+		jsStrReplacementTable = new (go$sliceType(Go$String))(["\\0", "", "", "", "", "", "", "", "", "\\t", "\\n", "\\x0b", "\\f", "\\r", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "\\x22", "", "", "", "\\x26", "\\x27", "", "", "", "\\x2b", "", "", "", "\\/", "", "", "", "", "", "", "", "", "", "", "", "", "\\x3c", "", "\\x3e", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "\\\\"]);
+		jsStrNormReplacementTable = new (go$sliceType(Go$String))(["\\0", "", "", "", "", "", "", "", "", "\\t", "\\n", "\\x0b", "\\f", "\\r", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "\\x22", "", "", "", "\\x26", "\\x27", "", "", "", "\\x2b", "", "", "", "\\/", "", "", "", "", "", "", "", "", "", "", "", "", "\\x3c", "", "\\x3e"]);
+		jsRegexpReplacementTable = new (go$sliceType(Go$String))(["\\0", "", "", "", "", "", "", "", "", "\\t", "\\n", "\\x0b", "\\f", "\\r", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "\\x22", "", "\\$", "", "\\x26", "\\x27", "\\(", "\\)", "\\*", "\\x2b", "", "\\-", "\\.", "\\/", "", "", "", "", "", "", "", "", "", "", "", "", "\\x3c", "", "\\x3e", "\\?", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "\\[", "\\\\", "\\]", "\\^", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "\\{", "\\|", "\\}"]);
+		var _map$3, _key$3;
+		funcMap = (_map$3 = new Go$Map(), _key$3 = "html_template_attrescaper", _map$3[_key$3] = { k: _key$3, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(attrEscaper) }, _key$3 = "html_template_commentescaper", _map$3[_key$3] = { k: _key$3, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(commentEscaper) }, _key$3 = "html_template_cssescaper", _map$3[_key$3] = { k: _key$3, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(cssEscaper) }, _key$3 = "html_template_cssvaluefilter", _map$3[_key$3] = { k: _key$3, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(cssValueFilter) }, _key$3 = "html_template_htmlnamefilter", _map$3[_key$3] = { k: _key$3, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(htmlNameFilter) }, _key$3 = "html_template_htmlescaper", _map$3[_key$3] = { k: _key$3, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(htmlEscaper) }, _key$3 = "html_template_jsregexpescaper", _map$3[_key$3] = { k: _key$3, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(jsRegexpEscaper) }, _key$3 = "html_template_jsstrescaper", _map$3[_key$3] = { k: _key$3, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(jsStrEscaper) }, _key$3 = "html_template_jsvalescaper", _map$3[_key$3] = { k: _key$3, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(jsValEscaper) }, _key$3 = "html_template_nospaceescaper", _map$3[_key$3] = { k: _key$3, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(htmlNospaceEscaper) }, _key$3 = "html_template_rcdataescaper", _map$3[_key$3] = { k: _key$3, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(rcdataEscaper) }, _key$3 = "html_template_urlescaper", _map$3[_key$3] = { k: _key$3, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(urlEscaper) }, _key$3 = "html_template_urlfilter", _map$3[_key$3] = { k: _key$3, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(urlFilter) }, _key$3 = "html_template_urlnormalizer", _map$3[_key$3] = { k: _key$3, v: new (go$funcType([(go$sliceType(go$emptyInterface))], [Go$String], true))(urlNormalizer) }, _map$3);
+		var _map$4, _key$4;
+		equivEscapers = (_map$4 = new Go$Map(), _key$4 = "html_template_attrescaper", _map$4[_key$4] = { k: _key$4, v: "html" }, _key$4 = "html_template_htmlescaper", _map$4[_key$4] = { k: _key$4, v: "html" }, _key$4 = "html_template_nospaceescaper", _map$4[_key$4] = { k: _key$4, v: "html" }, _key$4 = "html_template_rcdataescaper", _map$4[_key$4] = { k: _key$4, v: "html" }, _key$4 = "html_template_urlescaper", _map$4[_key$4] = { k: _key$4, v: "urlquery" }, _key$4 = "html_template_urlnormalizer", _map$4[_key$4] = { k: _key$4, v: "urlquery" }, _map$4);
+		var _map$5, _key$5, _map$6, _key$6, _map$7, _key$7, _map$8, _key$8, _map$9, _key$9, _map$10, _key$10;
+		redundantFuncs = (_map$5 = new Go$Map(), _key$5 = "html_template_commentescaper", _map$5[_key$5] = { k: _key$5, v: (_map$6 = new Go$Map(), _key$6 = "html_template_attrescaper", _map$6[_key$6] = { k: _key$6, v: true }, _key$6 = "html_template_nospaceescaper", _map$6[_key$6] = { k: _key$6, v: true }, _key$6 = "html_template_htmlescaper", _map$6[_key$6] = { k: _key$6, v: true }, _map$6) }, _key$5 = "html_template_cssescaper", _map$5[_key$5] = { k: _key$5, v: (_map$7 = new Go$Map(), _key$7 = "html_template_attrescaper", _map$7[_key$7] = { k: _key$7, v: true }, _map$7) }, _key$5 = "html_template_jsregexpescaper", _map$5[_key$5] = { k: _key$5, v: (_map$8 = new Go$Map(), _key$8 = "html_template_attrescaper", _map$8[_key$8] = { k: _key$8, v: true }, _map$8) }, _key$5 = "html_template_jsstrescaper", _map$5[_key$5] = { k: _key$5, v: (_map$9 = new Go$Map(), _key$9 = "html_template_attrescaper", _map$9[_key$9] = { k: _key$9, v: true }, _map$9) }, _key$5 = "html_template_urlescaper", _map$5[_key$5] = { k: _key$5, v: (_map$10 = new Go$Map(), _key$10 = "html_template_urlnormalizer", _map$10[_key$10] = { k: _key$10, v: true }, _map$10) }, _map$5);
+		doctypeBytes = new (go$sliceType(Go$Uint8))(go$stringToBytes("<!DOCTYPE"));
+	}
+	return go$pkg;
+})();
 go$packages["main"] = (function() {
-	var go$pkg = {}, jquery = go$packages["github.com/gopherjs/jquery"], utils = go$packages["github.com/gopherjs/todomvc/utils"], ToDo, App, main, NewApp, jQuery;
+	var go$pkg = {}, bytes = go$packages["bytes"], jquery = go$packages["github.com/gopherjs/jquery"], utils = go$packages["github.com/gopherjs/todomvc/utils"], template = go$packages["html/template"], ToDo, App, main, NewApp, jQuery;
 	ToDo = go$pkg.ToDo = go$newType(0, "Struct", "main.ToDo", "ToDo", "main", function(Id_, Text_, Completed_) {
 		this.go$val = this;
 		this.Id = Id_ !== undefined ? Id_ : "";
 		this.Text = Text_ !== undefined ? Text_ : "";
 		this.Completed = Completed_ !== undefined ? Completed_ : false;
 	});
-	App = go$pkg.App = go$newType(0, "Struct", "main.App", "App", "main", function(todos_, todoHb_, footerHb_, todoAppJQuery_, headerJQuery_, mainJQuery_, footerJQuery_, newTodoJQuery_, toggleAllJQuery_, todoListJQuery_, countJQuery_, clearBtnJQuery_, filter_) {
+	App = go$pkg.App = go$newType(0, "Struct", "main.App", "App", "main", function(todos_, todoTmpl_, footerTmpl_, todoAppJQuery_, headerJQuery_, mainJQuery_, footerJQuery_, newTodoJQuery_, toggleAllJQuery_, todoListJQuery_, countJQuery_, clearBtnJQuery_, filter_) {
 		this.go$val = this;
 		this.todos = todos_ !== undefined ? todos_ : (go$sliceType(ToDo)).nil;
-		this.todoHb = todoHb_ !== undefined ? todoHb_ : (go$ptrType(utils.Handlebar)).nil;
-		this.footerHb = footerHb_ !== undefined ? footerHb_ : (go$ptrType(utils.Handlebar)).nil;
+		this.todoTmpl = todoTmpl_ !== undefined ? todoTmpl_ : (go$ptrType(template.Template)).nil;
+		this.footerTmpl = footerTmpl_ !== undefined ? footerTmpl_ : (go$ptrType(template.Template)).nil;
 		this.todoAppJQuery = todoAppJQuery_ !== undefined ? todoAppJQuery_ : new jquery.JQuery.Ptr();
 		this.headerJQuery = headerJQuery_ !== undefined ? headerJQuery_ : new jquery.JQuery.Ptr();
 		this.mainJQuery = mainJQuery_ !== undefined ? mainJQuery_ : new jquery.JQuery.Ptr();
@@ -18756,20 +26963,19 @@ go$packages["main"] = (function() {
 	});
 	main = go$pkg.main = function() {
 		var app;
-		utils.RegisterHandlebarsHelper();
 		app = NewApp();
 		app.bindEvents();
 		app.initRouter();
 		app.render();
 	};
 	NewApp = go$pkg.NewApp = function() {
-		var somethingToDo, v, todoTemplate, todoHb, footerTemplate, footerHb, _struct, todoAppJQuery, _struct$1, headerJQuery, _struct$2, mainJQuery, _struct$3, footerJQuery, _struct$4, newTodoJQuery, _struct$5, toggleAllJQuery, _struct$6, todoListJQuery, _struct$7, countJQuery, _struct$8, clearBtnJQuery, filter, _struct$9, _struct$10, _struct$11, _struct$12, _struct$13, _struct$14, _struct$15, _struct$16, _struct$17;
+		var somethingToDo, v, todoHtml, _tuple, todoTmpl, footerHtml, _tuple$1, footerTmpl, _struct, todoAppJQuery, _struct$1, headerJQuery, _struct$2, mainJQuery, _struct$3, footerJQuery, _struct$4, newTodoJQuery, _struct$5, toggleAllJQuery, _struct$6, todoListJQuery, _struct$7, countJQuery, _struct$8, clearBtnJQuery, filter, _struct$9, _struct$10, _struct$11, _struct$12, _struct$13, _struct$14, _struct$15, _struct$16, _struct$17;
 		somethingToDo = (go$sliceType(ToDo)).make(0, 0, function() { return new ToDo.Ptr(); });
 		utils.Retrieve("TodoMVC4GopherJS", new (go$ptrType((go$sliceType(ToDo))))(function() { return somethingToDo; }, function(v) { somethingToDo = v;; }));
-		todoTemplate = jQuery(new (go$sliceType(go$emptyInterface))([new Go$String("#todo-template")])).Html();
-		todoHb = utils.CompileHandlebar(todoTemplate);
-		footerTemplate = jQuery(new (go$sliceType(go$emptyInterface))([new Go$String("#footer-template")])).Html();
-		footerHb = utils.CompileHandlebar(footerTemplate);
+		todoHtml = jQuery(new (go$sliceType(go$emptyInterface))([new Go$String("#todo-template")])).Html();
+		todoTmpl = (_tuple = template.New("todo").Parse(todoHtml), template.Must(_tuple[0], _tuple[1]));
+		footerHtml = jQuery(new (go$sliceType(go$emptyInterface))([new Go$String("#footer-template")])).Html();
+		footerTmpl = (_tuple$1 = template.New("footer").Parse(footerHtml), template.Must(_tuple$1[0], _tuple$1[1]));
 		todoAppJQuery = (_struct = jQuery(new (go$sliceType(go$emptyInterface))([new Go$String("#todoapp")])), new jquery.JQuery.Ptr(_struct.o, _struct.Jquery, _struct.Selector, _struct.Length, _struct.Context));
 		headerJQuery = (_struct$1 = todoAppJQuery.Find(new (go$sliceType(go$emptyInterface))([new Go$String("#header")])), new jquery.JQuery.Ptr(_struct$1.o, _struct$1.Jquery, _struct$1.Selector, _struct$1.Length, _struct$1.Context));
 		mainJQuery = (_struct$2 = todoAppJQuery.Find(new (go$sliceType(go$emptyInterface))([new Go$String("#main")])), new jquery.JQuery.Ptr(_struct$2.o, _struct$2.Jquery, _struct$2.Selector, _struct$2.Length, _struct$2.Context));
@@ -18780,7 +26986,7 @@ go$packages["main"] = (function() {
 		countJQuery = (_struct$7 = footerJQuery.Find(new (go$sliceType(go$emptyInterface))([new Go$String("#todo-count")])), new jquery.JQuery.Ptr(_struct$7.o, _struct$7.Jquery, _struct$7.Selector, _struct$7.Length, _struct$7.Context));
 		clearBtnJQuery = (_struct$8 = footerJQuery.Find(new (go$sliceType(go$emptyInterface))([new Go$String("#clear-completed")])), new jquery.JQuery.Ptr(_struct$8.o, _struct$8.Jquery, _struct$8.Selector, _struct$8.Length, _struct$8.Context));
 		filter = "all";
-		return new App.Ptr(somethingToDo, todoHb, footerHb, (_struct$9 = todoAppJQuery, new jquery.JQuery.Ptr(_struct$9.o, _struct$9.Jquery, _struct$9.Selector, _struct$9.Length, _struct$9.Context)), (_struct$10 = headerJQuery, new jquery.JQuery.Ptr(_struct$10.o, _struct$10.Jquery, _struct$10.Selector, _struct$10.Length, _struct$10.Context)), (_struct$11 = mainJQuery, new jquery.JQuery.Ptr(_struct$11.o, _struct$11.Jquery, _struct$11.Selector, _struct$11.Length, _struct$11.Context)), (_struct$12 = footerJQuery, new jquery.JQuery.Ptr(_struct$12.o, _struct$12.Jquery, _struct$12.Selector, _struct$12.Length, _struct$12.Context)), (_struct$13 = newTodoJQuery, new jquery.JQuery.Ptr(_struct$13.o, _struct$13.Jquery, _struct$13.Selector, _struct$13.Length, _struct$13.Context)), (_struct$14 = toggleAllJQuery, new jquery.JQuery.Ptr(_struct$14.o, _struct$14.Jquery, _struct$14.Selector, _struct$14.Length, _struct$14.Context)), (_struct$15 = todoListJQuery, new jquery.JQuery.Ptr(_struct$15.o, _struct$15.Jquery, _struct$15.Selector, _struct$15.Length, _struct$15.Context)), (_struct$16 = countJQuery, new jquery.JQuery.Ptr(_struct$16.o, _struct$16.Jquery, _struct$16.Selector, _struct$16.Length, _struct$16.Context)), (_struct$17 = clearBtnJQuery, new jquery.JQuery.Ptr(_struct$17.o, _struct$17.Jquery, _struct$17.Selector, _struct$17.Length, _struct$17.Context)), filter);
+		return new App.Ptr(somethingToDo, todoTmpl, footerTmpl, (_struct$9 = todoAppJQuery, new jquery.JQuery.Ptr(_struct$9.o, _struct$9.Jquery, _struct$9.Selector, _struct$9.Length, _struct$9.Context)), (_struct$10 = headerJQuery, new jquery.JQuery.Ptr(_struct$10.o, _struct$10.Jquery, _struct$10.Selector, _struct$10.Length, _struct$10.Context)), (_struct$11 = mainJQuery, new jquery.JQuery.Ptr(_struct$11.o, _struct$11.Jquery, _struct$11.Selector, _struct$11.Length, _struct$11.Context)), (_struct$12 = footerJQuery, new jquery.JQuery.Ptr(_struct$12.o, _struct$12.Jquery, _struct$12.Selector, _struct$12.Length, _struct$12.Context)), (_struct$13 = newTodoJQuery, new jquery.JQuery.Ptr(_struct$13.o, _struct$13.Jquery, _struct$13.Selector, _struct$13.Length, _struct$13.Context)), (_struct$14 = toggleAllJQuery, new jquery.JQuery.Ptr(_struct$14.o, _struct$14.Jquery, _struct$14.Selector, _struct$14.Length, _struct$14.Context)), (_struct$15 = todoListJQuery, new jquery.JQuery.Ptr(_struct$15.o, _struct$15.Jquery, _struct$15.Selector, _struct$15.Length, _struct$15.Context)), (_struct$16 = countJQuery, new jquery.JQuery.Ptr(_struct$16.o, _struct$16.Jquery, _struct$16.Selector, _struct$16.Length, _struct$16.Context)), (_struct$17 = clearBtnJQuery, new jquery.JQuery.Ptr(_struct$17.o, _struct$17.Jquery, _struct$17.Selector, _struct$17.Length, _struct$17.Context)), filter);
 	};
 	App.Ptr.prototype.bindEvents = function() {
 		var a, e, _recv, e$1, _recv$1, e$2, _recv$2, e$3, _recv$3, e$4, _recv$4, e$5, _recv$5, e$6, _recv$6, e$7, _recv$7;
@@ -18807,11 +27013,13 @@ go$packages["main"] = (function() {
 	};
 	App.prototype.initRouter = function() { return this.go$val.initRouter(); };
 	App.Ptr.prototype.render = function() {
-		var a, todos, strtodoHb;
+		var a, todos, b, strtodoTmpl;
 		a = this;
 		todos = a.getFilteredTodos();
-		strtodoHb = go$internalize(a.todoHb.Object(go$externalize(todos, (go$sliceType(ToDo)))), Go$String);
-		a.todoListJQuery.SetHtml(new Go$String(strtodoHb));
+		b = new bytes.Buffer.Ptr();
+		a.todoTmpl.Execute(b, todos);
+		strtodoTmpl = b.String();
+		a.todoListJQuery.SetHtml(new Go$String(strtodoTmpl));
 		a.mainJQuery.Toggle(a.todos.length > 0);
 		a.toggleAllJQuery.SetProp(new (go$sliceType(go$emptyInterface))([new Go$String("checked"), new Go$Bool(!((a.getActiveTodos().length === 0)))]));
 		a.renderfooter();
@@ -18820,14 +27028,16 @@ go$packages["main"] = (function() {
 	};
 	App.prototype.render = function() { return this.go$val.render(); };
 	App.Ptr.prototype.renderfooter = function() {
-		var a, activeTodoCount, activeTodoWord, completedTodos, filter, footerData, footerJQueryStr;
+		var a, activeTodoCount, activeTodoWord, completedTodos, filter, footerData, b, footerJQueryStr;
 		a = this;
 		activeTodoCount = a.getActiveTodos().length;
 		activeTodoWord = utils.Pluralize(activeTodoCount, "item");
 		completedTodos = a.todos.length - activeTodoCount >> 0;
 		filter = a.filter;
 		footerData = new (go$structType([["ActiveTodoCount", "ActiveTodoCount", "", Go$Int, ""], ["ActiveTodoWord", "ActiveTodoWord", "", Go$String, ""], ["CompletedTodos", "CompletedTodos", "", Go$Int, ""], ["Filter", "Filter", "", Go$String, ""]])).Ptr(activeTodoCount, activeTodoWord, completedTodos, filter);
-		footerJQueryStr = go$internalize(a.footerHb.Object(go$externalize(footerData, (go$structType([["ActiveTodoCount", "ActiveTodoCount", "", Go$Int, ""], ["ActiveTodoWord", "ActiveTodoWord", "", Go$String, ""], ["CompletedTodos", "CompletedTodos", "", Go$Int, ""], ["Filter", "Filter", "", Go$String, ""]])))), Go$String);
+		b = new bytes.Buffer.Ptr();
+		a.footerTmpl.Execute(b, new footerData.constructor.Struct(footerData));
+		footerJQueryStr = b.String();
 		a.footerJQuery.Toggle(a.todos.length > 0).SetHtml(new Go$String(footerJQueryStr));
 	};
 	App.prototype.renderfooter = function() { return this.go$val.renderfooter(); };
@@ -18984,33 +27194,34 @@ go$packages["main"] = (function() {
 	go$pkg.init = function() {
 		ToDo.init([["Id", "Id", "", Go$String, ""], ["Text", "Text", "", Go$String, ""], ["Completed", "Completed", "", Go$Bool, ""]]);
 		(go$ptrType(App)).methods = [["bindEvents", "main", [], [], false, -1], ["blurOnEnter", "main", [jquery.Event], [], false, -1], ["create", "main", [jquery.Event], [], false, -1], ["destroy", "main", [jquery.Event], [], false, -1], ["destroyCompleted", "main", [jquery.Event], [], false, -1], ["edit", "main", [jquery.Event], [], false, -1], ["getActiveTodos", "main", [], [(go$sliceType(ToDo))], false, -1], ["getCompletedTodos", "main", [], [(go$sliceType(ToDo))], false, -1], ["getFilteredTodos", "main", [], [(go$sliceType(ToDo))], false, -1], ["indexFromEl", "main", [jquery.Event], [Go$Int], false, -1], ["initRouter", "main", [], [], false, -1], ["render", "main", [], [], false, -1], ["renderfooter", "main", [], [], false, -1], ["toggle", "main", [jquery.Event], [], false, -1], ["toggleAll", "main", [jquery.Event], [], false, -1], ["update", "main", [jquery.Event], [], false, -1]];
-		App.init([["todos", "todos", "main", (go$sliceType(ToDo)), ""], ["todoHb", "todoHb", "main", (go$ptrType(utils.Handlebar)), ""], ["footerHb", "footerHb", "main", (go$ptrType(utils.Handlebar)), ""], ["todoAppJQuery", "todoAppJQuery", "main", jquery.JQuery, ""], ["headerJQuery", "headerJQuery", "main", jquery.JQuery, ""], ["mainJQuery", "mainJQuery", "main", jquery.JQuery, ""], ["footerJQuery", "footerJQuery", "main", jquery.JQuery, ""], ["newTodoJQuery", "newTodoJQuery", "main", jquery.JQuery, ""], ["toggleAllJQuery", "toggleAllJQuery", "main", jquery.JQuery, ""], ["todoListJQuery", "todoListJQuery", "main", jquery.JQuery, ""], ["countJQuery", "countJQuery", "main", jquery.JQuery, ""], ["clearBtnJQuery", "clearBtnJQuery", "main", jquery.JQuery, ""], ["filter", "filter", "main", Go$String, ""]]);
+		App.init([["todos", "todos", "main", (go$sliceType(ToDo)), ""], ["todoTmpl", "todoTmpl", "main", (go$ptrType(template.Template)), ""], ["footerTmpl", "footerTmpl", "main", (go$ptrType(template.Template)), ""], ["todoAppJQuery", "todoAppJQuery", "main", jquery.JQuery, ""], ["headerJQuery", "headerJQuery", "main", jquery.JQuery, ""], ["mainJQuery", "mainJQuery", "main", jquery.JQuery, ""], ["footerJQuery", "footerJQuery", "main", jquery.JQuery, ""], ["newTodoJQuery", "newTodoJQuery", "main", jquery.JQuery, ""], ["toggleAllJQuery", "toggleAllJQuery", "main", jquery.JQuery, ""], ["todoListJQuery", "todoListJQuery", "main", jquery.JQuery, ""], ["countJQuery", "countJQuery", "main", jquery.JQuery, ""], ["clearBtnJQuery", "clearBtnJQuery", "main", jquery.JQuery, ""], ["filter", "filter", "main", Go$String, ""]]);
 		jQuery = jquery.NewJQuery;
 	}
 	return go$pkg;
 })();
-go$error.implementedBy = [go$packages["encoding/base64"].CorruptInputError, go$packages["encoding/json"].InvalidUnmarshalError.Ptr, go$packages["encoding/json"].MarshalerError.Ptr, go$packages["encoding/json"].SyntaxError.Ptr, go$packages["encoding/json"].UnmarshalTypeError.Ptr, go$packages["encoding/json"].UnsupportedTypeError.Ptr, go$packages["encoding/json"].UnsupportedValueError.Ptr, go$packages["errors"].errorString.Ptr, go$packages["github.com/gopherjs/gopherjs/js"].Error.Ptr, go$packages["os"].PathError.Ptr, go$packages["os"].SyscallError.Ptr, go$packages["reflect"].ValueError.Ptr, go$packages["runtime"].TypeAssertionError.Ptr, go$packages["runtime"].errorString, go$packages["strconv"].NumError.Ptr, go$packages["syscall"].DLLError.Ptr, go$packages["syscall"].Errno, go$packages["time"].ParseError.Ptr, go$ptrType(go$packages["encoding/base64"].CorruptInputError), go$ptrType(go$packages["runtime"].errorString), go$ptrType(go$packages["syscall"].Errno)];
+go$error.implementedBy = [go$packages["encoding/base64"].CorruptInputError, go$packages["encoding/json"].InvalidUnmarshalError.Ptr, go$packages["encoding/json"].MarshalerError.Ptr, go$packages["encoding/json"].SyntaxError.Ptr, go$packages["encoding/json"].UnmarshalTypeError.Ptr, go$packages["encoding/json"].UnsupportedTypeError.Ptr, go$packages["encoding/json"].UnsupportedValueError.Ptr, go$packages["errors"].errorString.Ptr, go$packages["github.com/gopherjs/gopherjs/js"].Error.Ptr, go$packages["html/template"].Error.Ptr, go$packages["os"].PathError.Ptr, go$packages["os"].SyscallError.Ptr, go$packages["reflect"].ValueError.Ptr, go$packages["runtime"].TypeAssertionError.Ptr, go$packages["runtime"].errorString, go$packages["strconv"].NumError.Ptr, go$packages["syscall"].DLLError.Ptr, go$packages["syscall"].Errno, go$packages["time"].ParseError.Ptr, go$ptrType(go$packages["encoding/base64"].CorruptInputError), go$ptrType(go$packages["runtime"].errorString), go$ptrType(go$packages["syscall"].Errno)];
 go$packages["runtime"].Error.implementedBy = [go$packages["runtime"].TypeAssertionError.Ptr, go$packages["runtime"].errorString, go$ptrType(go$packages["runtime"].errorString)];
-go$packages["github.com/gopherjs/gopherjs/js"].Object.implementedBy = [go$packages["github.com/gopherjs/gopherjs/js"].Error, go$packages["github.com/gopherjs/gopherjs/js"].Error.Ptr, go$packages["github.com/gopherjs/jquery"].Event, go$packages["github.com/gopherjs/jquery"].Event.Ptr, go$packages["github.com/gopherjs/todomvc/utils"].Handlebar, go$packages["github.com/gopherjs/todomvc/utils"].Handlebar.Ptr, go$packages["github.com/gopherjs/todomvc/utils"].Router, go$packages["github.com/gopherjs/todomvc/utils"].Router.Ptr];
 go$packages["sync"].Locker.implementedBy = [go$packages["os"].fileStat.Ptr, go$packages["sync"].Mutex.Ptr, go$packages["sync"].RWMutex.Ptr, go$packages["sync"].rlocker.Ptr];
-go$packages["io"].Reader.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].encodeState.Ptr, go$packages["fmt"].ss.Ptr, go$packages["os"].File.Ptr];
-go$packages["io"].RuneReader.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].encodeState.Ptr, go$packages["fmt"].ss.Ptr];
+go$packages["io"].Reader.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].encodeState.Ptr, go$packages["fmt"].ss.Ptr, go$packages["os"].File.Ptr, go$ptrType(go$packages["fmt"].stringReader)];
+go$packages["io"].RuneReader.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].encodeState.Ptr, go$packages["fmt"].readRune.Ptr, go$packages["fmt"].ss.Ptr];
 go$packages["io"].Writer.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/base64"].encoder.Ptr, go$packages["encoding/json"].encodeState.Ptr, go$packages["fmt"].pp.Ptr, go$packages["os"].File.Ptr, go$ptrType(go$packages["fmt"].buffer)];
+go$packages["github.com/gopherjs/gopherjs/js"].Object.implementedBy = [go$packages["github.com/gopherjs/gopherjs/js"].Error, go$packages["github.com/gopherjs/gopherjs/js"].Error.Ptr, go$packages["github.com/gopherjs/jquery"].Event, go$packages["github.com/gopherjs/jquery"].Event.Ptr, go$packages["github.com/gopherjs/todomvc/utils"].Router, go$packages["github.com/gopherjs/todomvc/utils"].Router.Ptr];
 go$packages["encoding"].TextMarshaler.implementedBy = [go$packages["time"].Time, go$packages["time"].Time.Ptr];
 go$packages["encoding"].TextUnmarshaler.implementedBy = [go$packages["time"].Time.Ptr];
 go$packages["os"].FileInfo.implementedBy = [go$packages["os"].fileStat.Ptr];
 go$packages["reflect"].Type.implementedBy = [go$packages["reflect"].arrayType.Ptr, go$packages["reflect"].chanType.Ptr, go$packages["reflect"].funcType.Ptr, go$packages["reflect"].interfaceType.Ptr, go$packages["reflect"].mapType.Ptr, go$packages["reflect"].ptrType.Ptr, go$packages["reflect"].rtype.Ptr, go$packages["reflect"].sliceType.Ptr, go$packages["reflect"].structType.Ptr];
 go$packages["fmt"].Formatter.implementedBy = [];
 go$packages["fmt"].GoStringer.implementedBy = [];
+go$packages["fmt"].ScanState.implementedBy = [go$packages["fmt"].ss.Ptr];
+go$packages["fmt"].Scanner.implementedBy = [];
 go$packages["fmt"].State.implementedBy = [go$packages["fmt"].pp.Ptr];
-go$packages["fmt"].Stringer.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].Number, go$packages["encoding/json"].encodeState.Ptr, go$packages["os"].FileMode, go$packages["reflect"].ChanDir, go$packages["reflect"].Kind, go$packages["reflect"].Value, go$packages["reflect"].Value.Ptr, go$packages["reflect"].arrayType.Ptr, go$packages["reflect"].chanType.Ptr, go$packages["reflect"].funcType.Ptr, go$packages["reflect"].interfaceType.Ptr, go$packages["reflect"].mapType.Ptr, go$packages["reflect"].ptrType.Ptr, go$packages["reflect"].rtype.Ptr, go$packages["reflect"].sliceType.Ptr, go$packages["reflect"].structType.Ptr, go$packages["strconv"].decimal.Ptr, go$packages["time"].Duration, go$packages["time"].Location.Ptr, go$packages["time"].Month, go$packages["time"].Time, go$packages["time"].Time.Ptr, go$packages["time"].Weekday, go$ptrType(go$packages["encoding/json"].Number), go$ptrType(go$packages["os"].FileMode), go$ptrType(go$packages["reflect"].ChanDir), go$ptrType(go$packages["reflect"].Kind), go$ptrType(go$packages["time"].Duration), go$ptrType(go$packages["time"].Month), go$ptrType(go$packages["time"].Weekday)];
+go$packages["fmt"].Stringer.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].Number, go$packages["encoding/json"].encodeState.Ptr, go$packages["html/template"].attr, go$packages["html/template"].context, go$packages["html/template"].context.Ptr, go$packages["html/template"].delim, go$packages["html/template"].element, go$packages["html/template"].jsCtx, go$packages["html/template"].state, go$packages["html/template"].urlPart, go$packages["os"].FileMode, go$packages["reflect"].ChanDir, go$packages["reflect"].Kind, go$packages["reflect"].Value, go$packages["reflect"].Value.Ptr, go$packages["reflect"].arrayType.Ptr, go$packages["reflect"].chanType.Ptr, go$packages["reflect"].funcType.Ptr, go$packages["reflect"].interfaceType.Ptr, go$packages["reflect"].mapType.Ptr, go$packages["reflect"].ptrType.Ptr, go$packages["reflect"].rtype.Ptr, go$packages["reflect"].sliceType.Ptr, go$packages["reflect"].structType.Ptr, go$packages["strconv"].decimal.Ptr, go$packages["text/template/parse"].ActionNode.Ptr, go$packages["text/template/parse"].BoolNode.Ptr, go$packages["text/template/parse"].BranchNode.Ptr, go$packages["text/template/parse"].ChainNode.Ptr, go$packages["text/template/parse"].CommandNode.Ptr, go$packages["text/template/parse"].DotNode.Ptr, go$packages["text/template/parse"].FieldNode.Ptr, go$packages["text/template/parse"].IdentifierNode.Ptr, go$packages["text/template/parse"].IfNode.Ptr, go$packages["text/template/parse"].ListNode.Ptr, go$packages["text/template/parse"].NilNode.Ptr, go$packages["text/template/parse"].NumberNode.Ptr, go$packages["text/template/parse"].PipeNode.Ptr, go$packages["text/template/parse"].RangeNode.Ptr, go$packages["text/template/parse"].StringNode.Ptr, go$packages["text/template/parse"].TemplateNode.Ptr, go$packages["text/template/parse"].TextNode.Ptr, go$packages["text/template/parse"].VariableNode.Ptr, go$packages["text/template/parse"].WithNode.Ptr, go$packages["text/template/parse"].elseNode.Ptr, go$packages["text/template/parse"].endNode.Ptr, go$packages["text/template/parse"].item, go$packages["text/template/parse"].item.Ptr, go$packages["time"].Duration, go$packages["time"].Location.Ptr, go$packages["time"].Month, go$packages["time"].Time, go$packages["time"].Time.Ptr, go$packages["time"].Weekday, go$ptrType(go$packages["encoding/json"].Number), go$ptrType(go$packages["html/template"].attr), go$ptrType(go$packages["html/template"].delim), go$ptrType(go$packages["html/template"].element), go$ptrType(go$packages["html/template"].jsCtx), go$ptrType(go$packages["html/template"].state), go$ptrType(go$packages["html/template"].urlPart), go$ptrType(go$packages["os"].FileMode), go$ptrType(go$packages["reflect"].ChanDir), go$ptrType(go$packages["reflect"].Kind), go$ptrType(go$packages["time"].Duration), go$ptrType(go$packages["time"].Month), go$ptrType(go$packages["time"].Weekday)];
 go$packages["fmt"].runeUnreader.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].encodeState.Ptr, go$packages["fmt"].ss.Ptr];
 go$packages["encoding/json"].Marshaler.implementedBy = [go$packages["time"].Time, go$packages["time"].Time.Ptr];
 go$packages["encoding/json"].Unmarshaler.implementedBy = [go$packages["time"].Time.Ptr];
 go$packages["math/rand"].Source.implementedBy = [go$packages["math/rand"].Rand.Ptr, go$packages["math/rand"].lockedSource.Ptr, go$packages["math/rand"].rngSource.Ptr];
+go$packages["text/template/parse"].Node.implementedBy = [go$packages["text/template/parse"].ActionNode.Ptr, go$packages["text/template/parse"].BoolNode.Ptr, go$packages["text/template/parse"].ChainNode.Ptr, go$packages["text/template/parse"].CommandNode.Ptr, go$packages["text/template/parse"].DotNode.Ptr, go$packages["text/template/parse"].FieldNode.Ptr, go$packages["text/template/parse"].IdentifierNode.Ptr, go$packages["text/template/parse"].IfNode.Ptr, go$packages["text/template/parse"].ListNode.Ptr, go$packages["text/template/parse"].NilNode.Ptr, go$packages["text/template/parse"].NumberNode.Ptr, go$packages["text/template/parse"].PipeNode.Ptr, go$packages["text/template/parse"].RangeNode.Ptr, go$packages["text/template/parse"].StringNode.Ptr, go$packages["text/template/parse"].TemplateNode.Ptr, go$packages["text/template/parse"].TextNode.Ptr, go$packages["text/template/parse"].VariableNode.Ptr, go$packages["text/template/parse"].WithNode.Ptr, go$packages["text/template/parse"].elseNode.Ptr, go$packages["text/template/parse"].endNode.Ptr];
 go$packages["runtime"].init();
-go$packages["github.com/gopherjs/gopherjs/js"].init();
-go$packages["github.com/gopherjs/jquery"].init();
 go$packages["errors"].init();
 go$packages["sync/atomic"].init();
 go$packages["sync"].init();
@@ -19018,6 +27229,8 @@ go$packages["io"].init();
 go$packages["unicode"].init();
 go$packages["unicode/utf8"].init();
 go$packages["bytes"].init();
+go$packages["github.com/gopherjs/gopherjs/js"].init();
+go$packages["github.com/gopherjs/jquery"].init();
 go$packages["encoding"].init();
 go$packages["math"].init();
 go$packages["strconv"].init();
@@ -19033,6 +27246,14 @@ go$packages["sort"].init();
 go$packages["encoding/json"].init();
 go$packages["math/rand"].init();
 go$packages["github.com/gopherjs/todomvc/utils"].init();
+go$packages["html"].init();
+go$packages["path/filepath"].init();
+go$packages["io/ioutil"].init();
+go$packages["net/url"].init();
+go$packages["container/list"].init();
+go$packages["text/template/parse"].init();
+go$packages["text/template"].init();
+go$packages["html/template"].init();
 go$packages["main"].init();
 go$packages["main"].main();
 
