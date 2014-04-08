@@ -29,7 +29,7 @@
 			<p>Part of <a href="http://todomvc.com">TodoMVC</a></p>
 			<p>Made with <a href="https://github.com/gopherjs/gopherjs">GopherJS</a></p>
 		</footer>
-		<script id="todo-template" type="text/x-gopherjs-template">
+		<script id="todo-template" type="text/x-golang-template">
 		{{range $k, $v := .}}
 			<li {{if $v.Completed}}class="completed"{{end}} data-id="{{$v.Id}}">
 				<div class="view">
@@ -41,7 +41,7 @@
 			</li>
 		{{end}}
 		</script>
-		<script id="footer-template" type="text/x-gopherjs-template">
+		<script id="footer-template" type="text/x-golang-template">
 		<span id="todo-count"><strong>{{.ActiveTodoCount}}</strong> {{.ActiveTodoWord}} left</span>
 			<ul id="filters">
 				<li>

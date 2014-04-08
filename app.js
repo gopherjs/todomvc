@@ -10,6 +10,7 @@ if (typeof window !== "undefined") {
 	go$global = window;
 } else if (typeof GLOBAL !== "undefined") {
 	go$global = GLOBAL;
+	go$global.require = require;
 }
 
 var go$idCounter = 0;
@@ -26,7 +27,6 @@ var go$mod = function(x, y) { return x % y; };
 var go$toString = String;
 var go$reflect, go$newStringPtr;
 var Go$Array = Array;
-var Go$Error = Error;
 
 var go$floatKey = function(f) {
 	if (f !== f) {
@@ -1301,7 +1301,7 @@ var go$now = function() { var msec = (new Date()).getTime(); return [new Go$Int6
 
 var go$packages = {};
 go$packages["runtime"] = (function() {
-	var go$pkg = {}, js = go$packages["github.com/gopherjs/gopherjs/js"], Error, TypeAssertionError, errorString, SetFinalizer, sizeof_C_MStats;
+	var go$pkg = {}, js = go$packages["github.com/gopherjs/gopherjs/js"], Error, TypeAssertionError, errorString, SetFinalizer, goexit, sizeof_C_MStats;
 	Error = go$pkg.Error = go$newType(0, "Interface", "runtime.Error", "Error", "runtime", null);
 	TypeAssertionError = go$pkg.TypeAssertionError = go$newType(0, "Struct", "runtime.TypeAssertionError", "TypeAssertionError", "runtime", function(interfaceString_, concreteString_, assertedString_, missingMethod_) {
 		this.go$val = this;
@@ -1343,15 +1343,19 @@ go$packages["runtime"] = (function() {
 		return "runtime error: " + e;
 	};
 	go$ptrType(errorString).prototype.Error = function() { return new errorString(this.go$get()).Error(); };
-
-			go$throwRuntimeError = function(msg) { throw go$panic(new errorString(msg)); };
-			go$pkg.init = function() {
+	go$pkg.init = function() {
 		Error.init([["Error", "", (go$funcType([], [Go$String], false))], ["RuntimeError", "", (go$funcType([], [], false))]]);
 		(go$ptrType(TypeAssertionError)).methods = [["Error", "", [], [Go$String], false, -1], ["RuntimeError", "", [], [], false, -1]];
 		TypeAssertionError.init([["interfaceString", "interfaceString", "runtime", Go$String, ""], ["concreteString", "concreteString", "runtime", Go$String, ""], ["assertedString", "assertedString", "runtime", Go$String, ""], ["missingMethod", "missingMethod", "runtime", Go$String, ""]]);
 		errorString.methods = [["Error", "", [], [Go$String], false, -1], ["RuntimeError", "", [], [], false, -1]];
 		(go$ptrType(errorString)).methods = [["Error", "", [], [Go$String], false, -1], ["RuntimeError", "", [], [], false, -1]];
 		sizeof_C_MStats = 3712;
+		goexit = go$global.eval(go$externalize("(function() {\n\tvar err = new Error();\n\terr.go$exit = true;\n\tthrow err;\n})", Go$String));
+		var e;
+		go$throwRuntimeError = go$externalize((function(msg) {
+			throw go$panic(new errorString(msg));
+		}), (go$funcType([Go$String], [], false)));
+		e = new TypeAssertionError.Ptr("", "", "", "");
 		if (!((sizeof_C_MStats === 3712))) {
 			console.log(sizeof_C_MStats, 3712);
 			throw go$panic(new Go$String("MStats vs MemStatsType size mismatch"));
@@ -2832,9 +2836,9 @@ go$packages["github.com/gopherjs/gopherjs/js"] = (function() {
 	};
 	Error.prototype.Error = function() { return this.go$val.Error(); };
 	go$pkg.init = function() {
-		Object.init([["Bool", "", (go$funcType([], [Go$Bool], false))], ["Call", "", (go$funcType([Go$String, (go$sliceType(go$emptyInterface))], [Object], true))], ["Float", "", (go$funcType([], [Go$Float64], false))], ["Get", "", (go$funcType([Go$String], [Object], false))], ["Index", "", (go$funcType([Go$Int], [Object], false))], ["Int", "", (go$funcType([], [Go$Int], false))], ["Int64", "", (go$funcType([], [Go$Int64], false))], ["Interface", "", (go$funcType([], [go$emptyInterface], false))], ["Invoke", "", (go$funcType([(go$sliceType(go$emptyInterface))], [Object], true))], ["IsNull", "", (go$funcType([], [Go$Bool], false))], ["IsUndefined", "", (go$funcType([], [Go$Bool], false))], ["Length", "", (go$funcType([], [Go$Int], false))], ["New", "", (go$funcType([(go$sliceType(go$emptyInterface))], [Object], true))], ["Set", "", (go$funcType([Go$String, go$emptyInterface], [], false))], ["SetIndex", "", (go$funcType([Go$Int, go$emptyInterface], [], false))], ["Str", "", (go$funcType([], [Go$String], false))], ["Uint64", "", (go$funcType([], [Go$Uint64], false))]]);
-		Error.methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [Object], false, 0], ["Index", "", [Go$Int], [Object], false, 0], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [Object], true, 0], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0]];
-		(go$ptrType(Error)).methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [Object], true, 0], ["Error", "", [], [Go$String], false, -1], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [Object], false, 0], ["Index", "", [Go$Int], [Object], false, 0], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [Object], true, 0], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0]];
+		Object.init([["Bool", "", (go$funcType([], [Go$Bool], false))], ["Call", "", (go$funcType([Go$String, (go$sliceType(go$emptyInterface))], [Object], true))], ["Float", "", (go$funcType([], [Go$Float64], false))], ["Get", "", (go$funcType([Go$String], [Object], false))], ["Index", "", (go$funcType([Go$Int], [Object], false))], ["Int", "", (go$funcType([], [Go$Int], false))], ["Int64", "", (go$funcType([], [Go$Int64], false))], ["Interface", "", (go$funcType([], [go$emptyInterface], false))], ["Invoke", "", (go$funcType([(go$sliceType(go$emptyInterface))], [Object], true))], ["IsNull", "", (go$funcType([], [Go$Bool], false))], ["IsUndefined", "", (go$funcType([], [Go$Bool], false))], ["Length", "", (go$funcType([], [Go$Int], false))], ["New", "", (go$funcType([(go$sliceType(go$emptyInterface))], [Object], true))], ["Set", "", (go$funcType([Go$String, go$emptyInterface], [], false))], ["SetIndex", "", (go$funcType([Go$Int, go$emptyInterface], [], false))], ["Str", "", (go$funcType([], [Go$String], false))], ["Uint64", "", (go$funcType([], [Go$Uint64], false))], ["Unsafe", "", (go$funcType([], [Go$Uintptr], false))]]);
+		Error.methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [Object], false, 0], ["Index", "", [Go$Int], [Object], false, 0], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [Object], true, 0], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0], ["Unsafe", "", [], [Go$Uintptr], false, 0]];
+		(go$ptrType(Error)).methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [Object], true, 0], ["Error", "", [], [Go$String], false, -1], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [Object], false, 0], ["Index", "", [Go$Int], [Object], false, 0], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [Object], true, 0], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0], ["Unsafe", "", [], [Go$Uintptr], false, 0]];
 		Error.init([["Object", "", "", Object, ""]]);
 		var e;
 		e = new Error.Ptr(null);
@@ -3796,8 +3800,8 @@ go$packages["github.com/gopherjs/jquery"] = (function() {
 		JQuery.methods = [["Add", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["AddBack", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["AddClass", "", [go$emptyInterface], [JQuery], false, -1], ["After", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Append", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["AppendTo", "", [go$emptyInterface], [JQuery], false, -1], ["Attr", "", [Go$String], [Go$String], false, -1], ["Before", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Blur", "", [], [JQuery], false, -1], ["Children", "", [go$emptyInterface], [JQuery], false, -1], ["ClearQueue", "", [Go$String], [JQuery], false, -1], ["Clone", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Closest", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Contents", "", [], [JQuery], false, -1], ["Css", "", [Go$String], [Go$String], false, -1], ["CssArray", "", [(go$sliceType(Go$String))], [(go$mapType(Go$String, go$emptyInterface))], true, -1], ["Data", "", [Go$String], [go$emptyInterface], false, -1], ["Delay", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Dequeue", "", [Go$String], [JQuery], false, -1], ["Detach", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Each", "", [(go$funcType([Go$Int, go$emptyInterface], [go$emptyInterface], false))], [JQuery], false, -1], ["Empty", "", [], [JQuery], false, -1], ["End", "", [], [JQuery], false, -1], ["Eq", "", [Go$Int], [JQuery], false, -1], ["FadeIn", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["FadeOut", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Filter", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Find", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["First", "", [], [JQuery], false, -1], ["Focus", "", [], [JQuery], false, -1], ["Get", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, -1], ["Has", "", [Go$String], [JQuery], false, -1], ["HasClass", "", [Go$String], [Go$Bool], false, -1], ["Height", "", [], [Go$Int], false, -1], ["Hide", "", [], [JQuery], false, -1], ["Html", "", [], [Go$String], false, -1], ["InnerHeight", "", [], [Go$Int], false, -1], ["InnerWidth", "", [], [Go$Int], false, -1], ["InsertAfter", "", [go$emptyInterface], [JQuery], false, -1], ["InsertBefore", "", [go$emptyInterface], [JQuery], false, -1], ["Is", "", [(go$sliceType(go$emptyInterface))], [Go$Bool], true, -1], ["Last", "", [], [JQuery], false, -1], ["Load", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Next", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["NextAll", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["NextUntil", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Not", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Off", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Offset", "", [], [JQueryCoordinates], false, -1], ["OffsetParent", "", [], [JQuery], false, -1], ["On", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["One", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["OuterHeight", "", [(go$sliceType(Go$Bool))], [Go$Int], true, -1], ["OuterWidth", "", [(go$sliceType(Go$Bool))], [Go$Int], true, -1], ["Parent", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Parents", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["ParentsUntil", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Position", "", [], [JQueryCoordinates], false, -1], ["Prepend", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["PrependTo", "", [go$emptyInterface], [JQuery], false, -1], ["Prev", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["PrevAll", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["PrevUntil", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Prop", "", [Go$String], [go$emptyInterface], false, -1], ["Ready", "", [(go$funcType([], [], false))], [JQuery], false, -1], ["Remove", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["RemoveAttr", "", [Go$String], [JQuery], false, -1], ["RemoveClass", "", [Go$String], [JQuery], false, -1], ["RemoveData", "", [Go$String], [JQuery], false, -1], ["RemoveProp", "", [Go$String], [JQuery], false, -1], ["ReplaceAll", "", [go$emptyInterface], [JQuery], false, -1], ["ReplaceWith", "", [go$emptyInterface], [JQuery], false, -1], ["Resize", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Scroll", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["ScrollLeft", "", [], [Go$Int], false, -1], ["ScrollTop", "", [], [Go$Int], false, -1], ["Select", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Serialize", "", [], [Go$String], false, -1], ["SerializeArray", "", [], [js.Object], false, -1], ["SetAttr", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["SetCss", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["SetData", "", [Go$String, go$emptyInterface], [JQuery], false, -1], ["SetHeight", "", [Go$String], [JQuery], false, -1], ["SetHtml", "", [go$emptyInterface], [JQuery], false, -1], ["SetOffset", "", [JQueryCoordinates], [JQuery], false, -1], ["SetProp", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["SetScrollLeft", "", [Go$Int], [JQuery], false, -1], ["SetScrollTop", "", [Go$Int], [JQuery], false, -1], ["SetText", "", [go$emptyInterface], [JQuery], false, -1], ["SetVal", "", [go$emptyInterface], [JQuery], false, -1], ["SetWidth", "", [go$emptyInterface], [JQuery], false, -1], ["Show", "", [], [JQuery], false, -1], ["Siblings", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Slice", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Stop", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Submit", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Text", "", [], [Go$String], false, -1], ["ToArray", "", [], [(go$sliceType(go$emptyInterface))], false, -1], ["Toggle", "", [Go$Bool], [JQuery], false, -1], ["ToggleClass", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Trigger", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Underlying", "", [], [js.Object], false, -1], ["Unwrap", "", [], [JQuery], false, -1], ["Val", "", [], [Go$String], false, -1], ["Width", "", [], [Go$Int], false, -1], ["Wrap", "", [go$emptyInterface], [JQuery], false, -1], ["WrapAll", "", [go$emptyInterface], [JQuery], false, -1], ["WrapInner", "", [go$emptyInterface], [JQuery], false, -1], ["dom1arg", "github.com/gopherjs/jquery", [Go$String, go$emptyInterface], [JQuery], false, -1], ["dom2args", "github.com/gopherjs/jquery", [Go$String, (go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["events", "github.com/gopherjs/jquery", [Go$String, (go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["handleEvent", "github.com/gopherjs/jquery", [Go$String, (go$sliceType(go$emptyInterface))], [JQuery], true, -1]];
 		(go$ptrType(JQuery)).methods = [["Add", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["AddBack", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["AddClass", "", [go$emptyInterface], [JQuery], false, -1], ["After", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Append", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["AppendTo", "", [go$emptyInterface], [JQuery], false, -1], ["Attr", "", [Go$String], [Go$String], false, -1], ["Before", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Blur", "", [], [JQuery], false, -1], ["Children", "", [go$emptyInterface], [JQuery], false, -1], ["ClearQueue", "", [Go$String], [JQuery], false, -1], ["Clone", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Closest", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Contents", "", [], [JQuery], false, -1], ["Css", "", [Go$String], [Go$String], false, -1], ["CssArray", "", [(go$sliceType(Go$String))], [(go$mapType(Go$String, go$emptyInterface))], true, -1], ["Data", "", [Go$String], [go$emptyInterface], false, -1], ["Delay", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Dequeue", "", [Go$String], [JQuery], false, -1], ["Detach", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Each", "", [(go$funcType([Go$Int, go$emptyInterface], [go$emptyInterface], false))], [JQuery], false, -1], ["Empty", "", [], [JQuery], false, -1], ["End", "", [], [JQuery], false, -1], ["Eq", "", [Go$Int], [JQuery], false, -1], ["FadeIn", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["FadeOut", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Filter", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Find", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["First", "", [], [JQuery], false, -1], ["Focus", "", [], [JQuery], false, -1], ["Get", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, -1], ["Has", "", [Go$String], [JQuery], false, -1], ["HasClass", "", [Go$String], [Go$Bool], false, -1], ["Height", "", [], [Go$Int], false, -1], ["Hide", "", [], [JQuery], false, -1], ["Html", "", [], [Go$String], false, -1], ["InnerHeight", "", [], [Go$Int], false, -1], ["InnerWidth", "", [], [Go$Int], false, -1], ["InsertAfter", "", [go$emptyInterface], [JQuery], false, -1], ["InsertBefore", "", [go$emptyInterface], [JQuery], false, -1], ["Is", "", [(go$sliceType(go$emptyInterface))], [Go$Bool], true, -1], ["Last", "", [], [JQuery], false, -1], ["Load", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Next", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["NextAll", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["NextUntil", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Not", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Off", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Offset", "", [], [JQueryCoordinates], false, -1], ["OffsetParent", "", [], [JQuery], false, -1], ["On", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["One", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["OuterHeight", "", [(go$sliceType(Go$Bool))], [Go$Int], true, -1], ["OuterWidth", "", [(go$sliceType(Go$Bool))], [Go$Int], true, -1], ["Parent", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Parents", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["ParentsUntil", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Position", "", [], [JQueryCoordinates], false, -1], ["Prepend", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["PrependTo", "", [go$emptyInterface], [JQuery], false, -1], ["Prev", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["PrevAll", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["PrevUntil", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Prop", "", [Go$String], [go$emptyInterface], false, -1], ["Ready", "", [(go$funcType([], [], false))], [JQuery], false, -1], ["Remove", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["RemoveAttr", "", [Go$String], [JQuery], false, -1], ["RemoveClass", "", [Go$String], [JQuery], false, -1], ["RemoveData", "", [Go$String], [JQuery], false, -1], ["RemoveProp", "", [Go$String], [JQuery], false, -1], ["ReplaceAll", "", [go$emptyInterface], [JQuery], false, -1], ["ReplaceWith", "", [go$emptyInterface], [JQuery], false, -1], ["Resize", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Scroll", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["ScrollLeft", "", [], [Go$Int], false, -1], ["ScrollTop", "", [], [Go$Int], false, -1], ["Select", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Serialize", "", [], [Go$String], false, -1], ["SerializeArray", "", [], [js.Object], false, -1], ["SetAttr", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["SetCss", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["SetData", "", [Go$String, go$emptyInterface], [JQuery], false, -1], ["SetHeight", "", [Go$String], [JQuery], false, -1], ["SetHtml", "", [go$emptyInterface], [JQuery], false, -1], ["SetOffset", "", [JQueryCoordinates], [JQuery], false, -1], ["SetProp", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["SetScrollLeft", "", [Go$Int], [JQuery], false, -1], ["SetScrollTop", "", [Go$Int], [JQuery], false, -1], ["SetText", "", [go$emptyInterface], [JQuery], false, -1], ["SetVal", "", [go$emptyInterface], [JQuery], false, -1], ["SetWidth", "", [go$emptyInterface], [JQuery], false, -1], ["Show", "", [], [JQuery], false, -1], ["Siblings", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Slice", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Stop", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Submit", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Text", "", [], [Go$String], false, -1], ["ToArray", "", [], [(go$sliceType(go$emptyInterface))], false, -1], ["Toggle", "", [Go$Bool], [JQuery], false, -1], ["ToggleClass", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Trigger", "", [(go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["Underlying", "", [], [js.Object], false, -1], ["Unwrap", "", [], [JQuery], false, -1], ["Val", "", [], [Go$String], false, -1], ["Width", "", [], [Go$Int], false, -1], ["Wrap", "", [go$emptyInterface], [JQuery], false, -1], ["WrapAll", "", [go$emptyInterface], [JQuery], false, -1], ["WrapInner", "", [go$emptyInterface], [JQuery], false, -1], ["dom1arg", "github.com/gopherjs/jquery", [Go$String, go$emptyInterface], [JQuery], false, -1], ["dom2args", "github.com/gopherjs/jquery", [Go$String, (go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["events", "github.com/gopherjs/jquery", [Go$String, (go$sliceType(go$emptyInterface))], [JQuery], true, -1], ["handleEvent", "github.com/gopherjs/jquery", [Go$String, (go$sliceType(go$emptyInterface))], [JQuery], true, -1]];
 		JQuery.init([["o", "o", "github.com/gopherjs/jquery", js.Object, ""], ["Jquery", "Jquery", "", Go$String, "js:\"jquery\""], ["Selector", "Selector", "", Go$String, "js:\"selector\""], ["Length", "Length", "", Go$String, "js:\"length\""], ["Context", "Context", "", Go$String, "js:\"context\""]]);
-		Event.methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [js.Object], false, 0], ["Index", "", [Go$Int], [js.Object], false, 0], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0]];
-		(go$ptrType(Event)).methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [js.Object], false, 0], ["Index", "", [Go$Int], [js.Object], false, 0], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["IsDefaultPrevented", "", [], [Go$Bool], false, -1], ["IsImmediatePropogationStopped", "", [], [Go$Bool], false, -1], ["IsNull", "", [], [Go$Bool], false, 0], ["IsPropagationStopped", "", [], [Go$Bool], false, -1], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["PreventDefault", "", [], [], false, -1], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["StopImmediatePropagation", "", [], [], false, -1], ["StopPropagation", "", [], [], false, -1], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0]];
+		Event.methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [js.Object], false, 0], ["Index", "", [Go$Int], [js.Object], false, 0], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0], ["Unsafe", "", [], [Go$Uintptr], false, 0]];
+		(go$ptrType(Event)).methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [js.Object], false, 0], ["Index", "", [Go$Int], [js.Object], false, 0], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["IsDefaultPrevented", "", [], [Go$Bool], false, -1], ["IsImmediatePropogationStopped", "", [], [Go$Bool], false, -1], ["IsNull", "", [], [Go$Bool], false, 0], ["IsPropagationStopped", "", [], [Go$Bool], false, -1], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["PreventDefault", "", [], [], false, -1], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["StopImmediatePropagation", "", [], [], false, -1], ["StopPropagation", "", [], [], false, -1], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0], ["Unsafe", "", [], [Go$Uintptr], false, 0]];
 		Event.init([["Object", "", "", js.Object, ""], ["KeyCode", "KeyCode", "", Go$Int, "js:\"keyCode\""], ["Target", "Target", "", js.Object, "js:\"target\""], ["CurrentTarget", "CurrentTarget", "", js.Object, "js:\"currentTarget\""], ["DelegateTarget", "DelegateTarget", "", js.Object, "js:\"delegateTarget\""], ["RelatedTarget", "RelatedTarget", "", js.Object, "js:\"relatedTarget\""], ["Data", "Data", "", js.Object, "js:\"data\""], ["Result", "Result", "", js.Object, "js:\"result\""], ["Which", "Which", "", Go$Int, "js:\"which\""], ["Namespace", "Namespace", "", Go$String, "js:\"namespace\""], ["MetaKey", "MetaKey", "", Go$Bool, "js:\"metaKey\""], ["PageX", "PageX", "", Go$Int, "js:\"pageX\""], ["PageY", "PageY", "", Go$Int, "js:\"pageY\""], ["Type", "Type", "", Go$String, "js:\"type\""]]);
 		JQueryCoordinates.init([["Left", "Left", "", Go$Int, ""], ["Top", "Top", "", Go$Int, ""]]);
 	}
@@ -6946,7 +6950,10 @@ go$packages["unicode/utf16"] = (function() {
 	return go$pkg;
 })();
 go$packages["syscall"] = (function() {
-	var go$pkg = {}, sync = go$packages["sync"], atomic = go$packages["sync/atomic"], utf16 = go$packages["unicode/utf16"], errors$1 = go$packages["errors"], DLLError, DLL, Proc, LazyDLL, LazyProc, Handle, Errno, SecurityAttributes, Overlapped, Filetime, Win32finddata, win32finddata1, ByHandleFileInformation, Win32FileAttributeData, Systemtime, Timezoneinformation, Syscall, Syscall6, Syscall9, Syscall12, Syscall15, loadlibrary, getprocaddress, LoadDLL, NewLazyDLL, Getenv, CloseOnExec, itoa, ByteSliceFromString, BytePtrFromString, UTF16FromString, UTF16ToString, UTF16PtrFromString, langid, makeInheritSa, Open, Read, Write, Seek, getStdHandle, Getwd, Ftruncate, Fsync, FindFirstFile, FindNextFile, Fchdir, Fchmod, Fchown, FreeLibrary, FormatMessage, CreateFile, ReadFile, WriteFile, SetFilePointer, CloseHandle, GetStdHandle, findFirstFile1, findNextFile1, FindClose, GetFileInformationByHandle, GetCurrentDirectory, SetEndOfFile, GetTimeZoneInformation, GetFileType, GetEnvironmentVariable, GetFileAttributesEx, GetCommandLine, CommandLineToArgv, SetHandleInformation, FlushFileBuffers, RegOpenKeyEx, RegQueryInfoKey, RegEnumKeyEx, RegQueryValueEx, GetConsoleMode, WriteConsole, ReadConsole, copyFindData, errors, modkernel32, modadvapi32, modshell32, modmswsock, modcrypt32, modws2_32, moddnsapi, modiphlpapi, modsecur32, modnetapi32, moduserenv, procGetLastError, procLoadLibraryW, procFreeLibrary, procGetProcAddress, procGetVersion, procFormatMessageW, procExitProcess, procCreateFileW, procReadFile, procWriteFile, procSetFilePointer, procCloseHandle, procGetStdHandle, procFindFirstFileW, procFindNextFileW, procFindClose, procGetFileInformationByHandle, procGetCurrentDirectoryW, procSetCurrentDirectoryW, procCreateDirectoryW, procRemoveDirectoryW, procDeleteFileW, procMoveFileW, procGetComputerNameW, procSetEndOfFile, procGetSystemTimeAsFileTime, procGetTimeZoneInformation, procCreateIoCompletionPort, procGetQueuedCompletionStatus, procPostQueuedCompletionStatus, procCancelIo, procCancelIoEx, procCreateProcessW, procOpenProcess, procTerminateProcess, procGetExitCodeProcess, procGetStartupInfoW, procGetCurrentProcess, procGetProcessTimes, procDuplicateHandle, procWaitForSingleObject, procGetTempPathW, procCreatePipe, procGetFileType, procCryptAcquireContextW, procCryptReleaseContext, procCryptGenRandom, procGetEnvironmentStringsW, procFreeEnvironmentStringsW, procGetEnvironmentVariableW, procSetEnvironmentVariableW, procSetFileTime, procGetFileAttributesW, procSetFileAttributesW, procGetFileAttributesExW, procGetCommandLineW, procCommandLineToArgvW, procLocalFree, procSetHandleInformation, procFlushFileBuffers, procGetFullPathNameW, procGetLongPathNameW, procGetShortPathNameW, procCreateFileMappingW, procMapViewOfFile, procUnmapViewOfFile, procFlushViewOfFile, procVirtualLock, procVirtualUnlock, procTransmitFile, procReadDirectoryChangesW, procCertOpenSystemStoreW, procCertOpenStore, procCertEnumCertificatesInStore, procCertAddCertificateContextToStore, procCertCloseStore, procCertGetCertificateChain, procCertFreeCertificateChain, procCertCreateCertificateContext, procCertFreeCertificateContext, procCertVerifyCertificateChainPolicy, procRegOpenKeyExW, procRegCloseKey, procRegQueryInfoKeyW, procRegEnumKeyExW, procRegQueryValueExW, procGetCurrentProcessId, procGetConsoleMode, procWriteConsoleW, procReadConsoleW, procWSAStartup, procWSACleanup, procWSAIoctl, procsocket, procsetsockopt, procgetsockopt, procbind, procconnect, procgetsockname, procgetpeername, proclisten, procshutdown, procclosesocket, procAcceptEx, procGetAcceptExSockaddrs, procWSARecv, procWSASend, procWSARecvFrom, procWSASendTo, procgethostbyname, procgetservbyname, procntohs, procgetprotobyname, procDnsQuery_W, procDnsRecordListFree, procGetAddrInfoW, procFreeAddrInfoW, procGetIfEntry, procGetAdaptersInfo, procSetFileCompletionNotificationModes, procWSAEnumProtocolsW, procTranslateNameW, procGetUserNameExW, procNetUserGetInfo, procNetGetJoinInformation, procNetApiBufferFree, procLookupAccountSidW, procLookupAccountNameW, procConvertSidToStringSidW, procConvertStringSidToSidW, procGetLengthSid, procCopySid, procOpenProcessToken, procGetTokenInformation, procGetUserProfileDirectoryW;
+	var go$pkg = {}, sync = go$packages["sync"], atomic = go$packages["sync/atomic"], utf16 = go$packages["unicode/utf16"], errors$1 = go$packages["errors"], DummyError, DLLError, DLL, Proc, LazyDLL, LazyProc, Handle, Errno, SecurityAttributes, Overlapped, Filetime, Win32finddata, win32finddata1, ByHandleFileInformation, Win32FileAttributeData, Systemtime, Timezoneinformation, Syscall, Syscall6, Syscall9, Syscall12, Syscall15, loadlibrary, getprocaddress, getStdHandle, GetCommandLine, CommandLineToArgv, Getenv, GetTimeZoneInformation, LoadDLL, NewLazyDLL, itoa, ByteSliceFromString, BytePtrFromString, UTF16FromString, UTF16ToString, UTF16PtrFromString, langid, makeInheritSa, Open, Read, Write, Seek, Getwd, Ftruncate, Fsync, FindFirstFile, FindNextFile, Fchdir, Fchmod, Fchown, FreeLibrary, FormatMessage, CreateFile, ReadFile, WriteFile, SetFilePointer, CloseHandle, findFirstFile1, findNextFile1, FindClose, GetFileInformationByHandle, GetCurrentDirectory, SetEndOfFile, GetFileType, GetFileAttributesEx, FlushFileBuffers, RegOpenKeyEx, RegQueryInfoKey, RegEnumKeyEx, RegQueryValueEx, GetConsoleMode, WriteConsole, ReadConsole, copyFindData, errors, modkernel32, modadvapi32, modshell32, modmswsock, modcrypt32, modws2_32, moddnsapi, modiphlpapi, modsecur32, modnetapi32, moduserenv, procGetLastError, procLoadLibraryW, procFreeLibrary, procGetProcAddress, procGetVersion, procFormatMessageW, procExitProcess, procCreateFileW, procReadFile, procWriteFile, procSetFilePointer, procCloseHandle, procGetStdHandle, procFindFirstFileW, procFindNextFileW, procFindClose, procGetFileInformationByHandle, procGetCurrentDirectoryW, procSetCurrentDirectoryW, procCreateDirectoryW, procRemoveDirectoryW, procDeleteFileW, procMoveFileW, procGetComputerNameW, procSetEndOfFile, procGetSystemTimeAsFileTime, procGetTimeZoneInformation, procCreateIoCompletionPort, procGetQueuedCompletionStatus, procPostQueuedCompletionStatus, procCancelIo, procCancelIoEx, procCreateProcessW, procOpenProcess, procTerminateProcess, procGetExitCodeProcess, procGetStartupInfoW, procGetCurrentProcess, procGetProcessTimes, procDuplicateHandle, procWaitForSingleObject, procGetTempPathW, procCreatePipe, procGetFileType, procCryptAcquireContextW, procCryptReleaseContext, procCryptGenRandom, procGetEnvironmentStringsW, procFreeEnvironmentStringsW, procGetEnvironmentVariableW, procSetEnvironmentVariableW, procSetFileTime, procGetFileAttributesW, procSetFileAttributesW, procGetFileAttributesExW, procGetCommandLineW, procCommandLineToArgvW, procLocalFree, procSetHandleInformation, procFlushFileBuffers, procGetFullPathNameW, procGetLongPathNameW, procGetShortPathNameW, procCreateFileMappingW, procMapViewOfFile, procUnmapViewOfFile, procFlushViewOfFile, procVirtualLock, procVirtualUnlock, procTransmitFile, procReadDirectoryChangesW, procCertOpenSystemStoreW, procCertOpenStore, procCertEnumCertificatesInStore, procCertAddCertificateContextToStore, procCertCloseStore, procCertGetCertificateChain, procCertFreeCertificateChain, procCertCreateCertificateContext, procCertFreeCertificateContext, procCertVerifyCertificateChainPolicy, procRegOpenKeyExW, procRegCloseKey, procRegQueryInfoKeyW, procRegEnumKeyExW, procRegQueryValueExW, procGetCurrentProcessId, procGetConsoleMode, procWriteConsoleW, procReadConsoleW, procWSAStartup, procWSACleanup, procWSAIoctl, procsocket, procsetsockopt, procgetsockopt, procbind, procconnect, procgetsockname, procgetpeername, proclisten, procshutdown, procclosesocket, procAcceptEx, procGetAcceptExSockaddrs, procWSARecv, procWSASend, procWSARecvFrom, procWSASendTo, procgethostbyname, procgetservbyname, procntohs, procgetprotobyname, procDnsQuery_W, procDnsRecordListFree, procGetAddrInfoW, procFreeAddrInfoW, procGetIfEntry, procGetAdaptersInfo, procSetFileCompletionNotificationModes, procWSAEnumProtocolsW, procTranslateNameW, procGetUserNameExW, procNetUserGetInfo, procNetGetJoinInformation, procNetApiBufferFree, procLookupAccountSidW, procLookupAccountNameW, procConvertSidToStringSidW, procConvertStringSidToSidW, procGetLengthSid, procCopySid, procOpenProcessToken, procGetTokenInformation, procGetUserProfileDirectoryW;
+	DummyError = go$pkg.DummyError = go$newType(0, "Struct", "syscall.DummyError", "DummyError", "syscall", function() {
+		this.go$val = this;
+	});
 	DLLError = go$pkg.DLLError = go$newType(0, "Struct", "syscall.DLLError", "DLLError", "syscall", function(Err_, ObjName_, Msg_) {
 		this.go$val = this;
 		this.Err = Err_ !== undefined ? Err_ : null;
@@ -7067,33 +7074,97 @@ go$packages["syscall"] = (function() {
 		this.DaylightDate = DaylightDate_ !== undefined ? DaylightDate_ : new Systemtime.Ptr();
 		this.DaylightBias = DaylightBias_ !== undefined ? DaylightBias_ : 0;
 	});
+	Syscall = go$pkg.Syscall = function(trap, nargs, a1, a2, a3) {
+		var r1, r2, err;
+		r1 = 0;
+		r2 = 0;
+		err = 0;
+		throw go$panic(new Go$String("syscalls not available on Windows"));
+	};
+	Syscall6 = go$pkg.Syscall6 = function(trap, nargs, a1, a2, a3, a4, a5, a6) {
+		var r1, r2, err;
+		r1 = 0;
+		r2 = 0;
+		err = 0;
+		throw go$panic(new Go$String("syscalls not available on Windows"));
+	};
+	Syscall9 = go$pkg.Syscall9 = function(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
+		var r1, r2, err;
+		r1 = 0;
+		r2 = 0;
+		err = 0;
+		throw go$panic(new Go$String("syscalls not available on Windows"));
+	};
+	Syscall12 = go$pkg.Syscall12 = function(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) {
+		var r1, r2, err;
+		r1 = 0;
+		r2 = 0;
+		err = 0;
+		throw go$panic(new Go$String("syscalls not available on Windows"));
+	};
+	Syscall15 = go$pkg.Syscall15 = function(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) {
+		var r1, r2, err;
+		r1 = 0;
+		r2 = 0;
+		err = 0;
+		throw go$panic(new Go$String("syscalls not available on Windows"));
+	};
+	loadlibrary = function(filename) {
+		var handle, err;
+		handle = 0;
+		err = 0;
+		throw go$panic(new Go$String("syscalls not available on Windows"));
+	};
+	getprocaddress = function(handle, procname) {
+		var proc, err;
+		proc = 0;
+		err = 0;
+		throw go$panic(new Go$String("syscalls not available on Windows"));
+	};
+	getStdHandle = function(h) {
+		var fd;
+		fd = 0;
+		fd = 0;
+		return fd;
+	};
+	GetCommandLine = go$pkg.GetCommandLine = function() {
+		var cmd;
+		cmd = (go$ptrType(Go$Uint16)).nil;
+		return cmd;
+	};
+	DummyError.Ptr.prototype.Error = function() {
+		var _struct, e;
+		e = (_struct = this, new DummyError.Ptr());
+		return "";
+	};
+	DummyError.prototype.Error = function() { return this.go$val.Error(); };
+	CommandLineToArgv = go$pkg.CommandLineToArgv = function(cmd, argc) {
+		var argv, err, x, _tuple;
+		argv = (go$ptrType((go$arrayType((go$ptrType((go$arrayType(Go$Uint16, 8192)))), 8192)))).nil;
+		err = null;
+		_tuple = [(go$ptrType((go$arrayType((go$ptrType((go$arrayType(Go$Uint16, 8192)))), 8192)))).nil, (x = new DummyError.Ptr(), new x.constructor.Struct(x))]; argv = _tuple[0]; err = _tuple[1];
+		return [argv, err];
+	};
+	Getenv = go$pkg.Getenv = function(key) {
+		var value, found, _tuple;
+		value = "";
+		found = false;
+		_tuple = ["", false]; value = _tuple[0]; found = _tuple[1];
+		return [value, found];
+	};
+	GetTimeZoneInformation = go$pkg.GetTimeZoneInformation = function(tzi) {
+		var rc, err, x, _tuple;
+		rc = 0;
+		err = null;
+		_tuple = [0, (x = new DummyError.Ptr(), new x.constructor.Struct(x))]; rc = _tuple[0]; err = _tuple[1];
+		return [rc, err];
+	};
 	DLLError.Ptr.prototype.Error = function() {
 		var e;
 		e = this;
 		return e.Msg;
 	};
 	DLLError.prototype.Error = function() { return this.go$val.Error(); };
-	Syscall = go$pkg.Syscall = function() {
-		throw go$panic("Native function not implemented: Syscall");
-	};
-	Syscall6 = go$pkg.Syscall6 = function() {
-		throw go$panic("Native function not implemented: Syscall6");
-	};
-	Syscall9 = go$pkg.Syscall9 = function() {
-		throw go$panic("Native function not implemented: Syscall9");
-	};
-	Syscall12 = go$pkg.Syscall12 = function() {
-		throw go$panic("Native function not implemented: Syscall12");
-	};
-	Syscall15 = go$pkg.Syscall15 = function() {
-		throw go$panic("Native function not implemented: Syscall15");
-	};
-	loadlibrary = function() {
-		throw go$panic("Native function not implemented: loadlibrary");
-	};
-	getprocaddress = function() {
-		throw go$panic("Native function not implemented: getprocaddress");
-	};
 	LoadDLL = go$pkg.LoadDLL = function(name) {
 		var dll, err, _tuple, namep, _tuple$1, _tuple$2, h, e, _tuple$3, d, _tuple$4;
 		dll = (go$ptrType(DLL)).nil;
@@ -7327,34 +7398,6 @@ go$packages["syscall"] = (function() {
 		return [r1, r2, lastErr];
 	};
 	LazyProc.prototype.Call = function(a) { return this.go$val.Call(a); };
-	Getenv = go$pkg.Getenv = function(key) {
-		var value, found, _tuple, keyp, err, _tuple$1, b, _tuple$2, v, _slice, _index, _slice$1, _index$1, n, e, _tuple$3, _tuple$4, v$1, _slice$2, _index$2, _slice$3, _index$3, _tuple$5;
-		value = "";
-		found = false;
-		_tuple = UTF16PtrFromString(key); keyp = _tuple[0]; err = _tuple[1];
-		if (!(go$interfaceIsEqual(err, null))) {
-			_tuple$1 = ["", false]; value = _tuple$1[0]; found = _tuple$1[1];
-			return [value, found];
-		}
-		b = (go$sliceType(Go$Uint16)).make(100, 0, function() { return 0; });
-		_tuple$2 = GetEnvironmentVariable(keyp, new (go$ptrType(Go$Uint16))(function() { return (_slice$1 = b, _index$1 = 0, (_index$1 >= 0 && _index$1 < _slice$1.length) ? _slice$1.array[_slice$1.offset + _index$1] : go$throwRuntimeError("index out of range")); }, function(v) { _slice = b; _index = 0;(_index >= 0 && _index < _slice.length) ? (_slice.array[_slice.offset + _index] = v) : go$throwRuntimeError("index out of range");; }), (b.length >>> 0)); n = _tuple$2[0]; e = _tuple$2[1];
-		if ((n === 0) && go$interfaceIsEqual(e, new Errno(203))) {
-			_tuple$3 = ["", false]; value = _tuple$3[0]; found = _tuple$3[1];
-			return [value, found];
-		}
-		if (n > (b.length >>> 0)) {
-			b = (go$sliceType(Go$Uint16)).make(n, 0, function() { return 0; });
-			_tuple$4 = GetEnvironmentVariable(keyp, new (go$ptrType(Go$Uint16))(function() { return (_slice$3 = b, _index$3 = 0, (_index$3 >= 0 && _index$3 < _slice$3.length) ? _slice$3.array[_slice$3.offset + _index$3] : go$throwRuntimeError("index out of range")); }, function(v$1) { _slice$2 = b; _index$2 = 0;(_index$2 >= 0 && _index$2 < _slice$2.length) ? (_slice$2.array[_slice$2.offset + _index$2] = v$1) : go$throwRuntimeError("index out of range");; }), (b.length >>> 0)); n = _tuple$4[0]; e = _tuple$4[1];
-			if (n > (b.length >>> 0)) {
-				n = 0;
-			}
-		}
-		_tuple$5 = [go$runesToString(utf16.Decode(go$subslice(b, 0, n))), true]; value = _tuple$5[0]; found = _tuple$5[1];
-		return [value, found];
-	};
-	CloseOnExec = go$pkg.CloseOnExec = function(fd) {
-		SetHandleInformation(fd, 1, 0);
-	};
 	itoa = function(val) {
 		var buf, i, _r, _q;
 		if (val < 0) {
@@ -7577,14 +7620,6 @@ go$packages["syscall"] = (function() {
 		_tuple$4 = [(x$1 = go$shiftLeft64(new Go$Int64(0, hi), 32), x$2 = new Go$Int64(0, rlo), new Go$Int64(x$1.high + x$2.high, x$1.low + x$2.low)), null]; newoffset = _tuple$4[0]; err = _tuple$4[1];
 		return [newoffset, err];
 	};
-	getStdHandle = function(h) {
-		var fd, _tuple, r;
-		fd = 0;
-		_tuple = GetStdHandle(h); r = _tuple[0];
-		CloseOnExec(r);
-		fd = r;
-		return fd;
-	};
 	Getwd = go$pkg.Getwd = function() {
 		var wd, err, b, _tuple, v, _slice, _index, _slice$1, _index$1, n, e, _tuple$1, _tuple$2;
 		wd = "";
@@ -7788,21 +7823,6 @@ go$packages["syscall"] = (function() {
 		}
 		return err;
 	};
-	GetStdHandle = go$pkg.GetStdHandle = function(stdhandle) {
-		var handle, err, _tuple, r0, e1;
-		handle = 0;
-		err = null;
-		_tuple = Syscall(procGetStdHandle.Addr(), 1, (stdhandle >>> 0), 0, 0); r0 = _tuple[0]; e1 = _tuple[2];
-		handle = (r0 >>> 0);
-		if (handle === 4294967295) {
-			if (!((e1 === 0))) {
-				err = new Errno(e1);
-			} else {
-				err = new Errno(536870951);
-			}
-		}
-		return [handle, err];
-	};
 	findFirstFile1 = function(name, data) {
 		var handle, err, _tuple, _array, _struct, _view, r0, e1;
 		handle = 0;
@@ -7891,23 +7911,6 @@ go$packages["syscall"] = (function() {
 		}
 		return err;
 	};
-	GetTimeZoneInformation = go$pkg.GetTimeZoneInformation = function(tzi) {
-		var rc, err, _tuple, _array, _struct, _view, r0, e1;
-		rc = 0;
-		err = null;
-		_array = new Uint8Array(172);
-		_tuple = Syscall(procGetTimeZoneInformation.Addr(), 1, _array, 0, 0); r0 = _tuple[0]; e1 = _tuple[2];
-		_struct = tzi, _view = new DataView(_array.buffer, _array.byteOffset), _struct.Bias = _view.getInt32(0, true), _struct.StandardName = new (go$nativeArray("Uint16"))(_array.buffer, go$min(_array.byteOffset + 4, _array.buffer.byteLength)), _struct.StandardDate.Year = _view.getUint16(68, true), _struct.StandardDate.Month = _view.getUint16(70, true), _struct.StandardDate.DayOfWeek = _view.getUint16(72, true), _struct.StandardDate.Day = _view.getUint16(74, true), _struct.StandardDate.Hour = _view.getUint16(76, true), _struct.StandardDate.Minute = _view.getUint16(78, true), _struct.StandardDate.Second = _view.getUint16(80, true), _struct.StandardDate.Milliseconds = _view.getUint16(82, true), _struct.StandardBias = _view.getInt32(84, true), _struct.DaylightName = new (go$nativeArray("Uint16"))(_array.buffer, go$min(_array.byteOffset + 88, _array.buffer.byteLength)), _struct.DaylightDate.Year = _view.getUint16(152, true), _struct.DaylightDate.Month = _view.getUint16(154, true), _struct.DaylightDate.DayOfWeek = _view.getUint16(156, true), _struct.DaylightDate.Day = _view.getUint16(158, true), _struct.DaylightDate.Hour = _view.getUint16(160, true), _struct.DaylightDate.Minute = _view.getUint16(162, true), _struct.DaylightDate.Second = _view.getUint16(164, true), _struct.DaylightDate.Milliseconds = _view.getUint16(166, true), _struct.DaylightBias = _view.getInt32(168, true);
-		rc = (r0 >>> 0);
-		if (rc === 4294967295) {
-			if (!((e1 === 0))) {
-				err = new Errno(e1);
-			} else {
-				err = new Errno(536870951);
-			}
-		}
-		return [rc, err];
-	};
 	GetFileType = go$pkg.GetFileType = function(filehandle) {
 		var n, err, _tuple, r0, e1;
 		n = 0;
@@ -7923,60 +7926,10 @@ go$packages["syscall"] = (function() {
 		}
 		return [n, err];
 	};
-	GetEnvironmentVariable = go$pkg.GetEnvironmentVariable = function(name, buffer, size) {
-		var n, err, _tuple, r0, e1;
-		n = 0;
-		err = null;
-		_tuple = Syscall(procGetEnvironmentVariableW.Addr(), 3, name, buffer, (size >>> 0)); r0 = _tuple[0]; e1 = _tuple[2];
-		n = (r0 >>> 0);
-		if (n === 0) {
-			if (!((e1 === 0))) {
-				err = new Errno(e1);
-			} else {
-				err = new Errno(536870951);
-			}
-		}
-		return [n, err];
-	};
 	GetFileAttributesEx = go$pkg.GetFileAttributesEx = function(name, level, info) {
 		var err, _tuple, r1, e1;
 		err = null;
 		_tuple = Syscall(procGetFileAttributesExW.Addr(), 3, name, (level >>> 0), info); r1 = _tuple[0]; e1 = _tuple[2];
-		if (r1 === 0) {
-			if (!((e1 === 0))) {
-				err = new Errno(e1);
-			} else {
-				err = new Errno(536870951);
-			}
-		}
-		return err;
-	};
-	GetCommandLine = go$pkg.GetCommandLine = function() {
-		var cmd, _tuple, r0;
-		cmd = (go$ptrType(Go$Uint16)).nil;
-		_tuple = Syscall(procGetCommandLineW.Addr(), 0, 0, 0, 0); r0 = _tuple[0];
-		cmd = r0;
-		return cmd;
-	};
-	CommandLineToArgv = go$pkg.CommandLineToArgv = function(cmd, argc) {
-		var argv, err, _tuple, r0, e1;
-		argv = (go$ptrType((go$arrayType((go$ptrType((go$arrayType(Go$Uint16, 8192)))), 8192)))).nil;
-		err = null;
-		_tuple = Syscall(procCommandLineToArgvW.Addr(), 2, cmd, argc, 0); r0 = _tuple[0]; e1 = _tuple[2];
-		argv = r0;
-		if (go$arrayIsEqual(argv, (go$ptrType((go$arrayType((go$ptrType((go$arrayType(Go$Uint16, 8192)))), 8192)))).nil)) {
-			if (!((e1 === 0))) {
-				err = new Errno(e1);
-			} else {
-				err = new Errno(536870951);
-			}
-		}
-		return [argv, err];
-	};
-	SetHandleInformation = go$pkg.SetHandleInformation = function(handle, mask, flags) {
-		var err, _tuple, r1, e1;
-		err = null;
-		_tuple = Syscall(procSetHandleInformation.Addr(), 3, (handle >>> 0), (mask >>> 0), (flags >>> 0)); r1 = _tuple[0]; e1 = _tuple[2];
 		if (r1 === 0) {
 			if (!((e1 === 0))) {
 				err = new Errno(e1);
@@ -8100,40 +8053,10 @@ go$packages["syscall"] = (function() {
 		go$copySlice(new (go$sliceType(Go$Uint16))(dst.FileName), new (go$sliceType(Go$Uint16))(src.FileName));
 		go$copySlice(new (go$sliceType(Go$Uint16))(dst.AlternateFileName), new (go$sliceType(Go$Uint16))(src.AlternateFileName));
 	};
-
-			if (go$pkg.Syscall15 !== undefined) { // windows
-				Syscall = Syscall6 = Syscall9 = Syscall12 = Syscall15 = go$pkg.Syscall = go$pkg.Syscall6 = go$pkg.Syscall9 = go$pkg.Syscall12 = go$pkg.Syscall15 = loadlibrary = getprocaddress = function() { throw new Error("Syscalls not available."); };
-				getStdHandle = GetCommandLine = go$pkg.GetCommandLine = function() {};
-				CommandLineToArgv = go$pkg.CommandLineToArgv = function() { return [null, {}]; };
-				Getenv = go$pkg.Getenv = function(key) { return ["", false]; };
-				GetTimeZoneInformation = go$pkg.GetTimeZoneInformation = function() { return [undefined, true]; };
-			} else if (typeof process === "undefined") {
-				var syscall = function() { throw new Error("Syscalls not available."); };
-				if (typeof go$syscall !== "undefined") {
-					syscall = go$syscall;
-				}
-				Syscall = Syscall6 = RawSyscall = RawSyscall6 = go$pkg.Syscall = go$pkg.Syscall6 = go$pkg.RawSyscall = go$pkg.RawSyscall6 = syscall;
-				envs = new (go$sliceType(Go$String))(new Array(0));
-			} else {
-				try {
-					var syscall = require("syscall");
-					Syscall = go$pkg.Syscall = syscall.Syscall;
-					Syscall6 = go$pkg.Syscall6 = syscall.Syscall6;
-					RawSyscall = go$pkg.RawSyscall = syscall.Syscall;
-					RawSyscall6 = go$pkg.RawSyscall6 = syscall.Syscall6;
-				} catch (e) {
-					Syscall = Syscall6 = RawSyscall = RawSyscall6 = go$pkg.Syscall = go$pkg.Syscall6 = go$pkg.RawSyscall = go$pkg.RawSyscall6 = function() { throw e; };
-				}
-				BytePtrFromString = go$pkg.BytePtrFromString = function(s) { return [go$stringToBytes(s, true), null]; };
-
-				var envkeys = Object.keys(process.env);
-				envs = new (go$sliceType(Go$String))(new Array(envkeys.length));
-				var i;
-				for(i = 0; i < envkeys.length; i++) {
-					envs.array[i] = envkeys[i] + "=" + process.env[envkeys[i]];
-				}
-			}
-			go$pkg.init = function() {
+	go$pkg.init = function() {
+		DummyError.methods = [["Error", "", [], [Go$String], false, -1]];
+		(go$ptrType(DummyError)).methods = [["Error", "", [], [Go$String], false, -1]];
+		DummyError.init([]);
 		(go$ptrType(DLLError)).methods = [["Error", "", [], [Go$String], false, -1]];
 		DLLError.init([["Err", "Err", "", go$error, ""], ["ObjName", "ObjName", "", Go$String, ""], ["Msg", "Msg", "", Go$String, ""]]);
 		(go$ptrType(DLL)).methods = [["FindProc", "", [Go$String], [(go$ptrType(Proc)), go$error], false, -1], ["MustFindProc", "", [Go$String], [(go$ptrType(Proc))], false, -1], ["Release", "", [], [go$error], false, -1]];
@@ -8156,13 +8079,11 @@ go$packages["syscall"] = (function() {
 		Win32FileAttributeData.init([["FileAttributes", "FileAttributes", "", Go$Uint32, ""], ["CreationTime", "CreationTime", "", Filetime, ""], ["LastAccessTime", "LastAccessTime", "", Filetime, ""], ["LastWriteTime", "LastWriteTime", "", Filetime, ""], ["FileSizeHigh", "FileSizeHigh", "", Go$Uint32, ""], ["FileSizeLow", "FileSizeLow", "", Go$Uint32, ""]]);
 		Systemtime.init([["Year", "Year", "", Go$Uint16, ""], ["Month", "Month", "", Go$Uint16, ""], ["DayOfWeek", "DayOfWeek", "", Go$Uint16, ""], ["Day", "Day", "", Go$Uint16, ""], ["Hour", "Hour", "", Go$Uint16, ""], ["Minute", "Minute", "", Go$Uint16, ""], ["Second", "Second", "", Go$Uint16, ""], ["Milliseconds", "Milliseconds", "", Go$Uint16, ""]]);
 		Timezoneinformation.init([["Bias", "Bias", "", Go$Int32, ""], ["StandardName", "StandardName", "", (go$arrayType(Go$Uint16, 32)), ""], ["StandardDate", "StandardDate", "", Systemtime, ""], ["StandardBias", "StandardBias", "", Go$Int32, ""], ["DaylightName", "DaylightName", "", (go$arrayType(Go$Uint16, 32)), ""], ["DaylightDate", "DaylightDate", "", Systemtime, ""], ["DaylightBias", "DaylightBias", "", Go$Int32, ""]]);
-		modkernel32 = NewLazyDLL("kernel32.dll");
-		procSetHandleInformation = modkernel32.NewProc("SetHandleInformation");
-		procGetStdHandle = modkernel32.NewProc("GetStdHandle");
 		go$pkg.Stdin = getStdHandle(-10);
 		go$pkg.Stdout = getStdHandle(-11);
 		go$pkg.Stderr = getStdHandle(-12);
 		errors = go$toNativeArray("String", ["argument list too long", "permission denied", "address already in use", "cannot assign requested address", "advertise error", "address family not supported by protocol", "resource temporarily unavailable", "operation already in progress", "invalid exchange", "bad file descriptor", "file descriptor in bad state", "bad message", "invalid request descriptor", "invalid request code", "invalid slot", "bad font file format", "device or resource busy", "operation canceled", "no child processes", "channel number out of range", "communication error on send", "software caused connection abort", "connection refused", "connection reset by peer", "resource deadlock avoided", "resource deadlock avoided", "destination address required", "numerical argument out of domain", "RFS specific error", "disk quota exceeded", "file exists", "bad address", "file too large", "host is down", "no route to host", "identifier removed", "invalid or incomplete multibyte or wide character", "operation now in progress", "interrupted system call", "invalid argument", "input/output error", "transport endpoint is already connected", "is a directory", "is a named type file", "key has expired", "key was rejected by service", "key has been revoked", "level 2 halted", "level 2 not synchronized", "level 3 halted", "level 3 reset", "can not access a needed shared library", "accessing a corrupted shared library", "cannot exec a shared library directly", "attempting to link in too many shared libraries", ".lib section in a.out corrupted", "link number out of range", "too many levels of symbolic links", "wrong medium type", "too many open files", "too many links", "message too long", "multihop attempted", "file name too long", "no XENIX semaphores available", "network is down", "network dropped connection on reset", "network is unreachable", "too many open files in system", "no anode", "no buffer space available", "no CSI structure available", "no data available", "no such device", "exec format error", "required key not available", "no locks available", "link has been severed", "no medium found", "cannot allocate memory", "no message of desired type", "machine is not on the network", "package not installed", "protocol not available", "no space left on device", "out of streams resources", "device not a stream", "function not implemented", "block device required", "transport endpoint is not connected", "directory not empty", "not a XENIX named type file", "state not recoverable", "socket operation on non-socket", "operation not supported", "inappropriate ioctl for device", "name not unique on network", "no such device or address", "operation not supported", "value too large for defined data type", "owner died", "operation not permitted", "protocol family not supported", "broken pipe", "protocol error", "protocol not supported", "protocol wrong type for socket", "numerical result out of range", "remote address changed", "object is remote", "remote I/O error", "interrupted system call should be restarted", "read-only file system", "cannot send after transport endpoint shutdown", "socket type not supported", "illegal seek", "no such process", "srmount error", "stale NFS file handle", "streams pipe error", "timer expired", "connection timed out", "too many references: cannot splice", "text file busy", "structure needs cleaning", "protocol driver not attached", "too many users", "resource temporarily unavailable", "invalid cross-device link", "exchange full", "not supported by windows"]);
+		modkernel32 = NewLazyDLL("kernel32.dll");
 		modadvapi32 = NewLazyDLL("advapi32.dll");
 		modshell32 = NewLazyDLL("shell32.dll");
 		modmswsock = NewLazyDLL("mswsock.dll");
@@ -8185,6 +8106,7 @@ go$packages["syscall"] = (function() {
 		procWriteFile = modkernel32.NewProc("WriteFile");
 		procSetFilePointer = modkernel32.NewProc("SetFilePointer");
 		procCloseHandle = modkernel32.NewProc("CloseHandle");
+		procGetStdHandle = modkernel32.NewProc("GetStdHandle");
 		procFindFirstFileW = modkernel32.NewProc("FindFirstFileW");
 		procFindNextFileW = modkernel32.NewProc("FindNextFileW");
 		procFindClose = modkernel32.NewProc("FindClose");
@@ -8230,6 +8152,7 @@ go$packages["syscall"] = (function() {
 		procGetCommandLineW = modkernel32.NewProc("GetCommandLineW");
 		procCommandLineToArgvW = modshell32.NewProc("CommandLineToArgvW");
 		procLocalFree = modkernel32.NewProc("LocalFree");
+		procSetHandleInformation = modkernel32.NewProc("SetHandleInformation");
 		procFlushFileBuffers = modkernel32.NewProc("FlushFileBuffers");
 		procGetFullPathNameW = modkernel32.NewProc("GetFullPathNameW");
 		procGetLongPathNameW = modkernel32.NewProc("GetLongPathNameW");
@@ -20021,8 +19944,8 @@ go$packages["github.com/gopherjs/todomvc/utils"] = (function() {
 	};
 	Router.prototype.Init = function(path) { return this.go$val.Init(path); };
 	go$pkg.init = function() {
-		Router.methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [js.Object], false, 0], ["Index", "", [Go$Int], [js.Object], false, 0], ["Init", "", [Go$String], [], false, -1], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["On", "", [Go$String, (go$funcType([Go$String], [], false))], [], false, -1], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0]];
-		(go$ptrType(Router)).methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [js.Object], false, 0], ["Index", "", [Go$Int], [js.Object], false, 0], ["Init", "", [Go$String], [], false, -1], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["On", "", [Go$String, (go$funcType([Go$String], [], false))], [], false, -1], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0]];
+		Router.methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [js.Object], false, 0], ["Index", "", [Go$Int], [js.Object], false, 0], ["Init", "", [Go$String], [], false, -1], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["On", "", [Go$String, (go$funcType([Go$String], [], false))], [], false, -1], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0], ["Unsafe", "", [], [Go$Uintptr], false, 0]];
+		(go$ptrType(Router)).methods = [["Bool", "", [], [Go$Bool], false, 0], ["Call", "", [Go$String, (go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["Float", "", [], [Go$Float64], false, 0], ["Get", "", [Go$String], [js.Object], false, 0], ["Index", "", [Go$Int], [js.Object], false, 0], ["Init", "", [Go$String], [], false, -1], ["Int", "", [], [Go$Int], false, 0], ["Int64", "", [], [Go$Int64], false, 0], ["Interface", "", [], [go$emptyInterface], false, 0], ["Invoke", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["IsNull", "", [], [Go$Bool], false, 0], ["IsUndefined", "", [], [Go$Bool], false, 0], ["Length", "", [], [Go$Int], false, 0], ["New", "", [(go$sliceType(go$emptyInterface))], [js.Object], true, 0], ["On", "", [Go$String, (go$funcType([Go$String], [], false))], [], false, -1], ["Set", "", [Go$String, go$emptyInterface], [], false, 0], ["SetIndex", "", [Go$Int, go$emptyInterface], [], false, 0], ["Str", "", [], [Go$String], false, 0], ["Uint64", "", [], [Go$Uint64], false, 0], ["Unsafe", "", [], [Go$Uintptr], false, 0]];
 		Router.init([["Object", "", "", js.Object, ""]]);
 	}
 	return go$pkg;
@@ -27199,7 +27122,7 @@ go$packages["main"] = (function() {
 	}
 	return go$pkg;
 })();
-go$error.implementedBy = [go$packages["encoding/base64"].CorruptInputError, go$packages["encoding/json"].InvalidUnmarshalError.Ptr, go$packages["encoding/json"].MarshalerError.Ptr, go$packages["encoding/json"].SyntaxError.Ptr, go$packages["encoding/json"].UnmarshalTypeError.Ptr, go$packages["encoding/json"].UnsupportedTypeError.Ptr, go$packages["encoding/json"].UnsupportedValueError.Ptr, go$packages["errors"].errorString.Ptr, go$packages["github.com/gopherjs/gopherjs/js"].Error.Ptr, go$packages["html/template"].Error.Ptr, go$packages["os"].PathError.Ptr, go$packages["os"].SyscallError.Ptr, go$packages["reflect"].ValueError.Ptr, go$packages["runtime"].TypeAssertionError.Ptr, go$packages["runtime"].errorString, go$packages["strconv"].NumError.Ptr, go$packages["syscall"].DLLError.Ptr, go$packages["syscall"].Errno, go$packages["time"].ParseError.Ptr, go$ptrType(go$packages["encoding/base64"].CorruptInputError), go$ptrType(go$packages["runtime"].errorString), go$ptrType(go$packages["syscall"].Errno)];
+go$error.implementedBy = [go$packages["encoding/base64"].CorruptInputError, go$packages["encoding/json"].InvalidUnmarshalError.Ptr, go$packages["encoding/json"].MarshalerError.Ptr, go$packages["encoding/json"].SyntaxError.Ptr, go$packages["encoding/json"].UnmarshalTypeError.Ptr, go$packages["encoding/json"].UnsupportedTypeError.Ptr, go$packages["encoding/json"].UnsupportedValueError.Ptr, go$packages["errors"].errorString.Ptr, go$packages["github.com/gopherjs/gopherjs/js"].Error.Ptr, go$packages["html/template"].Error.Ptr, go$packages["os"].PathError.Ptr, go$packages["os"].SyscallError.Ptr, go$packages["reflect"].ValueError.Ptr, go$packages["runtime"].TypeAssertionError.Ptr, go$packages["runtime"].errorString, go$packages["strconv"].NumError.Ptr, go$packages["syscall"].DLLError.Ptr, go$packages["syscall"].DummyError, go$packages["syscall"].DummyError.Ptr, go$packages["syscall"].Errno, go$packages["time"].ParseError.Ptr, go$ptrType(go$packages["encoding/base64"].CorruptInputError), go$ptrType(go$packages["runtime"].errorString), go$ptrType(go$packages["syscall"].Errno)];
 go$packages["runtime"].Error.implementedBy = [go$packages["runtime"].TypeAssertionError.Ptr, go$packages["runtime"].errorString, go$ptrType(go$packages["runtime"].errorString)];
 go$packages["sync"].Locker.implementedBy = [go$packages["os"].fileStat.Ptr, go$packages["sync"].Mutex.Ptr, go$packages["sync"].RWMutex.Ptr, go$packages["sync"].rlocker.Ptr];
 go$packages["io"].Reader.implementedBy = [go$packages["bytes"].Buffer.Ptr, go$packages["encoding/json"].encodeState.Ptr, go$packages["fmt"].ss.Ptr, go$packages["os"].File.Ptr, go$ptrType(go$packages["fmt"].stringReader)];
