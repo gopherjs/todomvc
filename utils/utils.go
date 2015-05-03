@@ -76,7 +76,7 @@ type Router struct {
 }
 
 func NewRouter() Router {
-	return Router{Object: js.Global.Get("Router").New()}
+	return Router{Object: *js.Global.Get("Router").New()}
 }
 func (r Router) On(path string, handler func(string)) {
 	r.Call("on", path, handler)
