@@ -11,13 +11,9 @@ Testcase, Showcase, Learning Vehicle, Proof of Concept for GopherJS and the jQue
 ### Install 
 
     $ go get github.com/gopherjs/todomvc 
+	$ gopherjs serve
 
-If you want to compile it yourself:
-
-	$ gopherjs build app.go
-
-   
-Now open app.html in your src directory
+Now open http://localhost:8080/github.com/gopherjs/todomvc/ in your favorite browser
 
 ### Links
 

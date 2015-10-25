@@ -1,3 +1,4 @@
+// +build js
 package utils
 
 import (
@@ -49,39 +50,18 @@ func Uuid() (uuid string) {
 	return
 }
 
-/*
-func Uuid() string {
-	uuid := ""
-	for i := 0; i < 32; i++ {
-		rand := int(js.Global.Get("Math").Call("random").Float()*16) | 0
-		switch i {
-		case 8, 12, 16, 20:
-			uuid += "-"
-		}
-		switch i {
-		case 12:
-			uuid += "4"
-		case 16:
-			uuid += js.Global.Get("Number").New(rand&3|8).Call("toString", 16).Str()
-		default:
-			uuid += js.Global.Get("Number").New(rand).Call("toString", 16).Str()
-		}
-	}
-	return uuid
-}*/
-
 //router (Director.js)
 type Router struct {
-	js.Object
+	*js.Object
 }
 
-func NewRouter() Router {
-	return Router{Object: *js.Global.Get("Router").New()}
+func NewRouter() *Router {
+	return &Router{js.Global.Get("Router").New()}
 }
-func (r Router) On(path string, handler func(string)) {
+func (r *Router) On(path string, handler func(string)) {
 	r.Call("on", path, handler)
 }
 
-func (r Router) Init(path string) {
+func (r *Router) Init(path string) {
 	r.Call("init", path)
 }
