@@ -17,7 +17,7 @@ Now open [http://localhost:8080/github.com/gopherjs/todomvc](http://localhost:80
 
 ### Links
 
-- Original TodoMVC jQuery Example (http://todomvc.com/architecture-examples/jquery)
+- Original TodoMVC jQuery Example (http://todomvc.com/examples/jquery)
 - GopherJS (https://github.com/gopherjs/gopherjs)
 
 
